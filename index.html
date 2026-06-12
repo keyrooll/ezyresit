@@ -265,7 +265,7 @@
   .nav-btn.active { color: var(--green); }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
   window.addEventListener('load', () => {
     // Wait for GIS to load then try auto-login
@@ -273,122 +273,6 @@
       if (typeof google !== 'undefined') tryAutoLogin();
     }, 1500);
   });
-</script>
-<script>
-// Lightweight Chart.js replacement using Canvas API
-class Chart {
-  constructor(ctx, config) {
-    this.ctx = ctx;
-    this.config = config;
-    this.canvas = ctx.canvas;
-    this._draw();
-  }
-  destroy() { this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); }
-  _draw() {
-    const { type, data, options } = this.config;
-    const ctx = this.ctx;
-    const W = this.canvas.width = this.canvas.offsetWidth || 300;
-    const H = this.canvas.height = this.canvas.offsetHeight || 200;
-    ctx.clearRect(0, 0, W, H);
-    if (!data || !data.datasets || !data.datasets[0]) return;
-    const ds = data.datasets[0];
-    const labels = data.labels || [];
-    const values = ds.data || [];
-    if (type === 'line') this._drawLine(ctx, W, H, labels, values, ds);
-    else if (type === 'bar') this._drawBar(ctx, W, H, labels, values, ds);
-    else if (type === 'doughnut') this._drawDoughnut(ctx, W, H, labels, values, ds);
-  }
-  _drawLine(ctx, W, H, labels, values, ds) {
-    if (!values.length) return;
-    const pad = {t:20,r:20,b:40,l:60};
-    const max = Math.max(...values, 1);
-    const pw = W - pad.l - pad.r;
-    const ph = H - pad.t - pad.b;
-    ctx.strokeStyle = ds.borderColor || '#1a7a4a';
-    ctx.lineWidth = 2.5;
-    ctx.fillStyle = ds.backgroundColor || 'rgba(26,122,74,0.1)';
-    const pts = values.map((v,i) => [pad.l + i/(values.length-1||1)*pw, pad.t + ph - (v/max)*ph]);
-    // Fill
-    ctx.beginPath(); ctx.moveTo(pts[0][0], pad.t+ph);
-    pts.forEach(p => ctx.lineTo(p[0], p[1]));
-    ctx.lineTo(pts[pts.length-1][0], pad.t+ph); ctx.closePath(); ctx.fill();
-    // Line
-    ctx.beginPath(); pts.forEach((p,i) => i===0?ctx.moveTo(p[0],p[1]):ctx.lineTo(p[0],p[1])); ctx.stroke();
-    // Points
-    pts.forEach(p => { ctx.beginPath(); ctx.arc(p[0],p[1],4,0,Math.PI*2); ctx.fillStyle=ds.borderColor||'#1a7a4a'; ctx.fill(); });
-    // Labels
-    ctx.fillStyle = '#6b7280'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
-    labels.forEach((l,i) => { if(i%(Math.ceil(labels.length/6))===0) ctx.fillText(l, pts[i]?pts[i][0]:0, H-10); });
-    // Y axis
-    ctx.textAlign = 'right';
-    [0,0.25,0.5,0.75,1].forEach(f => {
-      const y = pad.t + ph - f*ph;
-      const v = (f*max);
-      ctx.fillStyle='#6b7280'; ctx.font='9px sans-serif';
-      ctx.fillText('RM'+(v>=1000?(v/1000).toFixed(1)+'k':v.toFixed(0)), pad.l-5, y+4);
-      ctx.strokeStyle='#f3f4f6'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
-    });
-  }
-  _drawBar(ctx, W, H, labels, values, ds) {
-    if (!values.length) return;
-    const pad = {t:30,r:20,b:50,l:60};
-    const max = Math.max(...values, 1);
-    const pw = W - pad.l - pad.r;
-    const ph = H - pad.t - pad.b;
-    const bw = Math.min(pw/values.length*0.7, 40);
-    const gap = pw/values.length;
-    const colors = Array.isArray(ds.backgroundColor) ? ds.backgroundColor : Array(values.length).fill(ds.backgroundColor||'#1a7a4a');
-    values.forEach((v,i) => {
-      const x = pad.l + i*gap + gap/2 - bw/2;
-      const bh = (v/max)*ph;
-      const y = pad.t + ph - bh;
-      ctx.fillStyle = colors[i]||'#1a7a4a';
-      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x,y,bw,bh,4) : ctx.rect(x,y,bw,bh); ctx.fill();
-      // Value on top
-      ctx.fillStyle='#374151'; ctx.font='bold 9px sans-serif'; ctx.textAlign='center';
-      const vStr = v>=1000?'RM'+(v/1000).toFixed(1)+'k':'RM'+v.toFixed(0);
-      ctx.fillText(vStr, x+bw/2, y-5);
-      // Label
-      ctx.fillStyle='#6b7280'; ctx.font='9px sans-serif';
-      const lbl = labels[i]||'';
-      ctx.fillText(lbl.length>8?lbl.substring(0,8)+'..':lbl, x+bw/2, H-10);
-    });
-    // Y gridlines
-    ctx.textAlign='right';
-    [0,0.5,1].forEach(f => {
-      const y = pad.t+ph-f*ph; const v=f*max;
-      ctx.strokeStyle='#f3f4f6'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
-      ctx.fillStyle='#9ca3af'; ctx.font='9px sans-serif';
-      ctx.fillText('RM'+(v>=1000?(v/1000).toFixed(1)+'k':v.toFixed(0)), pad.l-5, y+4);
-    });
-  }
-  _drawDoughnut(ctx, W, H, labels, values, ds) {
-    if (!values.length) return;
-    const total = values.reduce((s,v)=>s+v,0)||1;
-    const cx = W*0.38, cy = H/2, r = Math.min(W*0.35,H*0.42);
-    const colors = ds.backgroundColor || ['#1a7a4a','#2d9e62','#f59e0b','#3b82f6','#8b5cf6','#ef4444','#ec4899','#14b8a6'];
-    let angle = -Math.PI/2;
-    values.forEach((v,i) => {
-      const slice = (v/total)*Math.PI*2;
-      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,angle,angle+slice); ctx.closePath();
-      ctx.fillStyle = colors[i%colors.length]; ctx.fill();
-      ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.stroke();
-      angle += slice;
-    });
-    // Inner circle (doughnut hole)
-    ctx.beginPath(); ctx.arc(cx,cy,r*0.55,0,Math.PI*2); ctx.fillStyle='#f9fafb'; ctx.fill();
-    // Legend
-    const lx = W*0.72, ly = H/2 - (labels.length*16)/2;
-    labels.forEach((l,i) => {
-      const pct = ((values[i]/total)*100).toFixed(1)+'%';
-      ctx.fillStyle = colors[i%colors.length];
-      ctx.fillRect(lx, ly+i*18, 10, 10);
-      ctx.fillStyle='#374151'; ctx.font='10px sans-serif'; ctx.textAlign='left';
-      const txt = (l.length>10?l.substring(0,10)+'..':l)+' '+pct;
-      ctx.fillText(txt, lx+14, ly+i*18+9);
-    });
-  }
-}
 </script>
 </head>
 <body>
@@ -447,16 +331,6 @@ class Chart {
     <div style="display:flex;align-items:center;gap:8px;margin-top:20px;cursor:pointer;" onclick="toggleKekalLogin()">
       <div id="kekal-checkbox" style="width:20px;height:20px;border:2px solid #d1d5db;border-radius:5px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;"></div>
       <span style="font-size:14px;color:#6b7280;">Kekal Log Masuk</span>
-    </div>
-
-    <!-- DEMO MODE - for local testing only -->
-    <div style="margin-top:32px;padding-top:24px;border-top:1px solid #e5e7eb;width:100%;max-width:320px;">
-      <div style="font-size:11px;color:#9ca3af;text-align:center;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">Demo Mode (Test Sahaja)</div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <button onclick="demoLogin('admin')" style="padding:10px;background:#1a7a4a;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">👑 Login sebagai Admin</button>
-        <button onclick="demoLogin('accountant')" style="padding:10px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">📊 Login sebagai Accountant</button>
-        <button onclick="demoLogin('staff')" style="padding:10px;background:#6b7280;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">👤 Login sebagai Staff</button>
-      </div>
     </div>
   </div>
 </div>
@@ -800,19 +674,6 @@ let ALLOWED_STAFF = JSON.parse(localStorage.getItem('ezy_staff') || '[]');
 let currentUser = null;
 let kekalLogin = localStorage.getItem('ezy_kekal') === 'true';
 
-function demoLogin(role) {
-  const users = {
-    admin: { name: 'Keyrol Admin', email: 'keyrooll@gmail.com', picture: 'https://ui-avatars.com/api/?name=Keyrol&background=1a7a4a&color=fff' },
-    accountant: { name: 'Marzuwita', email: 'marzuwita@gmail.com', picture: 'https://ui-avatars.com/api/?name=Marzuwita&background=2563eb&color=fff' },
-    staff: { name: 'Staff Demo', email: 'demo.staff@gmail.com', picture: 'https://ui-avatars.com/api/?name=Staff&background=6b7280&color=fff' },
-  };
-  // Add demo staff to allowed list temporarily
-  if (role === 'staff' && !ALLOWED_STAFF.includes('demo.staff@gmail.com')) {
-    ALLOWED_STAFF.push('demo.staff@gmail.com');
-  }
-  handleLogin(users[role]);
-}
-
 function toggleKekalLogin() {
   kekalLogin = !kekalLogin;
   localStorage.setItem('ezy_kekal', kekalLogin);
@@ -959,10 +820,6 @@ function handleLogin(user) {
     renderAdminDashboard();
   } else if (isAccountant) {
     document.getElementById('accountant-tab-nav').style.display = 'block';
-    // Activate first tab
-    document.querySelectorAll('.acc-tab-btn').forEach((b,i) => {
-      if(i===0){b.style.color='#1a7a4a';b.style.borderBottom='2px solid #1a7a4a';b.style.fontWeight='700';}
-    });
     document.getElementById('accountant-dashboard-screen').style.display = 'block';
     renderAccountantDashboard();
   } else {
@@ -1002,19 +859,14 @@ function showStaffTab(tab, btn) {
 
 
 function showAccTab2(tab, btn) {
-  document.querySelectorAll('.acc-tab-btn').forEach(b => {
-    b.style.color='#6b7280'; b.style.borderBottom='2px solid transparent'; b.style.fontWeight='500';
-  });
+  document.querySelectorAll('.acc-tab-btn').forEach(b => { b.style.color='#6b7280'; b.style.borderBottom='2px solid transparent'; b.style.fontWeight='500'; });
   if (btn) { btn.style.color='#1a7a4a'; btn.style.borderBottom='2px solid #1a7a4a'; btn.style.fontWeight='700'; }
-
-  // Hide all
-  ['accountant-dashboard-screen','accountant-screen','supplier-screen'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.style.display='none';
-  });
-
-  if (tab==='dashboard') { document.getElementById('accountant-dashboard-screen').style.display='block'; renderAccountantDashboard(); }
-  else if (tab==='receipts') { document.getElementById('accountant-screen').style.display='block'; renderReceipts(); }
-  else if (tab==='suppliers') { document.getElementById('supplier-screen').style.display='block'; renderSupplierList(); renderSupplierKPI(); }
+  document.getElementById('accountant-dashboard-screen').style.display = tab==='dashboard'?'block':'none';
+  document.getElementById('accountant-screen').style.display = tab==='receipts'?'block':'none';
+  document.getElementById('supplier-screen').style.display = tab==='suppliers'?'block':'none';
+  if (tab==='dashboard') renderAccountantDashboard();
+  if (tab==='receipts') renderReceipts();
+  if (tab==='suppliers') { renderSupplierList(); renderSupplierKPI(); }
 }
 
 function renderAccountantDashboard() {
@@ -1703,7 +1555,7 @@ function resetAndUpload() {
 function resetForm() {
   selectedFile = null; selectedFileBase64 = null;
   selectedCategory = ''; selectedBranch = ''; selectedVendor = null; aiExtractedData = null;
-  const fi = document.getElementById('file-input-gallery'); if(fi) fi.value = ''; const fc = document.getElementById('file-input-camera'); if(fc) fc.value = '';
+  document.getElementById('file-input').value = '';
   document.getElementById('preview-img').src = '';
   document.getElementById('upload-zone').style.display = 'block';
   document.getElementById('preview-container').style.display = 'none';
@@ -1812,18 +1664,36 @@ function showToast(msg) {
 let adminReceiptTab = 'pending';
 
 function renderAdminDashboard() {
-  // Hide all other screens
-  ['admin-screen','supplier-screen','accountant-screen','upload-screen','success-screen'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.style.display='none';
-  });
   document.getElementById('dashboard-screen').style.display = 'block';
+  document.getElementById('admin-screen').style.display = 'none';
   // Activate dashboard tab
-  document.querySelectorAll('.admin-tab-btn').forEach((b,i) => {
-    if(i===0){b.style.color='#1a7a4a';b.style.borderBottom='2px solid #1a7a4a';b.style.fontWeight='700';}
-    else{b.style.color='#6b7280';b.style.borderBottom='2px solid transparent';b.style.fontWeight='500';}
-  });
-  // Render full dashboard
-  renderDashboard();
+  const tabs = document.querySelectorAll('.admin-tab-btn');
+  if (tabs[0]) { tabs[0].classList.add('active'); tabs[0].style.color='#1a7a4a'; tabs[0].style.borderBottom='2px solid #1a7a4a'; tabs[0].style.fontWeight='700'; }
+  const today = new Date().toISOString().split('T')[0];
+  const pending = receipts.filter(r => r.status === 'Pending').length;
+  const approved = receipts.filter(r => r.status === 'Approved').length;
+  const todayCount = receipts.filter(r => r.date === today).length;
+  const totalAmt = receipts.filter(r => r.status === 'Approved').reduce((s,r) => s + parseFloat(r.amount||0), 0);
+
+  document.getElementById('admin-greeting').textContent = `Selamat datang, Keyrol! Sistem berjalan lancar.`;
+  document.getElementById('admin-summary').innerHTML = `
+    <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);text-align:center;">
+      <div style="font-size:28px;font-weight:700;color:#d97706;">${pending}</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px;">⏳ Pending</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);text-align:center;">
+      <div style="font-size:28px;font-weight:700;color:#1a7a4a;">${approved}</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px;">✅ Approved</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);text-align:center;">
+      <div style="font-size:28px;font-weight:700;color:#1a7a4a;">${todayCount}</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px;">📅 Hari Ini</div>
+    </div>
+    <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,0.06);text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#1a7a4a;">${formatRM(totalAmt)}</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px;">💰 Total Approved</div>
+    </div>`;
+  renderAdminReceipts();
 }
 
 function switchAdminTab(btn, tab) {
@@ -2051,11 +1921,11 @@ function renderDashboard() {
   const suppliers = [...new Set(filtered.map(r => r.vendor).filter(Boolean))].length;
 
   // Pending alert
-  const dpc = document.getElementById('dash-pending-count'); if(dpc) dpc.textContent = `${pending} Resit Pending`;
-  const dpa = document.getElementById('dash-pending-alert'); if(dpa) dpa.style.display = pending > 0 ? 'flex' : 'none';
+  document.getElementById('dash-pending-count').textContent = `${pending} Resit Pending`;
+  document.getElementById('dash-pending-alert').style.display = pending > 0 ? 'flex' : 'none';
 
   // KPI
-  const dashKpi = document.getElementById('dash-kpi'); if(dashKpi) dashKpi.innerHTML = `
+  document.getElementById('dash-kpi').innerHTML = `
     <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.08);display:flex;flex-direction:column;justify-content:space-between;min-height:100px;">
       <div style="font-size:13px;color:#6b7280;font-weight:500;">Total Resit</div>
       <div style="font-size:42px;font-weight:900;color:#1a7a4a;line-height:1;">${filtered.length}</div>
