@@ -265,7 +265,7 @@
   .nav-btn.active { color: var(--green); }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
   window.addEventListener('load', () => {
     // Wait for GIS to load then try auto-login
@@ -2281,5 +2281,92 @@ document.addEventListener('click', (e) => {
   }
 });
 </script>
+<script>
+window.addEventListener('load', function() {
+  if (typeof Chart === 'undefined') {
+    // Fallback Chart implementation
+    window.Chart = class Chart {
+      constructor(ctx, config) {
+        this.ctx = ctx; this.config = config;
+        this.canvas = ctx.canvas; this._draw();
+      }
+      destroy() { try { this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height); } catch(e){} }
+      _draw() {
+        const {type,data,options} = this.config;
+        const ctx = this.ctx;
+        const W = this.canvas.width = this.canvas.offsetWidth||300;
+        const H = this.canvas.height = this.canvas.offsetHeight||200;
+        ctx.clearRect(0,0,W,H);
+        if (!data||!data.datasets||!data.datasets[0]) return;
+        const ds = data.datasets[0], labels = data.labels||[], values = ds.data||[];
+        if (type==='line') this._line(ctx,W,H,labels,values,ds);
+        else if (type==='bar') this._bar(ctx,W,H,labels,values,ds);
+        else if (type==='doughnut') this._donut(ctx,W,H,labels,values,ds);
+      }
+      _line(ctx,W,H,labels,values,ds) {
+        if (!values.length) return;
+        const pad={t:20,r:20,b:35,l:55}, max=Math.max(...values,1);
+        const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+        const pts=values.map((v,i)=>[pad.l+i/(values.length-1||1)*pw, pad.t+ph-(v/max)*ph]);
+        ctx.fillStyle=ds.backgroundColor||'rgba(26,122,74,0.1)';
+        ctx.beginPath(); ctx.moveTo(pts[0][0],pad.t+ph);
+        pts.forEach(p=>ctx.lineTo(p[0],p[1]));
+        ctx.lineTo(pts[pts.length-1][0],pad.t+ph); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle=ds.borderColor||'#1a7a4a'; ctx.lineWidth=2.5;
+        ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.stroke();
+        pts.forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],3,0,Math.PI*2);ctx.fillStyle=ds.borderColor||'#1a7a4a';ctx.fill();});
+        ctx.fillStyle='#6b7280'; ctx.font='9px sans-serif'; ctx.textAlign='center';
+        labels.forEach((l,i)=>{if(pts[i]&&i%(Math.ceil(labels.length/5))===0)ctx.fillText(l,pts[i][0],H-5);});
+        ctx.textAlign='right';
+        [0,0.5,1].forEach(f=>{
+          const y=pad.t+ph-f*ph, v=f*max;
+          ctx.strokeStyle='#f3f4f6'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+          ctx.fillStyle='#9ca3af'; ctx.font='9px sans-serif';
+          ctx.fillText('RM'+(v>=1000?(v/1000).toFixed(1)+'k':v.toFixed(0)),pad.l-3,y+3);
+        });
+      }
+      _bar(ctx,W,H,labels,values,ds) {
+        if (!values.length) return;
+        const pad={t:25,r:10,b:45,l:55}, max=Math.max(...values,1);
+        const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+        const bw=Math.min(pw/values.length*0.6,35), gap=pw/values.length;
+        const colors=Array.isArray(ds.backgroundColor)?ds.backgroundColor:Array(values.length).fill(ds.backgroundColor||'#1a7a4a');
+        values.forEach((v,i)=>{
+          const x=pad.l+i*gap+gap/2-bw/2, bh=(v/max)*ph, y=pad.t+ph-bh;
+          ctx.fillStyle=colors[i%colors.length];
+          ctx.beginPath(); if(ctx.roundRect)ctx.roundRect(x,y,bw,bh,3); else ctx.rect(x,y,bw,bh); ctx.fill();
+          ctx.fillStyle='#374151'; ctx.font='bold 8px sans-serif'; ctx.textAlign='center';
+          ctx.fillText(v>=1000?'RM'+(v/1000).toFixed(1)+'k':'RM'+v.toFixed(0),x+bw/2,y-4);
+          ctx.fillStyle='#6b7280'; ctx.font='8px sans-serif';
+          const l=(labels[i]||''); ctx.fillText(l.length>7?l.substring(0,7)+'..':l,x+bw/2,H-8);
+        });
+      }
+      _donut(ctx,W,H,labels,values,ds) {
+        if (!values.length) return;
+        const total=values.reduce((s,v)=>s+v,0)||1;
+        const cx=W*0.37, cy=H/2, r=Math.min(W*0.33,H*0.4);
+        const colors=ds.backgroundColor||['#1a7a4a','#2d9e62','#f59e0b','#3b82f6','#8b5cf6','#ef4444','#ec4899','#14b8a6'];
+        let angle=-Math.PI/2;
+        values.forEach((v,i)=>{
+          const slice=(v/total)*Math.PI*2;
+          ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,angle,angle+slice); ctx.closePath();
+          ctx.fillStyle=colors[i%colors.length]; ctx.fill();
+          ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+          angle+=slice;
+        });
+        ctx.beginPath(); ctx.arc(cx,cy,r*0.55,0,Math.PI*2); ctx.fillStyle='white'; ctx.fill();
+        const lx=W*0.7, ly=H/2-(labels.length*16)/2;
+        labels.forEach((l,i)=>{
+          ctx.fillStyle=colors[i%colors.length]; ctx.fillRect(lx,ly+i*17,9,9);
+          ctx.fillStyle='#374151'; ctx.font='10px sans-serif'; ctx.textAlign='left';
+          const pct=((values[i]/total)*100).toFixed(0)+'%';
+          ctx.fillText((l.length>9?l.substring(0,9)+'..':l)+' '+pct,lx+13,ly+i*17+8);
+        });
+      }
+    };
+  }
+});
+</script>
+
 </body>
 </html>
