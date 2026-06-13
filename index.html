@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.0.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.1.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -291,32 +291,28 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
               <button class="btn btn-sm btn-secondary" onclick="clearVendor()">Tukar</button>
             </div>
           </div>
+          <!-- AI suggest new supplier banner -->
+          <div id="aiNewSupplierBanner" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+            <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:8px">⚡ Supplier baru dikesan oleh AI</div>
+            <div style="font-size:13px;color:#78350f;margin-bottom:10px">Simpan "<span id="aiNewSupplierName" style="font-weight:600"></span>" sebagai supplier baru?</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary" style="flex:1;padding:8px" onclick="confirmAiNewSupplier()">Ya, Simpan</button>
+              <button class="btn btn-secondary" style="flex:1;padding:8px" onclick="dismissAiNewSupplier()">Skip</button>
+            </div>
+          </div>
           <div id="newVendorForm" style="display:none" class="card mb-12">
-            <div class="card-title mb-12">Supplier Baru</div>
+            <div class="card-title mb-12">Tambah Supplier</div>
             <div class="form-group">
-              <label class="form-label">Nama Supplier</label>
-              <input class="form-input" id="newVendorName" placeholder="Nama supplier">
+              <label class="form-label">Nama Supplier <span style="color:var(--red)">*</span></label>
+              <input class="form-input" id="newVendorName" placeholder="Nama syarikat / kedai">
             </div>
             <div class="form-group">
-              <label class="form-label">Kategori</label>
-              <select class="form-input form-select" id="newVendorCat">
-                <option value="">-- Pilih Kategori --</option>
-                <option value="COGS">COGS</option>
-                <option value="UTILITIES">UTILITIES</option>
-                <option value="RENTAL">RENTAL</option>
-                <option value="RENOVATION">RENOVATION</option>
-                <option value="MARKETING">MARKETING</option>
-                <option value="TRANSPORTATION">TRANSPORTATION</option>
-                <option value="GAS">GAS</option>
-                <option value="MANAGEMENT">MANAGEMENT</option>
-                <option value="OTHERS">OTHERS</option>
-              </select>
+              <label class="form-label" style="color:var(--mid)">Nama PIC <span style="font-size:11px">(pilihan)</span></label>
+              <input class="form-input" id="newVendorPic" placeholder="Nama orang perhubungan">
             </div>
             <div class="form-group">
-              <label class="form-label">Account Code</label>
-              <select class="form-input form-select" id="newVendorAcc">
-                <option value="">-- Pilih Account --</option>
-              </select>
+              <label class="form-label" style="color:var(--mid)">No. Telefon <span style="font-size:11px">(pilihan)</span></label>
+              <input class="form-input" id="newVendorPhone" placeholder="Contoh: 0123456789" type="tel">
             </div>
             <button class="btn btn-primary" onclick="saveNewVendor()">Simpan Supplier</button>
           </div>
@@ -976,10 +972,18 @@ async function analyzeWithAI(){
     // Pre-fill
     if(json.date) document.getElementById('receiptDate').value=json.date;
     if(json.amount) document.getElementById('receiptAmount').value=json.amount;
-    // Pre-select vendor if match
+    // Pre-select vendor if match, else show AI new supplier banner
     if(json.vendor){
-      const s=getSuppliers().find(x=>x.name.toLowerCase()===json.vendor.toLowerCase());
-      if(s) selectVendor(s);
+      const s=getSuppliers().find(x=>x.name.toLowerCase().includes(json.vendor.toLowerCase())||json.vendor.toLowerCase().includes(x.name.toLowerCase()));
+      if(s){
+        selectVendor(s);
+      } else {
+        // Show AI banner for new supplier
+        document.getElementById('aiNewSupplierName').textContent=json.vendor;
+        document.getElementById('aiNewSupplierBanner').style.display='block';
+        document.getElementById('newVendorName').value=json.vendor;
+        renderVendorList('');
+      }
     }
     // Pre-fill items
     if(json.items&&json.items.length){
@@ -1035,14 +1039,31 @@ function toggleNewVendorForm(){
 
 function saveNewVendor(){
   const name=document.getElementById('newVendorName').value.trim();
-  const cat=document.getElementById('newVendorCat').value;
-  const acc=document.getElementById('newVendorAcc').value;
-  if(!name||!cat||!acc){alert('Sila isi semua maklumat supplier.');return;}
-  const s={id:'s'+Date.now(),name,category:cat,account:acc,count:0,addedAt:new Date().toISOString()};
+  if(!name){showToast('Sila masukkan nama supplier');return;}
+  const pic=document.getElementById('newVendorPic').value.trim();
+  const phone=document.getElementById('newVendorPhone').value.trim();
+  const s={id:'s'+Date.now(),name,pic:pic||'',phone:phone||'',category:'OTHERS',account:'101',count:0,addedAt:new Date().toISOString()};
   const suppliers=getSuppliers();suppliers.push(s);setSuppliers(suppliers);
   selectVendor(s);
   document.getElementById('newVendorForm').style.display='none';
   document.getElementById('newVendorName').value='';
+  document.getElementById('newVendorPic').value='';
+  document.getElementById('newVendorPhone').value='';
+  document.getElementById('aiNewSupplierBanner').style.display='none';
+}
+function confirmAiNewSupplier(){
+  // Save with AI-detected name directly
+  const name=document.getElementById('aiNewSupplierName').textContent.trim();
+  if(!name) return;
+  const s={id:'s'+Date.now(),name,pic:'',phone:'',category:'OTHERS',account:'101',count:0,addedAt:new Date().toISOString()};
+  const suppliers=getSuppliers();suppliers.push(s);setSuppliers(suppliers);
+  selectVendor(s);
+  document.getElementById('aiNewSupplierBanner').style.display='none';
+  showToast('Supplier "'+name+'" disimpan ✓');
+}
+function dismissAiNewSupplier(){
+  document.getElementById('aiNewSupplierBanner').style.display='none';
+  renderVendorList('');
 }
 
 function populateAccountSelects(){
