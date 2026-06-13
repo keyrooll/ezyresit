@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.3.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.4.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1187,15 +1187,23 @@ async function submitReceipt(){
 
   // Group by category
   const byCat={};
-  items.forEach(i=>{
-    const cat=i.category||vendor.category||'OTHERS';
-    if(!byCat[cat]) byCat[cat]={items:[],total:0,account:i.account||vendor.account};
+  const validItems=items.filter(i=>i.name||(parseFloat(i.price)>0));
+  validItems.forEach(i=>{
+    const cat=i.category||'OTHERS';
+    if(!byCat[cat]) byCat[cat]={items:[],total:0,account:i.account||'101'};
     byCat[cat].items.push(i);
     byCat[cat].total+=parseFloat(i.price)||0;
   });
+  // If no valid items or total is 0, use receipt amount field
   if(!Object.keys(byCat).length){
     const cat=vendor?vendor.category:'OTHERS';
-    byCat[cat]={items:[],total:amount,account:vendor?vendor.account:'702'};
+    byCat[cat]={items:[],total:amount,account:vendor?vendor.account:'101'};
+  } else {
+    // If items total is 0, spread receipt amount across categories
+    const itemsTotal=Object.values(byCat).reduce((s,d)=>s+d.total,0);
+    if(itemsTotal===0&&amount>0){
+      Object.keys(byCat).forEach(cat=>{ byCat[cat].total=amount/Object.keys(byCat).length; });
+    }
   }
 
   const receipts=getReceipts();
