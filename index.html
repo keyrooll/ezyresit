@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.4.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.6.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -578,6 +578,81 @@ function getSuppliers(){
   return s;
 }
 function setSuppliers(s){lsSet('ezy_suppliers',s)}
+// =====================
+// ITEM REGISTRY
+// =====================
+function getItemRegistry(){return lsGet('ezy_item_registry',{})}
+function setItemRegistry(r){lsSet('ezy_item_registry',r)}
+
+function getOrCreateItemCode(name){
+  const reg=getItemRegistry();
+  const key=name.toLowerCase().trim();
+  // Find existing
+  for(const code in reg){
+    if(reg[code].names.some(n=>n.toLowerCase()===key)) return code;
+  }
+  // Create new code
+  const count=Object.keys(reg).length+1;
+  const code='ITM-'+String(count).padStart(3,'0');
+  reg[code]={names:[name.trim()],createdAt:new Date().toISOString()};
+  setItemRegistry(reg);
+  return code;
+}
+
+function getPriceHistory(itemCode,vendorName){
+  const receipts=getReceipts();
+  const prices=[];
+  receipts.forEach(r=>{
+    if(r.itemDetails){
+      r.itemDetails.forEach(it=>{
+        if(it.code===itemCode&&(!vendorName||r.vendor===vendorName)){
+          prices.push({price:parseFloat(it.price)||0,date:r.date,vendor:r.vendor});
+        }
+      });
+    }
+  });
+  return prices;
+}
+
+function getPriceComparison(itemCode,currentPrice,vendorName){
+  const history=getPriceHistory(itemCode,vendorName);
+  if(!history.length) return null;
+  const avg=history.reduce((s,h)=>s+h.price,0)/history.length;
+  const min=Math.min(...history.map(h=>h.price));
+  const max=Math.max(...history.map(h=>h.price));
+  const diff=((currentPrice-avg)/avg)*100;
+  let status,color,emoji;
+  if(diff>10){status='Tinggi';color='#dc2626';emoji='🔴';}
+  else if(diff<-10){status='Rendah';color='#16a34a';emoji='🟢';}
+  else{status='Normal';color='#d97706';emoji='🟡';}
+  return{avg,min,max,diff,status,color,emoji,count:history.length};
+}
+
+function getSupplierPriceAnalysis(){
+  const receipts=getReceipts();
+  const analysis={};// {itemCode: {itemName, vendors:{vendorName:{prices:[],avg}}}}
+  receipts.forEach(r=>{
+    if(!r.itemDetails) return;
+    r.itemDetails.forEach(it=>{
+      if(!it.code||!it.price||!r.vendor) return;
+      if(!analysis[it.code]) analysis[it.code]={name:it.name,vendors:{}};
+      if(!analysis[it.code].vendors[r.vendor]) analysis[it.code].vendors[r.vendor]={prices:[],total:0,count:0};
+      analysis[it.code].vendors[r.vendor].prices.push(parseFloat(it.price));
+      analysis[it.code].vendors[r.vendor].total+=parseFloat(it.price);
+      analysis[it.code].vendors[r.vendor].count++;
+    });
+  });
+  // Compute averages
+  Object.values(analysis).forEach(item=>{
+    Object.values(item.vendors).forEach(v=>{
+      v.avg=v.total/v.count;
+      v.min=Math.min(...v.prices);
+      v.max=Math.max(...v.prices);
+    });
+  });
+  return analysis;
+}
+
 function getStaffProfiles(){return lsGet('ezy_staff_profiles',{})}
 function setStaffProfiles(p){lsSet('ezy_staff_profiles',p)}
 function getRegisteredUsers(){return lsGet('ezy_registered_users',[])}
@@ -1103,7 +1178,7 @@ function populateBranchSelector(){
 function addItemRow(prefill=null){
   const tbody=document.getElementById('itemsBody');
   const idx=wizardItems.length;
-  const item={name:'',price:'',category:prefill?prefill.category||'':'',account:prefill?prefill.account_code||'':''};
+  const item={name:prefill?prefill.name||'':'',price:prefill?(parseFloat(prefill.price)||prefill.price||''):'',category:prefill?prefill.category||'':'',account:prefill?prefill.account_code||'':''};
   wizardItems.push(item);
   const accOpts=ACCOUNT_CODES.map(a=>`<option value="${a.code}" ${item.account==a.code?'selected':''}>${a.code}-${a.name}</option>`).join('');
   const catOpts=CATEGORIES.map(c=>`<option value="${c}" ${item.category==c?'selected':''}>${c}</option>`).join('');
@@ -1163,7 +1238,11 @@ function renderReview(){
     <div class="review-row"><span class="review-label">Akaun</span><span class="review-value">${vendor?vendor.account:'-'}</span></div>
     <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--mid)">ITEM (${items.length})</div>`;
   items.forEach(i=>{
-    html+=`<div class="review-row"><span class="review-label">${i.name||'Item'}</span><span class="review-value">${formatRM(parseFloat(i.price||0))} · ${i.category}</span></div>`;
+    const code=i.name?getOrCreateItemCode(i.name):null;
+    const price=parseFloat(i.price)||0;
+    const cmp=code&&price>0?getPriceComparison(code,price,selectedVendor?selectedVendor.name:null):null;
+    const badge=cmp?`<span style="font-size:10px;padding:2px 6px;border-radius:8px;background:${cmp.color}22;color:${cmp.color};font-weight:600;margin-left:4px">${cmp.emoji} ${cmp.status} (avg ${formatRM(cmp.avg)})</span>`:'';
+    html+=`<div class="review-row"><span class="review-label">${i.name||'Item'}</span><span class="review-value" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end">${formatRM(price)}${badge}</span></div>`;
   });
   document.getElementById('reviewContent').innerHTML=html;
 }
@@ -1210,15 +1289,27 @@ async function submitReceipt(){
   const sheetRows=[];
   Object.entries(byCat).forEach(([cat,data])=>{
     const id='r'+Date.now()+Math.random().toString(36).substr(2,5);
+    // Assign item codes
+    const itemDetails=data.items.map(i=>{
+      const code=getOrCreateItemCode(i.name||'Item');
+      return{code,name:i.name||'Item',price:parseFloat(i.price)||0,category:i.category||cat,account:i.account||data.account};
+    });
     const entry={
       id,date,vendor:vendor?vendor.name:'',amount:data.total,
       items:data.items.map(i=>i.name).join(', ')||'',
+      itemDetails,
       category:cat,account:data.account,branch,
       uploadedBy,uploadedEmail:u.email,uploadedAt:new Date().toISOString(),
       status:'Pending',approvedBy:'',driveLink,filename,nota
     };
     receipts.push(entry);
-    sheetRows.push([date,vendor?vendor.name:'',entry.items,data.total,data.account,cat,branch,uploadedBy,u.email,'Pending','','','']);
+    // Sheet columns: Tarikh,Vendor,Item,ItemCode,Harga,Akaun,Kategori,Cawangan,Staff,Email,Status,ApprovedBy,DriveLink,Nota
+    itemDetails.forEach(it=>{
+      sheetRows.push([date,vendor?vendor.name:'',it.name,it.code,it.price,it.account,it.category,branch,uploadedBy,u.email,'Pending','','',nota||'']);
+    });
+    if(!itemDetails.length){
+      sheetRows.push([date,vendor?vendor.name:'','',''  ,data.total,data.account,cat,branch,uploadedBy,u.email,'Pending','','',nota||'']);
+    }
   });
   setReceipts(receipts);
 
@@ -1312,7 +1403,7 @@ async function appendToSheets(rows){
   const checkData=await check.json();
   const isEmpty=!checkData.values||!checkData.values.length;
   if(isEmpty){
-    const headers=[['Tarikh','Vendor','Item','Jumlah','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
+    const headers=[['Tarikh','Vendor','Item','Item Code','Harga','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A1:M1?valueInputOption=USER_ENTERED`,{
       method:'PUT',
       headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
@@ -1364,8 +1455,10 @@ function renderAccountantDashboard(){
     <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pending.length}</div></div>
     <div class="kpi-card"><div class="kpi-label">Approved</div><div class="kpi-value" style="color:var(--green)">${approved.length}</div></div>
     <div class="kpi-card"><div class="kpi-label">Total Approved</div><div class="kpi-value" style="font-size:16px">${formatRM(totalApproved)}</div></div>
-  </div>`;
+  </div>
+  <div id="itemPriceAnalysis" class="card mb-12" style="margin-top:12px"></div>`;
   el.innerHTML=html;
+  renderItemPriceAnalysis();
 }
 
 // =====================
@@ -1472,6 +1565,48 @@ function rejectReceipt(id){
 }
 
 // =====================
+// ITEM PRICE ANALYSIS
+// =====================
+function renderItemPriceAnalysis(){
+  const el=document.getElementById('itemPriceAnalysis');
+  if(!el) return;
+  const analysis=getSupplierPriceAnalysis();
+  const items=Object.entries(analysis);
+  if(!items.length){el.innerHTML='<div class="card-title">Analisis Harga Item</div><div style="font-size:13px;color:var(--mid);padding:8px 0">Belum ada data item untuk dianalisis.</div>';return;}
+  let html='<div class="card-title mb-12">📊 Analisis Harga Item</div>';
+  html+='<div style="font-size:11px;color:var(--mid);margin-bottom:12px">Perbandingan harga purata setiap item merentasi supplier</div>';
+  items.forEach(([code,item])=>{
+    const vendors=Object.entries(item.vendors).sort((a,b)=>a[1].avg-b[1].avg);
+    if(vendors.length<1) return;
+    const minAvg=vendors[0][1].avg;
+    const maxAvg=vendors[vendors.length-1][1].avg;
+    html+=`<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div><span style="font-size:13px;font-weight:600">${item.name}</span> <span style="font-size:10px;color:var(--mid);background:var(--light);padding:2px 6px;border-radius:8px">${code}</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">`;
+    vendors.forEach(([vendor,data])=>{
+      const isCheapest=data.avg===minAvg&&vendors.length>1;
+      const isPriciest=data.avg===maxAvg&&vendors.length>1;
+      const barPct=maxAvg>0?Math.round((data.avg/maxAvg)*100):100;
+      const barColor=isCheapest?'var(--green)':isPriciest?'var(--red)':'var(--amber)';
+      const badge=isCheapest?'🟢 Termurah':isPriciest?'🔴 Termahal':'🟡 Sederhana';
+      html+=`<div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+          <span style="font-weight:500">${vendor}</span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="font-size:10px">${badge}</span><strong>${formatRM(data.avg)}</strong><span style="color:var(--mid)">(${data.count}x)</span></span>
+        </div>
+        <div style="background:var(--border);border-radius:4px;height:6px">
+          <div style="background:${barColor};width:${barPct}%;height:6px;border-radius:4px;transition:width .3s"></div>
+        </div>
+      </div>`;
+    });
+    html+='</div></div>';
+  });
+  el.innerHTML=html;
+}
+
+// =====================
 // ADMIN DASHBOARD
 // =====================
 function renderAdminDashboard(){
@@ -1494,6 +1629,7 @@ function renderAdminDashboard(){
     <div class="chart-wrap"><div class="chart-title">Perbelanjaan Cawangan</div><canvas id="chartBar" height="200"></canvas></div>
     <div class="card mb-12" id="topSuppliers"></div>
     <div class="card mb-12" id="staffActivity"></div>
+    <div class="card mb-12" id="itemPriceAnalysis"></div>
     <div class="card"><div class="card-title mb-12">10 Transaksi Terbaru</div><div class="table-wrap" id="latestTxTable"></div></div>
   `;
   setPeriod('Bulan',document.getElementById('period-Bulan'));
@@ -1515,6 +1651,7 @@ function setPeriod(period, btn){
   updateTopSuppliers(receipts);
   updateStaffActivity(receipts);
   updateLatestTx(allReceipts.slice(-10).reverse());
+  renderItemPriceAnalysis();
 }
 
 function updateAdminKpi(receipts){
