@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.1 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1916,6 +1916,58 @@ function approveReceipt(id){
   setReceipts(receipts);
   syncReceiptStatusToSheet(r,'Approved');
   renderResitContent(activeResitTab);
+  showApprovalWaPrompt(r);
+}
+
+function showApprovalWaPrompt(r){
+  // Build WA notification for the uploader (staff)
+  const profiles=getStaffProfiles();
+  const uploaderProfile=profiles[r.uploadedEmail]||{};
+  const uploaderName=uploaderProfile.fullname||r.uploadedBy||r.uploadedEmail||'Staff';
+  const staffWa=(uploaderProfile.waNum||'').replace(/\D/g,'');
+
+  // Build message
+  const dateStr=r.date||'-';
+  const vendor=r.vendor||'-';
+  const amount=formatRM(parseFloat(r.amount||0));
+  const approver=getUserProfile(currentUser.email).fullname||currentUser.name||currentUser.email;
+  const msg=`✅ *Resit Diluluskan*\n\nKepada: *${uploaderName}*\n\nResit anda telah diluluskan:\n📅 Tarikh: ${dateStr}\n🏪 Vendor: ${vendor}\n💰 Jumlah: *${amount}*\n\nDiluluskan oleh: ${approver}\n_EzyDurian Receipt System_`;
+
+  let bodyHtml=`
+  <div style="background:var(--surface2);border-radius:10px;padding:14px;font-size:12px;line-height:1.8;margin-bottom:16px;font-family:monospace;white-space:pre-wrap">${msg.replace(/\*/g,'<b>').replace(/\*/g,'</b>')}</div>`;
+
+  // Check if we have staff WA number
+  if(staffWa){
+    bodyHtml+=`
+    <div style="font-size:12px;color:var(--mid);margin-bottom:8px">Hantar ke: <b>${uploaderName}</b> (${staffWa})</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="hideModal();window.open('https://wa.me/${staffWa}?text='+encodeURIComponent(\`${msg.replace(/`/g,"'")}\`),'_blank')">📱 Ya, Hantar WA</button>
+      <button class="btn btn-outline" style="flex:1" onclick="hideModal()">Tidak</button>
+    </div>`;
+  } else {
+    bodyHtml+=`
+    <div style="font-size:12px;color:var(--mid);margin-bottom:8px">Tiada no. WA untuk <b>${uploaderName}</b></div>
+    <div class="form-group">
+      <label class="form-label">No. WhatsApp Staff (optional)</label>
+      <input type="tel" id="staffWaInput" class="form-input" placeholder="60123456789">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="
+        const num=document.getElementById('staffWaInput').value.replace(/\D/g,'');
+        if(num){
+          const ps=getStaffProfiles();
+          if(!ps['${r.uploadedEmail}']) ps['${r.uploadedEmail}']={};
+          ps['${r.uploadedEmail}'].waNum=num;
+          lsSet('staffProfiles',ps);
+          hideModal();
+          window.open('https://wa.me/'+num+'?text='+encodeURIComponent(\`${msg.replace(/`/g,"'")}\`),'_blank');
+        } else { hideModal(); }
+      ">📱 Hantar WA</button>
+      <button class="btn btn-outline" style="flex:1" onclick="hideModal()">Skip</button>
+    </div>`;
+  }
+
+  showModal('Resit Diluluskan ✅', bodyHtml);
 }
 
 function rejectReceipt(id){
@@ -2348,6 +2400,30 @@ function pmtConfirmPayment(){
   hideModal();
   showToast(`${plan.length} bayaran direkod ✅`);
   renderPaymentScreen();
+  // WA prompt for each supplier paid
+  const uniqueSuppliers=[...new Set(plan.map(x=>x.supplier||'').filter(Boolean))];
+  if(uniqueSuppliers.length===1){
+    const lastPmt=payments.slice(-1)[0];
+    if(lastPmt) setTimeout(()=>showPaymentWaPrompt(lastPmt),300);
+  } else if(uniqueSuppliers.length>1){
+    // Multiple suppliers - offer bulk WA
+    setTimeout(()=>showBulkPaymentWaPrompt(uniqueSuppliers),300);
+  }
+}
+
+function showBulkPaymentWaPrompt(supplierNames){
+  let html=`<div style="font-size:13px;color:var(--mid);margin-bottom:12px">Hantar notifikasi WA kepada supplier berikut?</div>`;
+  html+=supplierNames.map((name,i)=>{
+    const sup=getSuppliers().find(s=>s.name===name)||{};
+    const phone=sup.waNum||'';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:6px">
+      <div><div style="font-size:13px;font-weight:600">${name}</div>
+      <div style="font-size:11px;color:${phone?'var(--green)':'var(--amber)'}">${phone?'📱 '+phone:'⚠️ Tiada no. WA'}</div></div>
+      ${phone?`<button class="btn btn-sm btn-primary" onclick="window.open('https://wa.me/${phone}?text='+encodeURIComponent(buildSupplierPaymentStatement('${name}').msg),'_blank')">Hantar</button>`:''}
+    </div>`;
+  }).join('');
+  html+=`<button class="btn btn-outline" style="width:100%;margin-top:8px" onclick="hideModal()">Tutup</button>`;
+  showModal('Hantar WA Supplier?', html);
 }
 // ===================== END PAYMENT UPLOAD =====================
 
@@ -2478,13 +2554,48 @@ function savePayment(){
   syncPaymentToSheet(payment);
   hideModal();
   showToast('Bayaran direkod ✅');
-  // Offer WhatsApp
-  if(waNum){
-    if(confirm('Hantar notifikasi WhatsApp kepada supplier?')){
-      sendPaymentWhatsApp(id);
-    }
-  }
   renderPaymentScreen();
+  // Show WA prompt
+  showPaymentWaPrompt(payment);
+}
+
+function showPaymentWaPrompt(payment){
+  const suppliers=getSuppliers();
+  const sup=suppliers.find(s=>s.name===payment.supplier)||{};
+  const phone=(payment.waNum||sup.waNum||'').replace(/\D/g,'');
+  const {msg}=buildSupplierPaymentStatement(payment.supplier);
+
+  let bodyHtml=`
+  <div style="background:var(--surface2);border-radius:10px;padding:14px;font-size:11px;line-height:1.9;margin-bottom:16px;max-height:300px;overflow-y:auto;font-family:monospace;white-space:pre-wrap">${msg.replace(/</g,'&lt;')}</div>`;
+
+  if(phone){
+    bodyHtml+=`
+    <div style="font-size:12px;color:var(--mid);margin-bottom:10px">Hantar statement ke: <b>${payment.supplier}</b><br><span style="color:var(--green)">📱 ${phone}</span></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="hideModal();window.open('https://wa.me/${phone}?text='+encodeURIComponent(buildSupplierPaymentStatement('${payment.supplier}').msg),'_blank')">📱 Ya, Hantar WA</button>
+      <button class="btn btn-outline" style="flex:1" onclick="hideModal()">Tidak</button>
+    </div>`;
+  } else {
+    bodyHtml+=`
+    <div style="font-size:12px;color:var(--mid);margin-bottom:8px">Tiada no. WA untuk <b>${payment.supplier}</b>. Masukkan untuk hantar:</div>
+    <div class="form-group">
+      <input type="tel" id="pmtWaPrompt" class="form-input" placeholder="60123456789">
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-primary" style="flex:1" onclick="
+        const num=document.getElementById('pmtWaPrompt').value.replace(/\D/g,'');
+        if(num){
+          const sups=getSuppliers();const s=sups.find(x=>x.name==='${payment.supplier}');
+          if(s){s.waNum=num;lsSet('suppliers',sups);}
+          hideModal();
+          window.open('https://wa.me/'+num+'?text='+encodeURIComponent(buildSupplierPaymentStatement('${payment.supplier}').msg),'_blank');
+        } else { hideModal(); }
+      ">📱 Simpan & Hantar</button>
+      <button class="btn btn-outline" style="flex:1" onclick="hideModal()">Skip</button>
+    </div>`;
+  }
+
+  showModal('Hantar Notifikasi WA?', bodyHtml);
 }
 
 async function syncPaymentToSheet(p){
@@ -2542,233 +2653,133 @@ function showSupplierPaymentDetail(supplierName){
       <div style="font-weight:700;color:var(--green)">${formatRM(parseFloat(p.amount))}</div>
     </div>`).join('');
 
-  html+=`<div style="margin-top:16px;display:flex;gap:8px">
+  html+=`<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn btn-primary" style="flex:1" onclick="hideModal();showAddPaymentModal()">+ Bayaran Baru</button>
-    ${sup.waNum?`<button class="btn btn-outline" onclick="generateSupplierWaReport('${supplierName}')">📱 Laporan WA</button>`:''}
+    <button class="btn btn-outline" onclick="previewWaStatement('${supplierName}')">📋 Preview</button>
+    <button class="btn btn-outline" style="color:var(--green)" onclick="generateSupplierWaReport('${supplierName}')">📱 WA</button>
   </div>`;
 
   showModal(supplierName, html);
+}
+
+function buildSupplierPaymentStatement(supplierName){
+  const receipts=getReceipts();
+  const payments=lsGetPayments();
+  const suppliers=getSuppliers();
+  const sup=suppliers.find(s=>s.name===supplierName)||{};
+
+  const myReceipts=receipts
+    .filter(r=>r.vendor===supplierName && r.status==='Approved')
+    .sort((a,b)=>a.date.localeCompare(b.date));
+
+  // Build set of paid receipt IDs
+  const paidReceiptIds=new Set();
+  payments.filter(p=>p.supplier===supplierName).forEach(p=>{
+    (p.knockoffReceiptIds||[]).forEach(id=>paidReceiptIds.add(id));
+  });
+  // Manual payments (no knockoffReceiptIds) - knock off oldest first
+  let manualPool=payments
+    .filter(p=>p.supplier===supplierName && (!p.knockoffReceiptIds||!p.knockoffReceiptIds.length))
+    .reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  if(manualPool>0){
+    for(const r of myReceipts){
+      if(paidReceiptIds.has(r.id)) continue;
+      const amt=parseFloat(r.amount||0);
+      if(manualPool>=amt){paidReceiptIds.add(r.id);manualPool-=amt;}
+      else break;
+    }
+  }
+
+  // Group by year+month
+  const monthNames=['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const byMonth={};
+  myReceipts.forEach(r=>{
+    const d=new Date(r.date);
+    const key=d.getFullYear()+'|'+d.getMonth();
+    if(!byMonth[key]) byMonth[key]={year:d.getFullYear(),month:d.getMonth(),name:monthNames[d.getMonth()],receipts:[]};
+    byMonth[key].receipts.push(r);
+  });
+
+  const totalPurchase=myReceipts.reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  const totalPaid=payments.filter(p=>p.supplier===supplierName).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  const balance=totalPurchase-totalPaid;
+
+  // Build header
+  const regNo=sup.regNo?' : '+sup.regNo:'';
+  const bankLine=sup.bankName?'\nBank : '+sup.bankName+(sup.bankAcc?'\nAcc no : '+sup.bankAcc:''):'';
+  let msg='🧾 Details Payment\nAccount : '+supplierName+regNo+bankLine+'\n';
+
+  // Group by year
+  const years=[...new Set(Object.values(byMonth).map(m=>m.year))].sort();
+  years.forEach(year=>{
+    msg+=year+'\n';
+    Object.values(byMonth)
+      .filter(m=>m.year===year)
+      .sort((a,b)=>a.month-b.month)
+      .forEach(m=>{
+        const allPaid=m.receipts.every(r=>paidReceiptIds.has(r.id));
+        if(allPaid){
+          msg+=m.name+'✅\n';
+        } else {
+          msg+=m.name+'\n';
+          m.receipts.forEach(r=>{
+            const d=new Date(r.date);
+            const day=d.getDate();
+            const mn=d.getMonth()+1;
+            const sameDay=m.receipts.filter(x=>new Date(x.date).getDate()===day);
+            const idx2=sameDay.indexOf(r);
+            const label=sameDay.length>1?'BIL '+day+'/'+mn+'('+( idx2+1)+')':'BIL '+day+'/'+mn;
+            const paid=paidReceiptIds.has(r.id);
+            msg+=label+' - '+formatRM(parseFloat(r.amount||0))+(paid?'✅':'')+'\n';
+          });
+        }
+      });
+  });
+
+  msg+='BALANCE : '+formatRM(Math.abs(balance));
+  if(balance<0) msg+=' (LEBIHAN)';
+  return {msg,waNum:sup.waNum,balance,sup};
+}
+
+function previewWaStatement(supplierName){
+  const {msg,balance}=buildSupplierPaymentStatement(supplierName);
+  const lines=msg.split('\n');
+  let bodyHtml='<div style="font-family:monospace;font-size:12px;background:var(--surface2);border-radius:8px;padding:14px;white-space:pre-wrap;line-height:1.9;max-height:380px;overflow-y:auto">';
+  lines.forEach(line=>{
+    let style='';
+    if(line.includes('✅')) style='color:var(--green)';
+    else if(line.startsWith('BALANCE')) style='font-weight:700;color:var(--red)';
+    else if(line.startsWith('🧾')) style='font-weight:700';
+    bodyHtml+='<div style="'+style+'">'+(line||'&nbsp;')+'</div>';
+  });
+  bodyHtml+='</div>';
+  bodyHtml+='<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="generateSupplierWaReport(\'' +supplierName+ '\')">📱 Hantar WhatsApp</button>';
+  showModal('Statement: '+supplierName, bodyHtml);
 }
 
 function sendPaymentWhatsApp(paymentId){
   const payments=lsGetPayments();
   const p=payments.find(x=>x.id===paymentId);
   if(!p) return;
-  const suppliers=getSuppliers();
-  const sup=suppliers.find(s=>s.name===p.supplier)||{};
-  const receipts=getReceipts();
-  const myReceipts=receipts.filter(r=>r.vendor===p.supplier && r.status==='Approved');
-  const myPayments=payments.filter(x=>x.supplier===p.supplier);
-  const totalPurchase=myReceipts.reduce((s,r)=>s+parseFloat(r.amount||0),0);
-  const totalPaid=myPayments.reduce((s,x)=>s+parseFloat(x.amount||0),0);
-  const balance=totalPurchase-totalPaid;
-  const waNum=p.waNum||sup.waNum;
-  if(!waNum){showToast('Tiada no. WhatsApp supplier ⚠️');return;}
-  const msg=`*Notifikasi Bayaran - EzyDurian*
-
-Kepada: *${p.supplier}*
-Tarikh: ${p.date}
-Jumlah Bayaran: *${formatRM(parseFloat(p.amount))}*
-Kaedah: ${p.method}
-Rujukan: ${p.note||'-'}
-
-Ringkasan Akaun:
-Jumlah Beli: ${formatRM(totalPurchase)}
-Jumlah Bayar: ${formatRM(totalPaid)}
-Baki: *${formatRM(Math.abs(balance))}* ${balance>0?'(Hutang)':'(Lebihan)'}
-
-Terima kasih.
-_EzyDurian_`;
-  const url=`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`;
-  window.open(url,'_blank');
+  const {msg,waNum,sup}=buildSupplierPaymentStatement(p.supplier);
+  const phone=p.waNum||waNum;
+  if(!phone){
+    showModal('No. WhatsApp Supplier','<div style="font-size:13px;color:var(--mid);margin-bottom:12px">Tiada no. WA untuk <b>'+p.supplier+'</b>. Masukkan sekarang:</div><input type="tel" id="quickWaNum" class="form-input" placeholder="60123456789" style="margin-bottom:12px"><button class="btn btn-primary" style="width:100%" onclick="const num=document.getElementById(\'quickWaNum\').value.replace(/\\D/g,\'\');if(!num){showToast(\'Masukkan no. WA ⚠️\');return;}const sups=getSuppliers();const s=sups.find(x=>x.name===\''+p.supplier+'\');if(s){s.waNum=num;lsSet(\'suppliers\',sups);}hideModal();window.open(\'https://wa.me/\'+num+\'?text=\'+encodeURIComponent(document.getElementById(\'quickWaNum\').value),\'_blank\');">Hantar</button>');
+    return;
+  }
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(msg),'_blank');
 }
+
 
 function generateSupplierWaReport(supplierName){
-  const suppliers=getSuppliers();
-  const sup=suppliers.find(s=>s.name===supplierName)||{};
-  const receipts=getReceipts();
-  const payments=lsGetPayments();
-  const myReceipts=receipts.filter(r=>r.vendor===supplierName && r.status==='Approved');
-  const myPayments=payments.filter(p=>p.supplier===supplierName);
-  const totalPurchase=myReceipts.reduce((s,r)=>s+parseFloat(r.amount||0),0);
-  const totalPaid=myPayments.reduce((s,p)=>s+parseFloat(p.amount||0),0);
-  const balance=totalPurchase-totalPaid;
-  const waNum=sup.waNum;
-  if(!waNum){showToast('Tiada no. WhatsApp supplier ⚠️');return;}
-  const lastPayment=myPayments.slice(-1)[0];
-  const msg=`*Penyata Akaun - EzyDurian*
-
-Supplier: *${supplierName}*
-Tarikh: ${new Date().toLocaleDateString('en-MY')}
-
-📊 *Ringkasan*
-Jumlah Pembelian: ${formatRM(totalPurchase)}
-Jumlah Bayaran: ${formatRM(totalPaid)}
-Baki ${balance>0?'Hutang':'Lebihan'}: *${formatRM(Math.abs(balance))}*
-${lastPayment?`
-Bayaran Terakhir: ${lastPayment.date} - ${formatRM(parseFloat(lastPayment.amount))} (${lastPayment.method})`:''}  
-
-Sila hubungi kami jika ada pertanyaan.
-_EzyDurian_`;
-  const url=`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`;
-  window.open(url,'_blank');
+  const {msg,waNum}=buildSupplierPaymentStatement(supplierName);
+  if(!waNum){
+    showModal('No. WhatsApp Supplier','<div style="font-size:13px;color:var(--mid);margin-bottom:12px">Tiada no. WA untuk <b>'+supplierName+'</b>.</div><input type="tel" id="quickWaNum2" class="form-input" placeholder="60123456789" style="margin-bottom:12px"><button class="btn btn-primary" style="width:100%" onclick="const num=document.getElementById(\'quickWaNum2\').value.replace(/\\D/g,\'\');if(!num)return;const sups=getSuppliers();const s=sups.find(x=>x.name===\''+supplierName+'\');if(s){s.waNum=num;lsSet(\'suppliers\',sups);}hideModal();generateSupplierWaReport(\''+supplierName+'\');">Simpan & Hantar</button>');
+    return;
+  }
+  window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
 }
 
-function renderStaffScreen(){
-  // Sync staff from Sheet first, then re-render
-  syncAllStaffFromSheet().then(()=>{
-    _renderStaffScreenInner();
-  }).catch(()=>_renderStaffScreenInner());
-}
-function _renderStaffScreenInner(){
-  const el=document.getElementById('staffContent');
-  const profiles=getStaffProfiles();
-  const users=getRegisteredUsers();
-  // KPIs
-  const allStaff=users.filter(u=>getRole(u.email)==='staff');
-  const activeStaff=allStaff.filter(u=>{
-    const receipts=getReceipts();
-    return receipts.some(r=>r.uploadedEmail===u.email);
-  });
-  const mostActive=allStaff.map(u=>({
-    email:u.email,name:u.name,
-    count:getReceipts().filter(r=>r.uploadedEmail===u.email).length
-  })).sort((a,b)=>b.count-a.count)[0];
-
-  let html=`
-    <div class="kpi-grid">
-      <div class="kpi-card"><div class="kpi-label">Total Staff</div><div class="kpi-value">${allStaff.length}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Staff Aktif</div><div class="kpi-value" style="color:var(--green)">${activeStaff.length}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Belum Upload</div><div class="kpi-value" style="color:var(--amber)">${allStaff.length-activeStaff.length}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Paling Aktif</div><div class="kpi-value" style="font-size:13px">${mostActive?mostActive.name||mostActive.email:'-'}</div></div>
-    </div>
-    <div class="section-title">Tambah Staff</div>
-    <div class="card mb-12">
-      <div class="form-group" style="margin-bottom:8px">
-        <input class="form-input" id="newStaffEmail" placeholder="Email Google staff" type="email">
-      </div>
-      <button class="btn btn-primary" onclick="addStaff()">Tambah</button>
-    </div>
-    <div class="section-title">Senarai Staff</div>
-    <div id="staffList"></div>`;
-  el.innerHTML=html;
-  renderStaffList();
-}
-
-function renderStaffList(){
-  const el=document.getElementById('staffList');if(!el) return;
-  const users=getRegisteredUsers();
-  const profiles=getStaffProfiles();
-  const allUsers=[
-    {email:SUPER_ADMIN,name:'Keyrol (Admin)',role:'super_admin',fixed:true},
-    ...ACCOUNTANTS.map(e=>({email:e,name:e,role:'accountant',fixed:true})),
-    ...users.filter(u=>u.email!==SUPER_ADMIN&&!ACCOUNTANTS.includes(u.email))
-  ];
-  if(!allUsers.length){el.innerHTML='<div class="empty-state">Tiada staff</div>';return;}
-  el.innerHTML=allUsers.map(u=>{
-    const role=u.fixed?u.role:(profiles[u.email]?profiles[u.email].role:'staff');
-    const branches=profiles[u.email]?profiles[u.email].branches||[]:BRANCHES;
-    const roleLabel=role==='super_admin'?'Admin':role==='accountant'?'Akaun':'Staff';
-    const roleClass=role==='super_admin'?'role-admin':role==='accountant'?'role-accountant':'role-staff';
-    if(u.fixed){
-      return `<div class="staff-card">
-        <div class="flex justify-between items-center mb-8">
-          <div><div style="font-size:14px;font-weight:600">${u.name}</div><div class="staff-email">${u.email}</div></div>
-          <span class="role-badge ${roleClass} " style="margin-right:8px">${roleLabel}</span>
-          <span class="role-badge" style="background:#f3f4f6;color:var(--mid)">Fixed</span>
-        </div>
-      </div>`;
-    }
-    return `<div class="staff-card" id="staffcard-${u.email.replace('@','_').replace('.','_')}">
-      <div class="flex justify-between items-center mb-8">
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:600">${u.name||u.email}</div>
-          <div class="staff-email">${u.email}</div>
-        </div>
-        <span class="role-badge ${roleClass}">${roleLabel}</span>
-      </div>
-      <div class="flex gap-8 mb-8" style="flex-wrap:wrap">
-        <button class="btn btn-sm ${role==='super_admin'?'btn-primary':'btn-secondary'}" onclick="setStaffRole('${u.email}','super_admin')">Admin</button>
-        <button class="btn btn-sm ${role==='accountant'?'btn-primary':'btn-secondary'}" onclick="setStaffRole('${u.email}','accountant')">Akaun</button>
-        <button class="btn btn-sm ${role==='staff'?'btn-primary':'btn-secondary'}" onclick="setStaffRole('${u.email}','staff')">Staff</button>
-        <button class="btn btn-sm btn-danger" onclick="removeStaff('${u.email}')">Buang</button>
-      </div>
-      <div>
-        <div style="font-size:12px;font-weight:500;color:var(--mid);margin-bottom:6px">Cawangan:</div>
-        <div class="branch-grid">${BRANCHES.map(b=>`
-          <span class="branch-toggle ${branches.includes(b)?'on':''}" onclick="toggleBranch('${u.email}','${b}',this)">${b}</span>`).join('')}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function addStaff(){
-  const email=document.getElementById('newStaffEmail').value.trim().toLowerCase();
-  if(!email||!email.includes('@')){alert('Email tidak sah.');return;}
-  const users=getRegisteredUsers();
-  if(users.find(u=>u.email===email)){alert('Staff sudah wujud.');return;}
-  users.push({email,name:email,picture:'',role:'staff',registeredAt:new Date().toISOString()});
-  setRegisteredUsers(users);
-  const profiles=getStaffProfiles();
-  if(!profiles[email]) profiles[email]={role:'staff',branches:BRANCHES};
-  setStaffProfiles(profiles);
-  document.getElementById('newStaffEmail').value='';
-  renderStaffList();
-}
-
-function setStaffRole(email,role){
-  const profiles=getStaffProfiles();
-  if(!profiles[email]) profiles[email]={role,branches:BRANCHES};
-  else profiles[email].role=role;
-  setStaffProfiles(profiles);
-  renderStaffList();
-}
-
-function toggleBranch(email,branch,el){
-  const profiles=getStaffProfiles();
-  if(!profiles[email]) profiles[email]={role:'staff',branches:BRANCHES};
-  const branches=profiles[email].branches||[];
-  const idx=branches.indexOf(branch);
-  if(idx>-1) branches.splice(idx,1); else branches.push(branch);
-  profiles[email].branches=branches;
-  setStaffProfiles(profiles);
-  el.classList.toggle('on');
-}
-
-function removeStaff(email){
-  if(!confirm(`Buang staff ${email}?`)) return;
-  const users=getRegisteredUsers().filter(u=>u.email!==email);
-  setRegisteredUsers(users);
-  const profiles=getStaffProfiles();
-  delete profiles[email];
-  setStaffProfiles(profiles);
-  renderStaffList();
-}
-
-// =====================
-// SUPPLIER ADMIN
-// =====================
-function renderSupplierAdmin(){
-  const suppliers=getSuppliers().sort((a,b)=>b.count-a.count);
-  const totalSpend=getReceipts().reduce((a,r)=>a+parseFloat(r.amount||0),0);
-  const mostTx=suppliers[0]||{name:'-'};
-  const highest=suppliers.reduce((max,s)=>{
-    const spend=getReceipts().filter(r=>r.vendor===s.name).reduce((a,r)=>a+parseFloat(r.amount||0),0);
-    return spend>(max.spend||0)?{name:s.name,spend}:max;
-  },{});
-  const el=document.getElementById('supplierAdminContent');
-  el.innerHTML=`
-    <div class="kpi-grid">
-      <div class="kpi-card"><div class="kpi-label">Total</div><div class="kpi-value">${suppliers.length}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Aktif</div><div class="kpi-value" style="color:var(--green)">${suppliers.filter(s=>s.count>0).length}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Transaksi Terbanyak</div><div class="kpi-value" style="font-size:13px">${mostTx.name}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Belanja Tertinggi</div><div class="kpi-value" style="font-size:13px">${highest.name||'-'}</div></div>
-    </div>
-    <div class="section-title">Senarai Supplier</div>
-    <div id="supplierAdminList"></div>`;
-  renderSupplierAdminList();
-}
 
 function renderSupplierDebtSummary(){
   const el=document.getElementById('supplierDebtSummary');
@@ -2800,11 +2811,78 @@ function renderSupplierAdminList(){
     <div class="supplier-card">
       <div class="supplier-info">
         <div class="supplier-name">${s.name}</div>
-        <div class="supplier-meta">${CAT_EMOJI[s.category]||''} ${s.category} · Akaun ${s.account}</div>
+        <div class="supplier-meta">${CAT_EMOJI[s.category]||''} ${s.category} · Akaun ${s.account}${s.waNum?' · 📱 '+s.waNum:''}</div>
+        ${s.bankName?`<div style="font-size:10px;color:var(--mid)">${s.bankName} ${s.bankAcc||''}</div>`:''}
       </div>
-      <span class="supplier-count">${s.count}x</span>
-      <button class="btn btn-sm btn-danger" onclick="deleteSupplier('${s.id}')">Buang</button>
+      <div style="display:flex;gap:4px;align-items:center">
+        <span class="supplier-count">${s.count}x</span>
+        <button class="btn btn-sm btn-outline" onclick="showEditSupplierModal('${s.id}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSupplier('${s.id}')">Buang</button>
+      </div>
     </div>`).join('');
+}
+
+function showEditSupplierModal(supplierId){
+  const suppliers=getSuppliers();
+  const s=suppliers.find(x=>x.id===supplierId);
+  if(!s) return;
+  const cats=['Makanan','Minuman','Bukan Makanan','Peralatan','Pembungkusan','Barangan Am'];
+  showModal(`Edit Supplier: ${s.name}`,`
+    <div class="form-group">
+      <label class="form-label">Nama Supplier</label>
+      <input type="text" id="editSupName" class="form-input" value="${s.name||''}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">No. Pendaftaran Syarikat</label>
+      <input type="text" id="editSupReg" class="form-input" placeholder="202003006627" value="${s.regNo||''}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Kategori</label>
+      <select id="editSupCat" class="form-input">
+        ${cats.map(c=>`<option ${s.category===c?'selected':''}>${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">No. Akaun (internal)</label>
+      <input type="text" id="editSupAcc" class="form-input" value="${s.account||''}">
+    </div>
+    <div style="margin:12px 0 8px;font-size:12px;font-weight:600;color:var(--mid)">MAKLUMAT BANK</div>
+    <div class="form-group">
+      <label class="form-label">Nama Bank</label>
+      <select id="editSupBank" class="form-input">
+        <option value="">-- Pilih Bank --</option>
+        ${['PUBLIC BANK : PBB','MAYBANK : MAY','CIMB BANK : CIMB','RHB BANK : RHB','HONG LEONG BANK : HLB','BANK ISLAM : BIMB','BANK RAKYAT : BR','OCBC BANK : OCBC','AFFIN BANK : AFFIN','ALLIANCE BANK : ALLIANCE'].map(b=>`<option ${s.bankName===b?'selected':''}>${b}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">No. Akaun Bank</label>
+      <input type="text" id="editSupBankAcc" class="form-input" placeholder="3215568820" value="${s.bankAcc||''}">
+    </div>
+    <div style="margin:12px 0 8px;font-size:12px;font-weight:600;color:var(--mid)">WHATSAPP</div>
+    <div class="form-group">
+      <label class="form-label">No. WhatsApp (format: 601xxxxxxxx)</label>
+      <input type="tel" id="editSupWa" class="form-input" placeholder="60123456789" value="${s.waNum||''}">
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:4px" onclick="saveEditSupplier('${supplierId}')">Simpan</button>
+  `);
+}
+
+function saveEditSupplier(supplierId){
+  const suppliers=getSuppliers();
+  const s=suppliers.find(x=>x.id===supplierId);
+  if(!s) return;
+  s.name=document.getElementById('editSupName').value.trim()||s.name;
+  s.regNo=document.getElementById('editSupReg').value.trim();
+  s.category=document.getElementById('editSupCat').value;
+  s.account=document.getElementById('editSupAcc').value.trim();
+  s.bankName=document.getElementById('editSupBank').value;
+  s.bankAcc=document.getElementById('editSupBankAcc').value.trim();
+  s.waNum=document.getElementById('editSupWa').value.replace(/\D/g,'');
+  lsSet('suppliers',suppliers);
+  hideModal();
+  showToast('Supplier dikemaskini ✅');
+  renderSupplierAdminList();
+  renderSupplierDebtSummary();
 }
 
 function deleteSupplier(id){
