@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v1.8.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v1.9.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -946,7 +946,7 @@ async function analyzeWithAI(){
     document.getElementById('aiVendorName').textContent=json.vendor||'-';
     const conf=json.vendor_confidence==='high';
     document.getElementById('aiConfidence').innerHTML=conf?'<span class="confidence-high">Tinggi</span>':'<span class="confidence-low">Rendah</span>';
-    document.getElementById('aiAmount').textContent='RM '+(json.amount||0).toFixed(2);
+    document.getElementById('aiAmount').textContent=formatRM(json.amount||0);
     document.getElementById('aiResult').style.display='block';
     // Pre-fill
     if(json.date) document.getElementById('receiptDate').value=json.date;
@@ -1080,10 +1080,10 @@ function updateSplit(){
   const receiptTotal=parseFloat(document.getElementById('receiptAmount').value)||0;
   let html='';
   Object.entries(byCat).forEach(([cat,amt])=>{
-    html+=`<div class="split-row"><span>${CAT_EMOJI[cat]||''} ${cat}</span><span>RM ${amt.toFixed(2)}</span></div>`;
+    html+=`<div class="split-row"><span>${CAT_EMOJI[cat]||''} ${cat}</span><span>${formatRM(amt)}</span></div>`;
   });
-  html+=`<div class="split-row"><span>Jumlah Item</span><span>RM ${total.toFixed(2)}</span></div>`;
-  if(receiptTotal) html+=`<div class="split-row"><span>Jumlah Resit</span><span>RM ${receiptTotal.toFixed(2)}</span></div>`;
+  html+=`<div class="split-row"><span>Jumlah Item</span><span>${formatRM(total)}</span></div>`;
+  if(receiptTotal) html+=`<div class="split-row"><span>Jumlah Resit</span><span>${formatRM(receiptTotal)}</span></div>`;
   el.innerHTML=html;
 }
 
@@ -1097,14 +1097,14 @@ function renderReview(){
   let html=`
     <div class="review-row"><span class="review-label">Vendor</span><span class="review-value">${vendor?vendor.name:'-'}</span></div>
     <div class="review-row"><span class="review-label">Tarikh</span><span class="review-value">${date}</span></div>
-    <div class="review-row"><span class="review-label">Jumlah</span><span class="review-value" style="color:var(--green);font-weight:700">RM ${parseFloat(amount||0).toFixed(2)}</span></div>
+    <div class="review-row"><span class="review-label">Jumlah</span><span class="review-value" style="color:var(--green);font-weight:700">${formatRM(parseFloat(amount||0))}</span></div>
     <div class="review-row"><span class="review-label">Cawangan</span><span class="review-value">${branch}</span></div>
     <div class="review-row"><span class="review-label">Nota</span><span class="review-value">${nota||'-'}</span></div>
     <div class="review-row"><span class="review-label">Kategori</span><span class="review-value">${vendor?vendor.category:'-'}</span></div>
     <div class="review-row"><span class="review-label">Akaun</span><span class="review-value">${vendor?vendor.account:'-'}</span></div>
     <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--mid)">ITEM (${items.length})</div>`;
   items.forEach(i=>{
-    html+=`<div class="review-row"><span class="review-label">${i.name||'Item'}</span><span class="review-value">RM ${parseFloat(i.price||0).toFixed(2)} · ${i.category}</span></div>`;
+    html+=`<div class="review-row"><span class="review-label">${i.name||'Item'}</span><span class="review-value">${formatRM(parseFloat(i.price||0))} · ${i.category}</span></div>`;
   });
   document.getElementById('reviewContent').innerHTML=html;
 }
@@ -1288,7 +1288,7 @@ function renderAccountantDashboard(){
     <div class="kpi-card"><div class="kpi-label">Total Resit</div><div class="kpi-value">${receipts.length}</div></div>
     <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pending.length}</div></div>
     <div class="kpi-card"><div class="kpi-label">Approved</div><div class="kpi-value" style="color:var(--green)">${approved.length}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total Approved</div><div class="kpi-value" style="font-size:16px">RM ${totalApproved.toFixed(2)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Approved</div><div class="kpi-value" style="font-size:16px">${formatRM(totalApproved)}</div></div>
   </div>`;
   el.innerHTML=html;
 }
@@ -1342,7 +1342,7 @@ function renderResitContent(tab){
           <thead><tr><th>Tarikh</th><th>Vendor</th><th>Cawangan</th><th>RM</th><th>Status</th></tr></thead>
           <tbody>${latest.map(r=>`<tr>
             <td>${r.date}</td><td>${r.vendor}</td><td>${r.branch||'-'}</td>
-            <td>RM ${parseFloat(r.amount||0).toFixed(2)}</td>
+            <td>${formatRM(parseFloat(r.amount||0))}</td>
             <td><span class="status-badge status-${(r.status||'').toLowerCase()}">${r.status}</span></td>
           </tr>`).join('')}</tbody>
         </table>
@@ -1361,7 +1361,7 @@ function renderReceiptCard(r, tab){
         <div class="receipt-vendor">${r.vendor}</div>
         <span class="status-badge ${statusClass}">${r.status}</span>
       </div>
-      <div class="receipt-amount">RM ${parseFloat(r.amount||0).toFixed(2)}</div>
+      <div class="receipt-amount">${formatRM(parseFloat(r.amount||0))}</div>
     </div>
     <div class="receipt-meta">📅 ${r.date} · 🏬 ${r.branch}</div>
     <div class="receipt-meta">👤 ${r.uploadedBy} · ${CAT_EMOJI[r.category]||''} ${r.category}</div>
@@ -1450,7 +1450,7 @@ function updateAdminKpi(receipts){
   const approved=receipts.filter(r=>r.status==='Approved').length;
   el.innerHTML=`
     <div class="kpi-card"><div class="kpi-label">Total Resit</div><div class="kpi-value">${total}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Jumlah Belanja</div><div class="kpi-value" style="font-size:16px">RM ${spend.toFixed(2)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Jumlah Belanja</div><div class="kpi-value" style="font-size:16px">${formatRM(spend)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pending}</div></div>
     <div class="kpi-card"><div class="kpi-label">Approved</div><div class="kpi-value" style="color:var(--green)">${approved}</div></div>`;
 }
@@ -1497,7 +1497,7 @@ function updateTopSuppliers(receipts){
   el.innerHTML='<div class="card-title mb-8">Top 5 Supplier</div>'+
     (top.length?top.map(([name,amt],i)=>`
       <div class="flex justify-between" style="padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
-        <span>${i+1}. ${name}</span><span style="font-weight:600;color:var(--green)">RM ${amt.toFixed(2)}</span>
+        <span>${i+1}. ${name}</span><span style="font-weight:600;color:var(--green)">${formatRM(amt)}</span>
       </div>`).join(''):'<div style="color:var(--mid);font-size:13px">Tiada data</div>');
 }
 
@@ -1519,7 +1519,7 @@ function updateLatestTx(receipts){
   el.innerHTML=`<table class="data-table"><thead><tr><th>Tarikh</th><th>Vendor</th><th>Cawangan</th><th>RM</th><th>Status</th></tr></thead><tbody>`+
     receipts.map(r=>`<tr>
       <td>${r.date}</td><td>${r.vendor}</td><td>${r.branch}</td>
-      <td>RM ${parseFloat(r.amount||0).toFixed(2)}</td>
+      <td>${formatRM(parseFloat(r.amount||0))}</td>
       <td><span class="status-badge status-${r.status.toLowerCase()}">${r.status}</span></td>
     </tr>`).join('')+'</tbody></table>';
 }
