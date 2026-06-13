@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.7.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.8.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -768,6 +768,7 @@ function showMainApp(){
   document.getElementById('mainApp').style.display='flex';
   setupAppForRole();
   checkApiKeyOnLogin();
+  setTimeout(()=>loadItemRegistryFromSheet().catch(()=>{}),1000);
 }
 
 // =====================
@@ -1228,7 +1229,12 @@ function updateSplit(){
     html+=`<div class="split-row"><span>${CAT_EMOJI[cat]||''} ${cat}</span><span>${formatRM(amt)}</span></div>`;
   });
   html+=`<div class="split-row"><span>Jumlah Item</span><span>${formatRM(total)}</span></div>`;
-  if(receiptTotal) html+=`<div class="split-row"><span>Jumlah Resit</span><span>${formatRM(receiptTotal)}</span></div>`;
+  if(receiptTotal){
+    const diff=Math.abs(receiptTotal-total);
+    const color=diff>0.01?'var(--red)':'var(--green)';
+    html+=`<div class="split-row" style="font-weight:600"><span>Jumlah Resit</span><span style="color:${color}">${formatRM(receiptTotal)}</span></div>`;
+    if(diff>0.01) html+=`<div style="font-size:11px;color:var(--red);padding:4px 0">⚠️ Perbezaan: ${formatRM(diff)}. Jumlah resit akan digunakan.</div>`;
+  }
   el.innerHTML=html;
 }
 
@@ -1275,7 +1281,7 @@ async function submitReceipt(){
   let driveLink='',filename='';
   // Drive upload skipped (configure DRIVE_FOLDER_NAME & scope later)
 
-  // Group by category
+  // Group by category - items as breakdown, receipt amount as total
   const byCat={};
   const validItems=items.filter(i=>i.name||(parseFloat(i.price)>0));
   validItems.forEach(i=>{
@@ -1284,15 +1290,20 @@ async function submitReceipt(){
     byCat[cat].items.push(i);
     byCat[cat].total+=parseFloat(i.price)||0;
   });
-  // If no valid items or total is 0, use receipt amount field
   if(!Object.keys(byCat).length){
+    // No items - use receipt amount with vendor category
     const cat=vendor?vendor.category:'OTHERS';
     byCat[cat]={items:[],total:amount,account:vendor?vendor.account:'101'};
   } else {
-    // If items total is 0, spread receipt amount across categories
+    // Use receipt amount as the actual total, scale items proportionally
     const itemsTotal=Object.values(byCat).reduce((s,d)=>s+d.total,0);
-    if(itemsTotal===0&&amount>0){
-      Object.keys(byCat).forEach(cat=>{ byCat[cat].total=amount/Object.keys(byCat).length; });
+    const finalAmount=amount>0?amount:itemsTotal;
+    if(finalAmount>0&&itemsTotal>0&&Math.abs(finalAmount-itemsTotal)>0.01){
+      // Scale each category proportionally to match receipt total
+      const scale=finalAmount/itemsTotal;
+      Object.keys(byCat).forEach(cat=>{ byCat[cat].total=Math.round(byCat[cat].total*scale*100)/100; });
+    } else if(finalAmount>0&&itemsTotal===0){
+      Object.keys(byCat).forEach(cat=>{ byCat[cat].total=finalAmount/Object.keys(byCat).length; });
     }
   }
 
@@ -1334,6 +1345,7 @@ async function submitReceipt(){
 
   // Append to Google Sheets
   try{await appendToSheets(sheetRows);}catch(e){console.warn('Sheets skip:',e.message||e);}
+  try{await syncItemRegistryToSheet();}catch(e){console.warn('ItemRegistry sync skip:',e.message||e);}
 
   btn.disabled=false;btn.textContent='Hantar';
   ['wStep1','wStep2','wStep3','wStep4'].forEach(id=>document.getElementById(id).style.display='none');
@@ -1406,6 +1418,48 @@ function base64ToBlob(base64,type){
 // =====================
 // GOOGLE SHEETS
 // =====================
+async function syncItemRegistryToSheet(){
+  const token=currentToken;if(!token) return;
+  const reg=getItemRegistry();
+  const rows=Object.entries(reg).map(([code,item])=>[code,item.names.join(', '),item.createdAt||'']);
+  if(!rows.length) return;
+  // Check/create header for Sheet2
+  const checkUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/ItemRegistry!A1`;
+  try{
+    const check=await fetch(checkUrl,{headers:{Authorization:'Bearer '+token}});
+    const cd=await check.json();
+    if(!cd.values||!cd.values.length){
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/ItemRegistry!A1:C1?valueInputOption=USER_ENTERED`,{
+        method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[['Item Code','Nama Item','Tarikh Cipta']]})
+      });
+    }
+    // Clear and rewrite all item codes
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/ItemRegistry!A2:C1000?valueInputOption=USER_ENTERED`,{
+      method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({values:rows})
+    });
+  }catch(e){console.warn('ItemRegistry sync skip:',e.message);}
+}
+
+async function loadItemRegistryFromSheet(){
+  const token=currentToken;if(!token) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/ItemRegistry!A2:B1000`,{headers:{Authorization:'Bearer '+token}});
+    const d=await r.json();
+    if(!d.values||!d.values.length) return;
+    const reg=getItemRegistry();
+    d.values.forEach(row=>{
+      if(!row[0]||!row[1]) return;
+      const code=row[0].trim();
+      const names=row[1].split(',').map(n=>n.trim()).filter(Boolean);
+      if(!reg[code]) reg[code]={names,createdAt:new Date().toISOString()};
+      else reg[code].names=[...new Set([...reg[code].names,...names])];
+    });
+    setItemRegistry(reg);
+  }catch(e){console.warn('ItemRegistry load skip:',e.message);}
+}
+
 async function appendToSheets(rows){
   const token=currentToken;if(!token) return;
   // Check if sheet is empty, add headers first
