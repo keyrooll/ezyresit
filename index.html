@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.0.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.0.1 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1423,8 +1423,8 @@ async function uploadToDrive(base64,vendorName,date,amount){
   const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{
     method:'POST',headers:{Authorization:'Bearer '+token},body:form
   });
-  const d=await r.json();
-  return {link:d.webViewLink||'',filename:filename+'.jpg'};
+  const driveRes=await r.json();
+  return {link:driveRes.webViewLink||'',filename:filename+'.jpg'};
 }
 
 async function getOrCreateFolder(token, path){
