@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.1.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -2110,6 +2110,247 @@ function updateLatestTx(receipts){
 function lsGetPayments(){return JSON.parse(localStorage.getItem('payments')||'[]');}
 function lsSetPayments(p){localStorage.setItem('payments',JSON.stringify(p));}
 
+
+// ===================== PAYMENT RECEIPT UPLOAD =====================
+let pmtUploadState = {file:null, preview:null, aiResult:null};
+
+function showPaymentUploadModal(){
+  pmtUploadState = {file:null, preview:null, aiResult:null};
+  showModal('Upload Resit Bayaran', `
+    <div id="pmtUploadStep1">
+      <div style="border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;margin-bottom:16px;cursor:pointer" onclick="document.getElementById('pmtFileInput').click()">
+        <div style="font-size:32px;margin-bottom:8px">📄</div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:4px">Pilih gambar resit bayaran</div>
+        <div style="font-size:12px;color:var(--mid)">JPG, PNG — slip bank / DuitNow / transfer</div>
+        <input type="file" id="pmtFileInput" accept="image/*" style="display:none" onchange="pmtFileSelected(this)">
+      </div>
+      <div id="pmtPreviewWrap" style="display:none;margin-bottom:16px">
+        <img id="pmtPreviewImg" style="width:100%;border-radius:8px;max-height:300px;object-fit:contain">
+      </div>
+      <button class="btn btn-primary" style="width:100%" id="pmtScanBtn" onclick="pmtScanReceipt()" disabled>🔍 Scan dengan AI</button>
+    </div>
+
+    <div id="pmtUploadStep2" style="display:none">
+      <div id="pmtAiResultBox" style="background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:16px"></div>
+      <div id="pmtKnockoffBox"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px" id="pmtConfirmBtn" onclick="pmtConfirmPayment()">✅ Sahkan & Rekod Bayaran</button>
+    </div>
+  `);
+}
+
+function pmtFileSelected(input){
+  const file = input.files[0];
+  if(!file) return;
+  pmtUploadState.file = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pmtUploadState.preview = e.target.result;
+    const img = document.getElementById('pmtPreviewImg');
+    const wrap = document.getElementById('pmtPreviewWrap');
+    img.src = e.target.result;
+    wrap.style.display = 'block';
+    document.getElementById('pmtScanBtn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function pmtScanReceipt(){
+  const apiKey = getApiKey();
+  if(!apiKey){ showToast('Set API Key dulu dalam Profile ⚠️'); return; }
+  const btn = document.getElementById('pmtScanBtn');
+  btn.disabled = true; btn.textContent = '⏳ Mengimbas...';
+
+  try{
+    const base64 = pmtUploadState.preview.split(',')[1];
+    const suppliers = getSuppliers().map(s=>s.name);
+    const prompt = `Ini adalah slip bayaran/transfer bank. Sila kenal pasti SEMUA pembayaran dalam dokumen ini.
+
+Untuk setiap baris bayaran, keluarkan:
+1. Nama penerima/supplier (kolum paling kanan atau nama selepas akaun)
+2. Jumlah bayaran (MYR x,xxx.xx)
+
+Senarai supplier yang ada dalam sistem: ${suppliers.join(', ')}
+
+Padankan nama dalam slip dengan nama supplier sistem (fuzzy match, nama lebih kurang sama).
+
+Kembalikan JSON SAHAJA:
+{
+  "payments": [
+    {"supplierRaw": "nama dalam slip", "supplierMatched": "nama dalam sistem atau null", "amount": 1234.56, "confidence": "high/medium/low"},
+    ...
+  ],
+  "paymentDate": "YYYY-MM-DD atau null"
+}`;
+
+    const workerUrl = 'https://ezyresit.keyrooll.workers.dev/';
+    const resp = await fetch(workerUrl, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'gpt-4o',
+        messages:[{role:'user',content:[
+          {type:'text',text:prompt},
+          {type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64}`}}
+        ]}],
+        max_tokens:1000,
+        apiKey
+      })
+    });
+    const data = await resp.json();
+    const text = data.choices?.[0]?.message?.content||'';
+    const match = text.match(/\{[\s\S]*\}/);
+    if(!match) throw new Error('No JSON');
+    pmtUploadState.aiResult = JSON.parse(match[0]);
+    pmtShowAiResult();
+  } catch(e){
+    console.error(e);
+    showToast('Gagal scan ⚠️ Cuba semula');
+    btn.disabled = false; btn.textContent = '🔍 Scan dengan AI';
+  }
+}
+
+function pmtShowAiResult(){
+  const result = pmtUploadState.aiResult;
+  const receipts = getReceipts();
+  const payments = lsGetPayments();
+
+  document.getElementById('pmtUploadStep1').style.display='none';
+  document.getElementById('pmtUploadStep2').style.display='block';
+
+  // Show detected payments
+  let aiHtml = `<div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:10px">AI DETECT (${result.payments.length} BAYARAN)</div>`;
+  result.payments.forEach((p,i)=>{
+    const matched = p.supplierMatched;
+    aiHtml += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:${matched?'#f0fdf4':'#fef9c3'};border-radius:8px;margin-bottom:6px">
+      <div>
+        <div style="font-size:13px;font-weight:600">${matched||p.supplierRaw}</div>
+        ${!matched?`<div style="font-size:11px;color:var(--amber)">⚠️ Supplier tak dikenali: "${p.supplierRaw}"</div>`:''}
+        <div style="font-size:11px;color:var(--mid)">Confidence: ${p.confidence}</div>
+      </div>
+      <div style="font-weight:700;font-size:14px;color:var(--green)">${formatRM(p.amount)}</div>
+    </div>`;
+  });
+  document.getElementById('pmtAiResultBox').innerHTML = aiHtml;
+
+  // Auto knock-off logic
+  let knockHtml = `<div style="font-size:12px;font-weight:600;color:var(--mid);margin:12px 0 8px">AUTO KNOCK-OFF PLAN</div>`;
+  pmtUploadState.knockoffPlan = [];
+
+  result.payments.forEach((p,i)=>{
+    const supplier = p.supplierMatched;
+    if(!supplier){ 
+      knockHtml += `<div class="card mb-8" style="padding:12px;border:1px solid var(--amber)">
+        <div style="font-size:12px;font-weight:600;color:var(--amber)">⚠️ ${p.supplierRaw} — Advance Payment</div>
+        <div style="font-size:11px;color:var(--mid);margin-top:4px">Supplier tak dikenali — akan disimpan sebagai advance payment</div>
+        <div style="margin-top:8px"><label style="font-size:11px">Assign ke supplier:</label>
+          <select id="pmtFallbackSupplier_${i}" class="form-input" style="margin-top:4px;font-size:12px">
+            <option value="">-- Pilih Supplier --</option>
+            ${getSuppliers().map(s=>`<option value="${s.name}">${s.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+      pmtUploadState.knockoffPlan.push({idx:i, supplier:null, amount:p.amount, type:'advance', fallbackId:`pmtFallbackSupplier_${i}`});
+      return;
+    }
+
+    // Find outstanding bills (approved receipts not fully paid)
+    const approvedReceipts = receipts
+      .filter(r=>r.vendor===supplier && r.status==='Approved')
+      .map(r=>{
+        const paidSoFar = payments.filter(x=>x.supplier===supplier && x.knockoffReceiptId===r.id).reduce((a,x)=>a+parseFloat(x.amount||0),0);
+        return {...r, remaining: parseFloat(r.amount||0) - paidSoFar};
+      })
+      .filter(r=>r.remaining>0.01)
+      .sort((a,b)=>a.date.localeCompare(b.date)); // oldest first
+
+    if(!approvedReceipts.length){
+      knockHtml += `<div class="card mb-8" style="padding:12px;border:1px solid var(--green)">
+        <div style="font-size:12px;font-weight:600">${supplier} — ${formatRM(p.amount)}</div>
+        <div style="font-size:11px;color:var(--mid);margin-top:4px">✅ Tiada hutang tertunggak — disimpan sebagai advance payment / lebihan kredit</div>
+      </div>`;
+      pmtUploadState.knockoffPlan.push({idx:i, supplier, amount:p.amount, type:'advance'});
+      return;
+    }
+
+    // Knock off oldest first
+    let remaining = p.amount;
+    const knockoffs = [];
+    for(const r of approvedReceipts){
+      if(remaining<=0) break;
+      const apply = Math.min(remaining, r.remaining);
+      knockoffs.push({receiptId:r.id, date:r.date, apply, receiptTotal:parseFloat(r.amount||0)});
+      remaining -= apply;
+    }
+
+    knockHtml += `<div class="card mb-8" style="padding:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:600">${supplier}</div>
+        <div style="font-weight:700;color:var(--green)">${formatRM(p.amount)}</div>
+      </div>
+      ${knockoffs.map(k=>`<div style="font-size:11px;padding:6px 8px;background:var(--surface2);border-radius:6px;margin-bottom:4px;display:flex;justify-content:space-between">
+        <span>📋 Resit ${k.date} (${formatRM(k.receiptTotal)})</span>
+        <span style="color:var(--green);font-weight:600">-${formatRM(k.apply)}</span>
+      </div>`).join('')}
+      ${remaining>0.01?`<div style="font-size:11px;color:var(--amber);margin-top:4px">⚡ Lebihan ${formatRM(remaining)} → advance credit</div>`:''}
+    </div>`;
+    pmtUploadState.knockoffPlan.push({idx:i, supplier, amount:p.amount, type:'knockoff', knockoffs, advance:remaining>0.01?remaining:0});
+  });
+
+  const today = new Date().toISOString().split('T')[0];
+  knockHtml += `<div class="form-group" style="margin-top:12px">
+    <label class="form-label">Tarikh Bayaran</label>
+    <input type="date" id="pmtUploadDate" class="form-input" value="${result.paymentDate||today}">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Kaedah Bayaran</label>
+    <select id="pmtUploadMethod" class="form-input">
+      <option>TT / Bank Transfer</option><option>DuitNow</option><option>Tunai</option><option>Cek</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Rujukan / Nota</label>
+    <input type="text" id="pmtUploadNote" class="form-input" placeholder="No. rujukan bank">
+  </div>`;
+
+  document.getElementById('pmtKnockoffBox').innerHTML = knockHtml;
+}
+
+function pmtConfirmPayment(){
+  const date = document.getElementById('pmtUploadDate')?.value || new Date().toISOString().split('T')[0];
+  const method = document.getElementById('pmtUploadMethod')?.value || 'TT / Bank Transfer';
+  const note = document.getElementById('pmtUploadNote')?.value || '';
+  const plan = pmtUploadState.knockoffPlan||[];
+  const aiResult = pmtUploadState.aiResult||{};
+  const payments = lsGetPayments();
+
+  plan.forEach(item=>{
+    let supplier = item.supplier;
+    // Check fallback supplier
+    if(!supplier && item.fallbackId){
+      supplier = document.getElementById(item.fallbackId)?.value||'';
+    }
+    if(!supplier) supplier = (aiResult.payments[item.idx]||{}).supplierRaw||'Unknown';
+
+    const id = 'PMT-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
+    const payment = {
+      id, supplier, date, amount:item.amount, method, note,
+      recordedBy:currentUser.email, recordedAt:Date.now(),
+      type:item.type,
+      knockoffReceiptIds:(item.knockoffs||[]).map(k=>k.receiptId),
+      advanceAmount:item.advance||0
+    };
+    payments.push(payment);
+    // Sync to sheets
+    syncPaymentToSheet(payment);
+  });
+
+  lsSetPayments(payments);
+  hideModal();
+  showToast(`${plan.length} bayaran direkod ✅`);
+  renderPaymentScreen();
+}
+// ===================== END PAYMENT UPLOAD =====================
+
 function renderPaymentScreen(){
   const el=document.getElementById('paymentContent');
   if(!el) return;
@@ -2129,8 +2370,9 @@ function renderPaymentScreen(){
   }
 
   let html=`
-  <div style="margin-bottom:16px">
-    <button class="btn btn-primary" onclick="showAddPaymentModal()" style="width:100%">+ Rekod Bayaran Baru</button>
+  <div style="margin-bottom:16px;display:flex;gap:8px">
+    <button class="btn btn-primary" onclick="showPaymentUploadModal()" style="flex:1">📷 Upload Resit Bayaran</button>
+    <button class="btn btn-outline" onclick="showAddPaymentModal()" style="flex:1">✏️ Input Manual</button>
   </div>
   <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">HUTANG SUPPLIER</div>`;
 
