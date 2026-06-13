@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>EzyResit Receipt System</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async defer onload="onGISLoaded()"></script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="typeof onGISLoaded==='function'&&onGISLoaded()"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.1.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.3.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -503,7 +503,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
 // CONSTANTS
 // =====================
 const CLIENT_ID = '27154479564-ufljm52nmlh4gg7ie54knphff44jvrrq.apps.googleusercontent.com';
-const SHEET_ID = '1QqwHSrHLAvBVCvBkorhP4EpxnLRS6B4vanaQvItQs0U';
+const SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
 const DRIVE_FOLDER_NAME = 'EzyResit Receipts';
 const SUPER_ADMIN = 'keyrooll@gmail.com';
 const ACCOUNTANTS = ['marzuwita@gmail.com','keyroollgambar@gmail.com'];
@@ -556,6 +556,19 @@ function formatRM(val){
   const n=parseFloat(val)||0;
   return 'RM '+n.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
+function showToast(msg,duration=2500){
+  let t=document.getElementById('toastMsg');
+  if(!t){
+    t=document.createElement('div');
+    t.id='toastMsg';
+    t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:300px;text-align:center';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.opacity='1';
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>{t.style.opacity='0';},duration);
+}
 
 function getReceipts(){return lsGet('ezy_receipts',[])}
 function setReceipts(r){lsSet('ezy_receipts',r)}
@@ -591,7 +604,7 @@ function getStaffBranches(email){
 function initGIS(){
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/spreadsheets',
     callback: handleTokenResponse,
   });
 }
@@ -1168,15 +1181,9 @@ async function submitReceipt(){
   const profile=getUserProfile(u.email);
   const uploadedBy=profile.fullname||u.name;
 
-  // Upload image to Drive
+  // Drive upload - disabled until configured
   let driveLink='',filename='';
-  try{
-    const result=await uploadToDrive(uploadedImage,vendor?vendor.name:'Receipt',date,amount);
-    driveLink=result.link||'';filename=result.filename||'';
-  }catch(e){
-    console.warn('Drive upload failed (skipped):',e.message||e);
-    driveLink='';filename='';
-  }
+  // Drive upload skipped (configure DRIVE_FOLDER_NAME & scope later)
 
   // Group by category
   const byCat={};
@@ -1215,8 +1222,8 @@ async function submitReceipt(){
     setSuppliers(suppliers);
   }
 
-  // Append to Sheets
-  try{await appendToSheets(sheetRows);}catch(e){console.warn('Sheets append failed (skipped):',e.message||e);}
+  // Append to Google Sheets
+  try{await appendToSheets(sheetRows);}catch(e){console.warn('Sheets skip:',e.message||e);}
 
   btn.disabled=false;btn.textContent='Hantar';
   ['wStep1','wStep2','wStep3','wStep4'].forEach(id=>document.getElementById(id).style.display='none');
@@ -1291,12 +1298,26 @@ function base64ToBlob(base64,type){
 // =====================
 async function appendToSheets(rows){
   const token=currentToken;if(!token) return;
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:M:append?valueInputOption=USER_ENTERED`;
-  await fetch(url,{
+  // Check if sheet is empty, add headers first
+  const checkUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A1`;
+  const check=await fetch(checkUrl,{headers:{Authorization:'Bearer '+token}});
+  const checkData=await check.json();
+  const isEmpty=!checkData.values||!checkData.values.length;
+  if(isEmpty){
+    const headers=[['Tarikh','Vendor','Item','Jumlah','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A1:M1?valueInputOption=USER_ENTERED`,{
+      method:'PUT',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({values:headers})
+    });
+  }
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:M:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const r=await fetch(url,{
     method:'POST',
     headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
     body:JSON.stringify({values:rows})
   });
+  if(!r.ok){const e=await r.json();throw new Error(e.error&&e.error.message||r.status);}
 }
 
 // =====================
