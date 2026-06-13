@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>EzyResit Receipt System</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async defer onload="onGISLoaded()"></script>
+<script src="https://accounts.google.com/gsi/client" async defer onload="typeof onGISLoaded==='function'&&onGISLoaded()"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v1.1.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v1.2.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -564,7 +564,7 @@ function getStaffBranches(email){
 function initGIS(){
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets',
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets',
     callback: handleTokenResponse,
   });
 }
@@ -876,7 +876,7 @@ async function analyzeWithAI(){
         {type:'text',text:'Analyze this receipt. Return JSON only: {date:"YYYY-MM-DD",vendor:"string",vendor_confidence:"high"|"low",amount:number,items:[{name,qty,price,category,account_code}]}. Categories: COGS,UTILITIES,RENTAL,RENOVATION,MARKETING,TRANSPORTATION,GAS,MANAGEMENT,OTHERS. Account codes: 101-SUPPLIER,504-TNB,502-WATER,506-GAS,402-UPKEEP STORE,702-GENERAL EXPENSES etc.'}
       ]}]
     };
-    const r=await fetch('https://api.openai.com/v1/chat/completions',{
+    const r=await fetch('https://corsproxy.io/?https://api.openai.com/v1/chat/completions',{
       method:'POST',
       headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
       body:JSON.stringify(body)
@@ -1074,10 +1074,11 @@ async function submitReceipt(){
   // Upload image to Drive
   let driveLink='',filename='';
   try{
+    if(!currentToken) throw new Error('No token');
     const result=await uploadToDrive(uploadedImage,vendor?vendor.name:'Receipt',date,amount);
     driveLink=result.link||'';filename=result.filename||'';
   }catch(e){
-    console.warn('Drive upload failed (skipped):',e.message||e);
+    console.warn('Drive upload skipped:',e.message||e);
     driveLink='';filename='';
   }
 
@@ -1193,7 +1194,7 @@ function base64ToBlob(base64,type){
 // GOOGLE SHEETS
 // =====================
 async function appendToSheets(rows){
-  const token=currentToken;if(!token) return;
+  const token=currentToken;if(!token){console.warn('No token for Sheets');return;}
   const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:M:append?valueInputOption=USER_ENTERED`;
   await fetch(url,{
     method:'POST',
