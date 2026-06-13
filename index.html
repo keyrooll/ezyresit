@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v1.6.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v1.7.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -453,6 +453,14 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
       <label class="form-label">Email</label>
       <input class="form-input" id="profileEmail" disabled="">
     </div>
+        <div class="form-group" style="border-top:1px solid var(--border);margin-top:8px;padding-top:16px">
+      <label class="form-label">OpenAI API Key</label>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="profileApiKey" type="password" placeholder="sk-proj-..." style="flex:1" autocomplete="off">
+        <button class="btn btn-secondary" style="white-space:nowrap;padding:0 14px" onclick="saveProfileApiKey()">Simpan</button>
+      </div>
+      <div style="font-size:11px;color:var(--mid);margin-top:4px">Kosongkan untuk kekalkan key semasa</div>
+    </div>
     <button class="btn btn-primary btn-block" onclick="saveProfile()">Simpan</button>
     <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="closeModal(&#39;profileModal&#39;)">Batal</button>
   </div>
@@ -471,6 +479,25 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
     <button class="btn btn-primary btn-block" onclick="saveSettings()">Simpan</button>
     <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="closeModal(&#39;settingsModal&#39;)">Batal</button>
   </div>
+
+<!-- API Key Setup Modal -->
+<div class="modal-overlay" id="apiKeyModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:32px;margin-bottom:8px">🔑</div>
+      <div class="modal-title" style="margin-bottom:4px">OpenAI API Key</div>
+      <div style="font-size:13px;color:var(--mid)">Masukkan key untuk aktifkan AI detect resit.<br>Disimpan dalam peranti ini sahaja.</div>
+    </div>
+    <div class="form-group">
+      <input class="form-input" id="apiKeyInput" type="password" placeholder="sk-proj-..." autocomplete="off">
+    </div>
+    <div style="font-size:11px;color:var(--mid);margin-bottom:16px">Dapatkan key anda di <strong>platform.openai.com</strong> → API Keys</div>
+    <button class="btn btn-primary btn-block" onclick="saveApiKey()">Simpan & Teruskan</button>
+    <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="closeModal('apiKeyModal')">Nanti Dulu</button>
+  </div>
+</div>
+
 </div>
 
 <script>
@@ -641,6 +668,7 @@ function showMainApp(){
   document.getElementById('deniedScreen').style.display='none';
   document.getElementById('mainApp').style.display='flex';
   setupAppForRole();
+  checkApiKeyOnLogin();
 }
 
 // =====================
@@ -776,7 +804,30 @@ function saveSettings(){
   const key=document.getElementById('openaiKeyInput').value.trim();
   lsSet('ezy_openai_key',key);
   closeModal('settingsModal');
-  alert('Tetapan disimpan!');
+  showToast('Tetapan disimpan!');
+}
+function saveApiKey(){
+  const key=document.getElementById('apiKeyInput').value.trim();
+  if(!key){showToast('Sila masukkan API key');return;}
+  lsSet('ezy_openai_key',key);
+  closeModal('apiKeyModal');
+  showToast('API Key disimpan ✓');
+}
+function saveProfileApiKey(){
+  const key=document.getElementById('profileApiKey').value.trim();
+  if(!key){showToast('Key tidak berubah');return;}
+  lsSet('ezy_openai_key',key);
+  showToast('API Key dikemaskini ✓');
+  document.getElementById('profileApiKey').value='';
+}
+function checkApiKeyOnLogin(){
+  const key=lsGet('ezy_openai_key','');
+  if(!key){
+    setTimeout(()=>{
+      document.getElementById('apiKeyInput').value='';
+      openModal('apiKeyModal');
+    },600);
+  }
 }
 
 // =====================
@@ -865,7 +916,7 @@ async function stepTwoInit(){
 
 async function analyzeWithAI(){
   const key=lsGet('ezy_openai_key','');
-  if(!key){ showToast('Sila masuk OpenAI API Key dalam Settings Profil'); document.getElementById('aiLoadingRow').style.display='none'; return; }
+  if(!key){ document.getElementById('aiLoadingRow').style.display='none'; document.getElementById('apiKeyInput').value=''; openModal('apiKeyModal'); return; }
   try{
     const base64=uploadedImage.split(',')[1];
     const body={
@@ -875,7 +926,7 @@ async function analyzeWithAI(){
         {type:'text',text:'Analyze this receipt. Return JSON only: {date:"YYYY-MM-DD",vendor:"string",vendor_confidence:"high"|"low",amount:number,items:[{name,qty,price,category,account_code}]}. Categories: COGS,UTILITIES,RENTAL,RENOVATION,MARKETING,TRANSPORTATION,GAS,MANAGEMENT,OTHERS. Account codes: 101-SUPPLIER,504-TNB,502-WATER,506-GAS,402-UPKEEP STORE,702-GENERAL EXPENSES etc.'}
       ]}]
     };
-    const r=await fetch('https://api.openai.com/v1/chat/completions',{
+    const r=await fetch('https://ezyresit.keyrooll.workers.dev/',{
       method:'POST',
       headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json','X-Skip-Cache':'1'},
       body:JSON.stringify(body)
