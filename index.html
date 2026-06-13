@@ -14,7 +14,7 @@
   --dark:#111827;--mid:#6b7280;--light:#f9fafb;--border:#e5e7eb;
   --red:#dc2626;--amber:#d97706;--radius:12px;
 }
-body{font-family:'Inter',sans-serif;background:#f3f4f6;color:var(--dark);min-height:100vh}
+body{font-family:'Inter',sans-serif;background:#f9fafb;color:var(--dark);min-height:100vh}
 .app{max-width:480px;margin:0 auto;background:#fff;min-height:100vh;position:relative;display:flex;flex-direction:column}
 /* HEADER */
 .header{position:sticky;top:0;z-index:100;background:#fff;border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
@@ -41,7 +41,7 @@ body{font-family:'Inter',sans-serif;background:#f3f4f6;color:var(--dark);min-hei
 .screen.active{display:block}
 .screen-inner{padding:16px}
 /* LOGIN */
-#loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 32px;background:#f9fafb}
+#loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 32px;background:#f9fafb;position:relative}
 .login-logo{width:180px;height:auto;margin-bottom:6px}
 .login-title{font-size:28px;font-weight:800;color:var(--dark);margin-bottom:28px;text-align:center}
 .login-sub{font-size:13px;color:var(--mid);margin-bottom:28px;text-align:center;letter-spacing:.2px}
@@ -173,7 +173,7 @@ body{font-family:'Inter',sans-serif;background:#f3f4f6;color:var(--dark);min-hei
 .success-screen{text-align:center;padding:48px 24px}
 .success-icon{font-size:64px;margin-bottom:16px}
 input[type=file]{display:none}
-.settings-gear{font-size:24px;cursor:pointer;color:var(--mid);padding:6px}
+.settings-gear{display:none}
 .table-wrap{overflow-x:auto}
 table.data-table{width:100%;border-collapse:collapse;font-size:12px}
 table.data-table th{padding:8px;text-align:left;background:var(--light);color:var(--mid);font-weight:600;border-bottom:1px solid var(--border)}
@@ -198,6 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v1.0.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -631,7 +632,7 @@ function logoutUser(){
   currentToken=null;currentUser=null;currentRole=null;
   localStorage.removeItem('ezy_token');localStorage.removeItem('ezy_token_expiry');
   localStorage.removeItem('ezy_kekal');localStorage.removeItem('ezy_user');
-  google.accounts.oauth2.revoke(currentToken,()=>{});
+  try{if(currentToken&&window.google) google.accounts.oauth2.revoke(currentToken,()=>{});}catch(e){}
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('mainApp').style.display='none';
   document.getElementById('deniedScreen').style.display='none';
@@ -714,11 +715,9 @@ function switchTab(id, fn){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const screen = document.getElementById('screen-'+id);
   if(screen) screen.classList.add('active');
-  if(fn) fn();
-  else{
-    const tab = window._tabs&&window._tabs.find(t=>t.id===id);
-    if(tab&&tab.fn) tab.fn();
-  }
+  // Always re-render fresh data
+  const tabFn = fn || (window._tabs&&window._tabs.find(t=>t.id===id)||{}).fn;
+  if(tabFn) tabFn();
 }
 
 function switchNav(id){
@@ -871,7 +870,11 @@ async function analyzeWithAI(){
   if(!key){
     const lr=document.getElementById('aiLoadingRow');
     if(lr) lr.style.display='none';
-    console.warn('OpenAI key not set. Go to Settings to add key.');
+    const newKey=prompt('Masukkan OpenAI API Key untuk AI detect resit:\n(Key disimpan dalam peranti sahaja)');
+    if(newKey&&newKey.startsWith('sk-')){
+      localStorage.setItem('ezy_openai_key',JSON.stringify(newKey));
+      analyzeWithAI(); // retry
+    }
     return;
   }
   try{
@@ -1082,8 +1085,11 @@ async function submitReceipt(){
   let driveLink='',filename='';
   try{
     const result=await uploadToDrive(uploadedImage,vendor?vendor.name:'Receipt',date,amount);
-    driveLink=result.link;filename=result.filename;
-  }catch(e){console.warn('Drive upload failed:',e);}
+    driveLink=result.link||'';filename=result.filename||'';
+  }catch(e){
+    console.warn('Drive upload failed (skipped):',e.message||e);
+    driveLink='';filename='';
+  }
 
   // Group by category
   const byCat={};
@@ -1123,7 +1129,7 @@ async function submitReceipt(){
   }
 
   // Append to Sheets
-  try{await appendToSheets(sheetRows);}catch(e){console.warn('Sheets error:',e);}
+  try{await appendToSheets(sheetRows);}catch(e){console.warn('Sheets append failed (skipped):',e.message||e);}
 
   btn.disabled=false;btn.textContent='Hantar';
   ['wStep1','wStep2','wStep3','wStep4'].forEach(id=>document.getElementById(id).style.display='none');
@@ -1278,11 +1284,31 @@ function renderResitContent(tab){
   if(tab==='Pending') receipts=receipts.filter(r=>r.status==='Pending');
   else if(tab==='Approved') receipts=receipts.filter(r=>r.status==='Approved');
   // 'All' shows all
+  let html='';
   if(!receipts.length){
-    el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div>Tiada resit</div></div>';
-    return;
+    html='<div class="empty-state"><div class="empty-icon">📋</div><div>Tiada resit</div></div>';
+  } else {
+    html=receipts.slice().reverse().map(r=>renderReceiptCard(r,tab)).join('');
   }
-  el.innerHTML=receipts.reverse().map(r=>renderReceiptCard(r,tab)).join('');
+  // Tambah 10 transaksi terakhir di bawah
+  const allReceipts=getReceipts();
+  const latest=allReceipts.slice().reverse().slice(0,10);
+  if(latest.length){
+    html+=`<div style="margin-top:20px">
+      <div class="section-title">10 Transaksi Terakhir</div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Tarikh</th><th>Vendor</th><th>Cawangan</th><th>RM</th><th>Status</th></tr></thead>
+          <tbody>${latest.map(r=>`<tr>
+            <td>${r.date}</td><td>${r.vendor}</td><td>${r.branch||'-'}</td>
+            <td>RM ${parseFloat(r.amount||0).toFixed(2)}</td>
+            <td><span class="status-badge status-${(r.status||'').toLowerCase()}">${r.status}</span></td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+  el.innerHTML=html;
 }
 
 function renderReceiptCard(r, tab){
