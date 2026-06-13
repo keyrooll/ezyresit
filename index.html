@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.0.1 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.1.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -384,7 +384,16 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
           <div style="font-size:20px;font-weight:700;margin-bottom:8px">Resit Dihantar!</div>
           <div style="font-size:14px;color:var(--mid);margin-bottom:24px">Resit anda telah berjaya dihantar untuk semakan.</div>
           <button class="btn btn-primary" onclick="resetWizard()">Upload Resit Baru</button>
+          <div id="staffRecentTx" style="margin-top:20px;width:100%;text-align:left"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- ===== STAFF: RESIT ===== -->
+    <div class="screen" id="screen-resit-staff">
+      <div class="screen-inner">
+        <div class="section-title" style="margin-bottom:12px">Resit Saya</div>
+        <div id="staffResitContent"></div>
       </div>
     </div>
 
@@ -422,12 +431,23 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
       <div class="screen-inner" id="supplierAdminContent"></div>
     </div>
 
+    <!-- ===== ADMIN/ACCOUNT: PAYMENT MODULE ===== -->
+    <div class="screen" id="screen-payment">
+      <div class="screen-inner">
+        <div class="section-title" style="margin-bottom:12px">Rekod Bayaran</div>
+        <div id="paymentContent"></div>
+      </div>
+    </div>
+
   </div><!-- end screensContainer -->
 
   <!-- Bottom Nav (staff only) -->
   <div class="bottom-nav" id="bottomNav" style="display:none">
     <div class="nav-item active" id="nav-upload" onclick="switchNav('upload')">
       <span class="nav-icon">📷</span>Upload
+    </div>
+    <div class="nav-item" id="nav-resit-staff" onclick="switchNav('resit-staff')">
+      <span class="nav-icon">🧾</span>Resit
     </div>
     <div class="nav-item" id="nav-suppliers" onclick="switchNav('suppliers')">
       <span class="nav-icon">📦</span>Supplier
@@ -566,6 +586,31 @@ function formatRM(val){
   const n=parseFloat(val)||0;
   return 'RM '+n.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
+function showModal(title,bodyHtml){
+  let m=document.getElementById('genericModal');
+  if(!m){
+    m=document.createElement('div');
+    m.id='genericModal';
+    m.className='modal-overlay';
+    m.innerHTML=`<div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div id="genericModalTitle" style="font-size:16px;font-weight:700"></div>
+        <button onclick="hideModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--mid)">×</button>
+      </div>
+      <div id="genericModalBody"></div>
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click',function(e){if(e.target===m)hideModal();});
+  }
+  document.getElementById('genericModalTitle').textContent=title;
+  document.getElementById('genericModalBody').innerHTML=bodyHtml;
+  m.classList.add('open');
+}
+function hideModal(){
+  const m=document.getElementById('genericModal');
+  if(m) m.classList.remove('open');
+}
 function showToast(msg,duration=2500){
   let t=document.getElementById('toastMsg');
   if(!t){
@@ -638,6 +683,54 @@ function getPriceComparison(itemCode,currentPrice,vendorName){
   return{avg,min,max,diff,status,color,emoji,count:history.length};
 }
 
+function getSameDateComparison(){
+  // Group items by date+itemCode across suppliers
+  const receipts=getReceipts().filter(r=>r.status==='Approved'&&r.itemDetails&&r.itemDetails.length);
+  const byDateItem={};// key: date+itemCode
+  receipts.forEach(r=>{
+    r.itemDetails.forEach(item=>{
+      if(!item.code||!item.price) return;
+      const key=r.date+'|'+item.code;
+      if(!byDateItem[key]) byDateItem[key]={date:r.date,itemCode:item.code,itemName:item.name,suppliers:[]};
+      byDateItem[key].suppliers.push({supplier:r.vendor,price:parseFloat(item.price),unit:item.unit||''});
+    });
+  });
+  // Return only entries with 2+ suppliers (interesting comparison)
+  return Object.values(byDateItem).filter(e=>e.suppliers.length>=2).sort((a,b)=>b.date.localeCompare(a.date));
+}
+
+function renderSameDateComparison(containerId){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  const data=getSameDateComparison();
+  if(!data.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><div>Belum ada data perbandingan</div></div>';
+    return;
+  }
+  let html='';
+  data.slice(0,10).forEach(d=>{
+    const prices=d.suppliers.map(s=>s.price);
+    const minP=Math.min(...prices),maxP=Math.max(...prices);
+    const diff=maxP-minP;
+    const diffPct=minP>0?((diff/minP)*100).toFixed(1):0;
+    html+=`<div class="card mb-8" style="padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-size:13px;font-weight:600">${d.itemName}</div>
+          <div style="font-size:11px;color:var(--mid)">${d.date} · ${d.itemCode}</div>
+        </div>
+        <div style="font-size:11px;background:${diffPct>10?'#fee2e2':'#fef9c3'};color:${diffPct>10?'#b91c1c':'#854d0e'};padding:2px 8px;border-radius:20px">Beza ${diffPct}%</div>
+      </div>
+      ${d.suppliers.sort((a,b)=>a.price-b.price).map((s,i)=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:${i===0?'#f0fdf4':i===d.suppliers.length-1?'#fef2f2':'var(--surface2)'};border-radius:8px;margin-bottom:4px;font-size:12px">
+          <div>${i===0?'🟢':i===d.suppliers.length-1?'🔴':'🟡'} ${s.supplier}</div>
+          <div style="font-weight:600">${formatRM(s.price)}${s.unit?' / '+s.unit:''}</div>
+        </div>`).join('')}
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
 function getSupplierPriceAnalysis(){
   const receipts=getReceipts();
   const analysis={};// {itemCode: {itemName, vendors:{vendorName:{prices:[],avg}}}}
@@ -665,6 +758,57 @@ function getSupplierPriceAnalysis(){
 
 function getStaffProfiles(){return lsGet('ezy_staff_profiles',{})}
 function setStaffProfiles(p){lsSet('ezy_staff_profiles',p)}
+async function syncStaffToSheet(u){
+  // Wait for token
+  if(!accessToken) return;
+  try{
+    const tabUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A:A`;
+    const cr=await fetch(tabUrl,{headers:{Authorization:'Bearer '+accessToken}});
+    const cd=await cr.json();
+    if(cd.error){
+      // Tab doesn't exist, create it first
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+        method:'POST',
+        headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+        body:JSON.stringify({requests:[{addSheet:{properties:{title:'Staff'}}}]})
+      });
+      // Add header
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A1:E1?valueInputOption=RAW`,{
+        method:'PUT',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[['Email','Nama','Role','Gambar','JoinedAt']]})
+      });
+    }
+    // Check if email already exists
+    const rows=(cd.values||[]);
+    const exists=rows.some(r=>r[0]===u.email);
+    if(!exists){
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A:E:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{
+        method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[[u.email,u.name,u.role,u.picture||'',new Date().toLocaleString('en-MY')]]})
+      });
+    }
+  }catch(e){console.warn('Staff sheet sync:',e);}
+}
+
+async function syncAllStaffFromSheet(){
+  if(!accessToken) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:E`,{headers:{Authorization:'Bearer '+accessToken}});
+    const d=await r.json();
+    if(!d.values) return;
+    const users=getRegisteredUsers();
+    let changed=false;
+    d.values.forEach(row=>{
+      const email=row[0],name=row[1],role=row[2],picture=row[3]||'';
+      if(email && !users.find(u=>u.email===email)){
+        users.push({email,name,role,picture,joinedAt:Date.now(),fromSheet:true});
+        changed=true;
+      }
+    });
+    if(changed) lsSet('registeredUsers',users);
+  }catch(e){console.warn('Staff from sheet:',e);}
+}
+
 function getRegisteredUsers(){return lsGet('ezy_registered_users',[])}
 function setRegisteredUsers(u){lsSet('ezy_registered_users',u)}
 function getUserProfile(email){return lsGet('ezy_user_profile_'+email,{})}
@@ -737,6 +881,8 @@ function registerUser(u){
   if(!existing){
     list.push({email:u.email,name:u.name,picture:u.picture,role:getRole(u.email),registeredAt:new Date().toISOString()});
     setRegisteredUsers(list);
+    // Sync to Sheet Staff tab (background)
+    setTimeout(()=>syncStaffToSheet({email:u.email,name:u.name,role:getRole(u.email),picture:u.picture||''}),2000);
     // Init staff profile if new staff
     if(getRole(u.email)==='staff'){
       const profiles=getStaffProfiles();
@@ -778,6 +924,7 @@ function showMainApp(){
   document.getElementById('mainApp').style.display='flex';
   setupAppForRole();
   checkApiKeyOnLogin();
+  setTimeout(()=>ensureCategoriesSheet().catch(()=>{}),3000);
   // setTimeout(()=>loadItemRegistryFromSheet().catch(()=>{}),1000);
 }
 
@@ -803,7 +950,8 @@ function setupAppForRole(){
     setupTabs([
       {id:'dashboard',label:'Dashboard',fn:renderAccountantDashboard},
       {id:'resit',label:'Resit',fn:()=>renderResit(['Pending','Approved'])},
-      {id:'suppliers',label:'Supplier',fn:renderSuppliersList}
+      {id:'suppliers',label:'Supplier',fn:renderSuppliersList},
+      {id:'payment',label:'Bayaran',fn:renderPaymentScreen}
     ]);
     switchTab('dashboard');
   } else if(role==='super_admin'){
@@ -812,7 +960,8 @@ function setupAppForRole(){
       {id:'dashboard',label:'Dashboard',fn:renderAdminDashboard},
       {id:'resit',label:'Resit',fn:()=>renderResit(['Pending','All'])},
       {id:'staff',label:'Staff',fn:renderStaffScreen},
-      {id:'supplier-admin',label:'Supplier',fn:renderSupplierAdmin}
+      {id:'supplier-admin',label:'Supplier',fn:renderSupplierAdmin},
+      {id:'payment',label:'Bayaran',fn:renderPaymentScreen}
     ]);
     switchTab('dashboard');
   }
@@ -863,6 +1012,8 @@ function switchNav(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const screen = document.getElementById('screen-'+id);
   if(screen) screen.classList.add('active');
+  if(id==='resit-staff') renderStaffResit();
+  if(id==='suppliers') renderSuppliersList();
 }
 
 // =====================
@@ -1382,6 +1533,19 @@ async function submitReceipt(){
   btn.disabled=false;btn.textContent='Hantar';
   ['wStep1','wStep2','wStep3','wStep4'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('wSuccess').style.display='block';
+  // Show last 5 receipts in success screen
+  const recentEl=document.getElementById('staffRecentTx');
+  if(recentEl){
+    const last5=getReceipts().slice().reverse().slice(0,5);
+    if(last5.length){
+      recentEl.innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">5 TRANSAKSI TERBARU</div>`+
+      last5.map(r=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <div><div style="font-weight:500">${r.vendor||'-'}</div><div style="color:var(--mid)">${r.date}</div></div>
+        <div style="text-align:right"><div style="font-weight:600;color:var(--green)">${formatRM(parseFloat(r.amount||0))}</div>
+        <span class="status-badge status-${(r.status||'').toLowerCase()}" style="font-size:10px">${r.status}</span></div>
+      </div>`).join('');
+    }
+  }
 }
 
 function resetWizard(){
@@ -1499,6 +1663,28 @@ async function loadItemRegistryFromSheet(){
   }catch(e){console.warn('ItemRegistry load skip:',e.message);}
 }
 
+async function ensureCategoriesSheet(){
+  if(!accessToken && !currentToken) return;
+  const tok=accessToken||currentToken;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Categories!A1`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(d.error){
+      // Create tab
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+        method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({requests:[{addSheet:{properties:{title:'Categories'}}}]})
+      });
+      // Default categories
+      const cats=[['Kod','Kategori'],['MKNN','Makanan'],['MNMN','Minuman'],['BKLN','Bukan Makanan'],['PRLGN','Peralatan'],['PKJN','Pembungkusan'],['BRNG','Barangan Am']];
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Categories!A1:B${cats.length}?valueInputOption=RAW`,{
+        method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({values:cats})
+      });
+    }
+  }catch(e){console.warn('Categories sheet:',e);}
+}
+
 async function appendToSheets(rows){
   const token=currentToken;if(!token) return;
   // Check if sheet is empty, add headers first
@@ -1526,6 +1712,46 @@ async function appendToSheets(rows){
 // =====================
 // SUPPLIERS LIST (read-only)
 // =====================
+function renderStaffResit(){
+  const el=document.getElementById('staffResitContent');
+  if(!el) return;
+  const u=currentUser;
+  const all=getReceipts();
+  // Show own receipts + last 10 all staff
+  const mine=all.filter(r=>r.uploadedEmail===u.email).slice().reverse();
+  const last10=all.slice().reverse().slice(0,10);
+  let html='';
+  if(mine.length){
+    html+=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">RESIT SAYA (${mine.length})</div>`;
+    html+=mine.slice(0,5).map(r=>`
+      <div class="card mb-8" style="padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;font-weight:600">${r.vendor||'-'}</div>
+            <div style="font-size:11px;color:var(--mid)">${r.date} · ${r.branch||'-'}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:13px;font-weight:600;color:var(--green)">${formatRM(parseFloat(r.amount||0))}</div>
+            <span class="status-badge status-${(r.status||'').toLowerCase()}">${r.status}</span>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+  html+=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin:12px 0 8px">10 TRANSAKSI TERBARU (SEMUA STAFF)</div>`;
+  if(!last10.length){html+='<div class="empty-state"><div class="empty-icon">📋</div><div>Tiada resit</div></div>';}
+  else{
+    html+=`<div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Tarikh</th><th>Vendor</th><th>RM</th><th>Status</th></tr></thead>
+      <tbody>${last10.map(r=>`<tr>
+        <td>${r.date}</td><td>${r.vendor||'-'}</td>
+        <td>${formatRM(parseFloat(r.amount||0))}</td>
+        <td><span class="status-badge status-${(r.status||'').toLowerCase()}">${r.status}</span></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+  el.innerHTML=html;
+}
+
 function renderSuppliersList(){
   const suppliers=getSuppliers().sort((a,b)=>b.count-a.count);
   const el=document.getElementById('suppliersList');
@@ -1560,9 +1786,11 @@ function renderAccountantDashboard(){
     <div class="kpi-card"><div class="kpi-label">Approved</div><div class="kpi-value" style="color:var(--green)">${approved.length}</div></div>
     <div class="kpi-card"><div class="kpi-label">Total Approved</div><div class="kpi-value" style="font-size:16px">${formatRM(totalApproved)}</div></div>
   </div>
-  <div id="itemPriceAnalysis" class="card mb-12" style="margin-top:12px"></div>`;
+  <div id="itemPriceAnalysis" class="card mb-12" style="margin-top:12px"></div>
+  <div class="card mb-12"><div class="card-title mb-8">Perbandingan Harga Hari Sama</div><div id="sameDateComparison"></div></div>`;
   el.innerHTML=html;
   renderItemPriceAnalysis();
+  renderSameDateComparison('sameDateComparison');
 }
 
 // =====================
@@ -1646,6 +1874,37 @@ function renderReceiptCard(r, tab){
   </div>`;
 }
 
+async function syncReceiptStatusToSheet(r,status){
+  const tok=accessToken||currentToken;
+  if(!tok) return;
+  try{
+    // Search all rows for matching vendor+date+amount
+    const findUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:N`;
+    const fr=await fetch(findUrl,{headers:{Authorization:'Bearer '+tok}});
+    const fd=await fr.json();
+    if(!fd.values) return;
+    const rows=fd.values;
+    // Headers: Tarikh,Vendor,Item,Item Code,Harga,Akaun,Kategori,Cawangan,Staff,Email,Status,Approved By,Drive Link,Nota
+    // Col:      A     B      C    D          E     F     G        H        I     J     K      L           M          N
+    const dateStr=r.date||'';
+    const vendor=r.vendor||'';
+    let rowIdx=-1;
+    for(let i=1;i<rows.length;i++){
+      if(rows[i][0]===dateStr && rows[i][1]===vendor){rowIdx=i+1;break;}
+    }
+    if(rowIdx<1) return;
+    const approvedByName=currentUser?(currentUser.name||currentUser.email):'System';
+    const approvedAtStr=new Date().toLocaleString('en-MY');
+    const updateUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!K${rowIdx}:L${rowIdx}?valueInputOption=RAW`;
+    await fetch(updateUrl,{
+      method:'PUT',
+      headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[status,approvedByName]]})
+    });
+    console.log('Sheet status synced: row',rowIdx,'→',status);
+  }catch(e){console.warn('Sheet status sync error:',e);}
+}
+
 function approveReceipt(id){
   const receipts=getReceipts();
   const r=receipts.find(x=>x.id===id);
@@ -1655,6 +1914,7 @@ function approveReceipt(id){
   r.status='Approved';
   r.approvedBy=profile.fullname||u.name||u.email;
   setReceipts(receipts);
+  syncReceiptStatusToSheet(r,'Approved');
   renderResitContent(activeResitTab);
 }
 
@@ -1665,6 +1925,7 @@ function rejectReceipt(id){
   if(!r) return;
   r.status='Rejected';
   setReceipts(receipts);
+  syncReceiptStatusToSheet(r,'Rejected');
   renderResitContent(activeResitTab);
 }
 
@@ -1734,9 +1995,11 @@ function renderAdminDashboard(){
     <div class="card mb-12" id="topSuppliers"></div>
     <div class="card mb-12" id="staffActivity"></div>
     <div class="card mb-12" id="itemPriceAnalysis"></div>
+    <div class="card mb-12"><div class="card-title mb-8">Perbandingan Harga Hari Sama</div><div id="sameDateComparisonAdmin"></div></div>
     <div class="card"><div class="card-title mb-12">10 Transaksi Terbaru</div><div class="table-wrap" id="latestTxTable"></div></div>
   `;
   setPeriod('Bulan',document.getElementById('period-Bulan'));
+  renderSameDateComparison('sameDateComparisonAdmin');
 }
 
 function setPeriod(period, btn){
@@ -1843,7 +2106,279 @@ function updateLatestTx(receipts){
 // =====================
 // STAFF SCREEN (ADMIN)
 // =====================
+// ===================== PAYMENT MODULE =====================
+function lsGetPayments(){return JSON.parse(localStorage.getItem('payments')||'[]');}
+function lsSetPayments(p){localStorage.setItem('payments',JSON.stringify(p));}
+
+function renderPaymentScreen(){
+  const el=document.getElementById('paymentContent');
+  if(!el) return;
+  const suppliers=getSuppliers();
+  const payments=lsGetPayments();
+  const receipts=getReceipts();
+
+  // Calculate debt per supplier
+  function getSupplierDebt(supplierName){
+    const totalPurchase=receipts
+      .filter(r=>r.vendor===supplierName && r.status==='Approved')
+      .reduce((s,r)=>s+parseFloat(r.amount||0),0);
+    const totalPaid=payments
+      .filter(p=>p.supplier===supplierName)
+      .reduce((s,p)=>s+parseFloat(p.amount||0),0);
+    return {totalPurchase,totalPaid,balance:totalPurchase-totalPaid};
+  }
+
+  let html=`
+  <div style="margin-bottom:16px">
+    <button class="btn btn-primary" onclick="showAddPaymentModal()" style="width:100%">+ Rekod Bayaran Baru</button>
+  </div>
+  <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">HUTANG SUPPLIER</div>`;
+
+  const suppliersWithDebt=suppliers.map(s=>{
+    const d=getSupplierDebt(s.name);
+    return {...s,...d};
+  }).filter(s=>s.totalPurchase>0).sort((a,b)=>b.balance-a.balance);
+
+  if(!suppliersWithDebt.length){
+    html+='<div class="empty-state"><div class="empty-icon">💰</div><div>Tiada rekod pembelian</div></div>';
+  } else {
+    html+=suppliersWithDebt.map(s=>`
+      <div class="card mb-8" onclick="showSupplierPaymentDetail('${s.name}')" style="cursor:pointer;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:14px;font-weight:600">${s.name}</div>
+            <div style="font-size:11px;color:var(--mid)">Beli: ${formatRM(s.totalPurchase)} · Bayar: ${formatRM(s.totalPaid)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:14px;font-weight:700;color:${s.balance>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(s.balance))}</div>
+            <div style="font-size:10px;color:var(--mid)">${s.balance>0?'HUTANG':'LEBIHAN'}</div>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  // Recent payments
+  const recent=payments.slice().reverse().slice(0,10);
+  if(recent.length){
+    html+=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin:16px 0 8px">BAYARAN TERBARU</div>`;
+    html+=`<div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Tarikh</th><th>Supplier</th><th>RM</th><th>Kaedah</th><th></th></tr></thead>
+      <tbody>${recent.map(p=>`<tr>
+        <td>${p.date}</td><td>${p.supplier}</td>
+        <td>${formatRM(parseFloat(p.amount))}</td>
+        <td>${p.method||'-'}</td>
+        <td><button class="btn btn-sm" onclick="sendPaymentWhatsApp('${p.id}')">📱</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  el.innerHTML=html;
+}
+
+function showAddPaymentModal(){
+  const suppliers=getSuppliers();
+  const opts=suppliers.map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+  const today=new Date().toISOString().split('T')[0];
+  showModal('Rekod Bayaran',`
+    <div class="form-group">
+      <label class="form-label">Supplier</label>
+      <select id="pmtSupplier" class="form-input">${opts}</select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tarikh Bayaran</label>
+      <input type="date" id="pmtDate" class="form-input" value="${today}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Jumlah (RM)</label>
+      <input type="number" id="pmtAmount" class="form-input" placeholder="0.00" step="0.01">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Kaedah Bayaran</label>
+      <select id="pmtMethod" class="form-input">
+        <option>TT / Bank Transfer</option>
+        <option>Tunai</option>
+        <option>Cek</option>
+        <option>DuitNow</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Rujukan / Nota</label>
+      <input type="text" id="pmtNote" class="form-input" placeholder="No. rujukan / nota">
+    </div>
+    <div class="form-group">
+      <label class="form-label">No. WhatsApp Supplier</label>
+      <input type="tel" id="pmtWa" class="form-input" placeholder="60123456789">
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="savePayment()">Simpan & Rekod</button>
+  `);
+}
+
+function savePayment(){
+  const supplier=document.getElementById('pmtSupplier').value;
+  const date=document.getElementById('pmtDate').value;
+  const amount=parseFloat(document.getElementById('pmtAmount').value)||0;
+  const method=document.getElementById('pmtMethod').value;
+  const note=document.getElementById('pmtNote').value;
+  const waNum=document.getElementById('pmtWa').value.replace(/\D/g,'');
+  if(!supplier||!date||!amount){showToast('Sila lengkapkan maklumat ⚠️');return;}
+  const payments=lsGetPayments();
+  const id='PMT-'+Date.now();
+  const payment={id,supplier,date,amount,method,note,waNum,recordedBy:currentUser.email,recordedAt:Date.now()};
+  payments.push(payment);
+  lsSetPayments(payments);
+  // Save WA number to supplier record
+  if(waNum){
+    const suppliers=getSuppliers();
+    const s=suppliers.find(x=>x.name===supplier);
+    if(s){s.waNum=waNum;lsSet('suppliers',suppliers);}
+  }
+  // Sync to Sheets
+  syncPaymentToSheet(payment);
+  hideModal();
+  showToast('Bayaran direkod ✅');
+  // Offer WhatsApp
+  if(waNum){
+    if(confirm('Hantar notifikasi WhatsApp kepada supplier?')){
+      sendPaymentWhatsApp(id);
+    }
+  }
+  renderPaymentScreen();
+}
+
+async function syncPaymentToSheet(p){
+  if(!accessToken) return;
+  try{
+    // Check/create Payments tab
+    const tabUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A1:A1`;
+    const cr=await fetch(tabUrl,{headers:{Authorization:'Bearer '+accessToken}});
+    const cd=await cr.json();
+    if(cd.error){
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+        method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+        body:JSON.stringify({requests:[{addSheet:{properties:{title:'Payments'}}}]})
+      });
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A1:G1?valueInputOption=RAW`,{
+        method:'PUT',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[['ID','Tarikh','Supplier','Jumlah(RM)','Kaedah','Rujukan','DirekoOleh']]})
+      });
+    }
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{
+      method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[p.id,p.date,p.supplier,p.amount,p.method,p.note,p.recordedBy]]})
+    });
+  }catch(e){console.warn('Payment sheet sync:',e);}
+}
+
+function showSupplierPaymentDetail(supplierName){
+  const receipts=getReceipts();
+  const payments=lsGetPayments();
+  const suppliers=getSuppliers();
+  const sup=suppliers.find(s=>s.name===supplierName)||{};
+  const myReceipts=receipts.filter(r=>r.vendor===supplierName && r.status==='Approved');
+  const myPayments=payments.filter(p=>p.supplier===supplierName);
+  const totalPurchase=myReceipts.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const totalPaid=myPayments.reduce((s,p)=>s+parseFloat(p.amount||0),0);
+  const balance=totalPurchase-totalPaid;
+
+  let html=`
+  <div style="background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center">
+      <div><div style="font-size:20px;font-weight:700;color:var(--blue)">${formatRM(totalPurchase)}</div><div style="font-size:11px;color:var(--mid)">JUMLAH BELI</div></div>
+      <div><div style="font-size:20px;font-weight:700;color:var(--green)">${formatRM(totalPaid)}</div><div style="font-size:11px;color:var(--mid)">JUMLAH BAYAR</div></div>
+    </div>
+    <div style="text-align:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:24px;font-weight:700;color:${balance>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(balance))}</div>
+      <div style="font-size:12px;color:var(--mid)">${balance>0?'BAKI HUTANG':'LEBIHAN BAYARAN'}</div>
+    </div>
+  </div>
+  <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">SEJARAH BAYARAN</div>`;
+
+  if(!myPayments.length) html+='<div style="text-align:center;color:var(--mid);padding:20px;font-size:13px">Tiada rekod bayaran</div>';
+  else html+=myPayments.slice().reverse().map(p=>`
+    <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <div><div style="font-weight:500">${p.date} · ${p.method}</div><div style="font-size:11px;color:var(--mid)">${p.note||'-'}</div></div>
+      <div style="font-weight:700;color:var(--green)">${formatRM(parseFloat(p.amount))}</div>
+    </div>`).join('');
+
+  html+=`<div style="margin-top:16px;display:flex;gap:8px">
+    <button class="btn btn-primary" style="flex:1" onclick="hideModal();showAddPaymentModal()">+ Bayaran Baru</button>
+    ${sup.waNum?`<button class="btn btn-outline" onclick="generateSupplierWaReport('${supplierName}')">📱 Laporan WA</button>`:''}
+  </div>`;
+
+  showModal(supplierName, html);
+}
+
+function sendPaymentWhatsApp(paymentId){
+  const payments=lsGetPayments();
+  const p=payments.find(x=>x.id===paymentId);
+  if(!p) return;
+  const suppliers=getSuppliers();
+  const sup=suppliers.find(s=>s.name===p.supplier)||{};
+  const receipts=getReceipts();
+  const myReceipts=receipts.filter(r=>r.vendor===p.supplier && r.status==='Approved');
+  const myPayments=payments.filter(x=>x.supplier===p.supplier);
+  const totalPurchase=myReceipts.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const totalPaid=myPayments.reduce((s,x)=>s+parseFloat(x.amount||0),0);
+  const balance=totalPurchase-totalPaid;
+  const waNum=p.waNum||sup.waNum;
+  if(!waNum){showToast('Tiada no. WhatsApp supplier ⚠️');return;}
+  const msg=`*Notifikasi Bayaran - EzyDurian*
+
+Kepada: *${p.supplier}*
+Tarikh: ${p.date}
+Jumlah Bayaran: *${formatRM(parseFloat(p.amount))}*
+Kaedah: ${p.method}
+Rujukan: ${p.note||'-'}
+
+Ringkasan Akaun:
+Jumlah Beli: ${formatRM(totalPurchase)}
+Jumlah Bayar: ${formatRM(totalPaid)}
+Baki: *${formatRM(Math.abs(balance))}* ${balance>0?'(Hutang)':'(Lebihan)'}
+
+Terima kasih.
+_EzyDurian_`;
+  const url=`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`;
+  window.open(url,'_blank');
+}
+
+function generateSupplierWaReport(supplierName){
+  const suppliers=getSuppliers();
+  const sup=suppliers.find(s=>s.name===supplierName)||{};
+  const receipts=getReceipts();
+  const payments=lsGetPayments();
+  const myReceipts=receipts.filter(r=>r.vendor===supplierName && r.status==='Approved');
+  const myPayments=payments.filter(p=>p.supplier===supplierName);
+  const totalPurchase=myReceipts.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const totalPaid=myPayments.reduce((s,p)=>s+parseFloat(p.amount||0),0);
+  const balance=totalPurchase-totalPaid;
+  const waNum=sup.waNum;
+  if(!waNum){showToast('Tiada no. WhatsApp supplier ⚠️');return;}
+  const lastPayment=myPayments.slice(-1)[0];
+  const msg=`*Penyata Akaun - EzyDurian*
+
+Supplier: *${supplierName}*
+Tarikh: ${new Date().toLocaleDateString('en-MY')}
+
+📊 *Ringkasan*
+Jumlah Pembelian: ${formatRM(totalPurchase)}
+Jumlah Bayaran: ${formatRM(totalPaid)}
+Baki ${balance>0?'Hutang':'Lebihan'}: *${formatRM(Math.abs(balance))}*
+${lastPayment?`
+Bayaran Terakhir: ${lastPayment.date} - ${formatRM(parseFloat(lastPayment.amount))} (${lastPayment.method})`:''}  
+
+Sila hubungi kami jika ada pertanyaan.
+_EzyDurian_`;
+  const url=`https://wa.me/${waNum}?text=${encodeURIComponent(msg)}`;
+  window.open(url,'_blank');
+}
+
 function renderStaffScreen(){
+  // Sync staff from Sheet first, then re-render
+  syncAllStaffFromSheet().then(()=>{
+    _renderStaffScreenInner();
+  }).catch(()=>_renderStaffScreenInner());
+}
+function _renderStaffScreenInner(){
   const el=document.getElementById('staffContent');
   const profiles=getStaffProfiles();
   const users=getRegisteredUsers();
@@ -1991,6 +2526,29 @@ function renderSupplierAdmin(){
     <div class="section-title">Senarai Supplier</div>
     <div id="supplierAdminList"></div>`;
   renderSupplierAdminList();
+}
+
+function renderSupplierDebtSummary(){
+  const el=document.getElementById('supplierDebtSummary');
+  if(!el) return;
+  const suppliers=getSuppliers();
+  const receipts=getReceipts();
+  const payments=lsGetPayments();
+  const rows=suppliers.map(s=>{
+    const purchased=receipts.filter(r=>r.vendor===s.name&&r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    const paid=payments.filter(p=>p.supplier===s.name).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+    return{name:s.name,purchased,paid,balance:purchased-paid};
+  }).filter(s=>s.purchased>0).sort((a,b)=>b.balance-a.balance);
+  if(!rows.length){el.innerHTML='<div style="text-align:center;color:var(--mid);padding:20px;font-size:13px">Tiada data pembelian</div>';return;}
+  el.innerHTML=`<div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Supplier</th><th>Beli (RM)</th><th>Bayar (RM)</th><th>Baki (RM)</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td>${r.name}</td>
+      <td>${formatRM(r.purchased)}</td>
+      <td>${formatRM(r.paid)}</td>
+      <td style="font-weight:700;color:${r.balance>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(r.balance))}</td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
 }
 
 function renderSupplierAdminList(){
