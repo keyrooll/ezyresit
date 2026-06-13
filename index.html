@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v2.8.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.0.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -283,12 +283,22 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
             <div id="vendorList" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:4px"></div>
           </div>
           <div id="selectedVendorBox" style="display:none" class="card mb-12">
-            <div class="flex justify-between items-center">
-              <div>
-                <div style="font-size:14px;font-weight:600" id="selVendorName"></div>
-                <div style="font-size:12px;color:var(--mid)" id="selVendorMeta"></div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div style="flex:1">
+                <div style="font-size:14px;font-weight:600;margin-bottom:4px" id="selVendorName"></div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                  <select id="selVendorCat" onchange="updateSelectedVendorField('category',this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;color:var(--mid)">
+                    <option value="">Kategori</option>
+                    <option>COGS</option><option>UTILITIES</option><option>RENTAL</option>
+                    <option>RENOVATION</option><option>MARKETING</option><option>TRANSPORTATION</option>
+                    <option>GAS</option><option>MANAGEMENT</option><option>OTHERS</option>
+                  </select>
+                  <select id="selVendorAcc" onchange="updateSelectedVendorField('account',this.value)" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;color:var(--mid)">
+                    <option value="">Akaun</option>
+                  </select>
+                </div>
               </div>
-              <button class="btn btn-sm btn-secondary" onclick="clearVendor()">Tukar</button>
+              <button class="btn btn-sm btn-secondary" onclick="clearVendor()" style="margin-left:8px;flex-shrink:0">Tukar</button>
             </div>
           </div>
           <!-- AI suggest new supplier banner -->
@@ -679,7 +689,7 @@ function getStaffBranches(email){
 function initGIS(){
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/spreadsheets',
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive',
     callback: handleTokenResponse,
   });
 }
@@ -768,7 +778,7 @@ function showMainApp(){
   document.getElementById('mainApp').style.display='flex';
   setupAppForRole();
   checkApiKeyOnLogin();
-  setTimeout(()=>loadItemRegistryFromSheet().catch(()=>{}),1000);
+  // setTimeout(()=>loadItemRegistryFromSheet().catch(()=>{}),1000);
 }
 
 // =====================
@@ -1107,10 +1117,26 @@ function selectVendor(s){
   selectedVendor=s;
   document.getElementById('selectedVendorBox').style.display='block';
   document.getElementById('selVendorName').textContent=s.name;
-  document.getElementById('selVendorMeta').textContent=s.category+' · Akaun '+s.account;
+  // Populate account options
+  const accEl=document.getElementById('selVendorAcc');
+  if(accEl){
+    accEl.innerHTML='<option value="">Akaun</option>'+ACCOUNT_CODES.map(a=>`<option value="${a.code}" ${s.account==a.code?'selected':''}>${a.code}-${a.name}</option>`).join('');
+  }
+  // Set category
+  const catEl=document.getElementById('selVendorCat');
+  if(catEl) catEl.value=s.category||'';
   document.getElementById('vendorList').innerHTML='';
   document.getElementById('newVendorForm').style.display='none';
   document.getElementById('btnStep2Next').disabled=false;
+}
+
+function updateSelectedVendorField(field,val){
+  if(!selectedVendor) return;
+  selectedVendor[field]=val;
+  // Also update in suppliers list
+  const suppliers=getSuppliers();
+  const s=suppliers.find(x=>x.id===selectedVendor.id);
+  if(s){ s[field]=val; setSuppliers(suppliers); }
 }
 
 function clearVendor(){
@@ -1277,9 +1303,14 @@ async function submitReceipt(){
   const profile=getUserProfile(u.email);
   const uploadedBy=profile.fullname||u.name;
 
-  // Drive upload - disabled until configured
+  // Upload to Google Drive
   let driveLink='',filename='';
-  // Drive upload skipped (configure DRIVE_FOLDER_NAME & scope later)
+  try{
+    const result=await uploadToDrive(uploadedImage,vendor?vendor.name:'Receipt',date,amount);
+    driveLink=result.link||'';filename=result.filename||'';
+  }catch(e){
+    console.warn('Drive upload skipped:',e.message||e);
+  }
 
   // Group by category - items as breakdown, receipt amount as total
   const byCat={};
@@ -1345,7 +1376,8 @@ async function submitReceipt(){
 
   // Append to Google Sheets
   try{await appendToSheets(sheetRows);}catch(e){console.warn('Sheets skip:',e.message||e);}
-  try{await syncItemRegistryToSheet();}catch(e){console.warn('ItemRegistry sync skip:',e.message||e);}
+  // ItemRegistry sync disabled - create 'ItemRegistry' tab in sheet first
+  // try{await syncItemRegistryToSheet();}catch(e){}
 
   btn.disabled=false;btn.textContent='Hantar';
   ['wStep1','wStep2','wStep3','wStep4'].forEach(id=>document.getElementById(id).style.display='none');
@@ -1370,13 +1402,20 @@ function resetWizard(){
 async function uploadToDrive(base64,vendorName,date,amount){
   const token=currentToken;
   if(!token) throw new Error('No token');
-  const dateStr=date.replace(/-/g,'');
-  const filename=`${dateStr}_${vendorName}_RM${amount}`;
+  // Format: DDMMYY-SupplierName-Amount
+  const d=new Date(date);
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yy=String(d.getFullYear()).slice(-2);
+  const cleanVendor=vendorName.replace(/[^a-zA-Z0-9]/g,'');
+  const cleanAmount=Math.round(parseFloat(amount)||0);
+  const filename=`${dd}${mm}${yy}-${cleanVendor}-${cleanAmount}`;
   const blob=base64ToBlob(base64,'image/jpeg');
-  const year=date.substr(0,4);
-  const month=date.substr(5,2);
-  // Create folder path
-  const folderId=await getOrCreateFolder(token,`${DRIVE_FOLDER_NAME}/${year}/${month}`);
+  const year=String(d.getFullYear());
+  const month=mm;
+  const monthName=d.toLocaleString('ms-MY',{month:'long'});
+  // Create folder: EzyResit/2026/06-Jun/
+  const folderId=await getOrCreateFolder(token,`${DRIVE_FOLDER_NAME}/${year}/${mm}-${monthName}`);
   const metadata={name:filename+'.jpg',parents:[folderId]};
   const form=new FormData();
   form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));
