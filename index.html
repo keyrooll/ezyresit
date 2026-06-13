@@ -198,7 +198,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v1.0.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v1.1.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -866,17 +866,7 @@ async function stepTwoInit(){
 }
 
 async function analyzeWithAI(){
-  const key=lsGet('ezy_openai_key','');
-  if(!key){
-    const lr=document.getElementById('aiLoadingRow');
-    if(lr) lr.style.display='none';
-    const newKey=prompt('Masukkan OpenAI API Key untuk AI detect resit:\n(Key disimpan dalam peranti sahaja)');
-    if(newKey&&newKey.startsWith('sk-')){
-      localStorage.setItem('ezy_openai_key',JSON.stringify(newKey));
-      analyzeWithAI(); // retry
-    }
-    return;
-  }
+  const key=lsGet('ezy_openai_key','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')||'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';
   try{
     const base64=uploadedImage.split(',')[1];
     const body={
