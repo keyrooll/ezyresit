@@ -2183,7 +2183,8 @@ function renderStaffScreen(){
     const profiles=getStaffProfiles();
     const users=getRegisteredUsers();
     const receipts=getReceipts();
-    const allStaff=users.filter(u=>getRole(u.email)==='staff');
+    // Show ALL users except super_admin
+    const allStaff=users.filter(u=>getRole(u.email)!=='super_admin');
     const activeStaff=allStaff.filter(u=>receipts.some(r=>r.uploadedEmail===u.email));
     const mostActive=allStaff.map(u=>({
       ...u,
@@ -2195,7 +2196,8 @@ function renderStaffScreen(){
       <div class="kpi-card"><div class="kpi-label">Aktif</div><div class="kpi-value" style="color:var(--green)">${activeStaff.length}</div></div>
       <div class="kpi-card"><div class="kpi-label">Paling Aktif</div><div class="kpi-value" style="font-size:13px">${mostActive?mostActive.name||mostActive.email:'-'}</div></div>
     </div>
-    <div id="staffContent2" style="margin-top:12px"></div>`;
+    <button class="btn btn-primary" style="width:100%;margin:12px 0" onclick="showAddStaffModal()">+ Tambah Staff</button>
+    <div id="staffContent2" style="margin-top:4px"></div>`;
     el.innerHTML=html;
 
     const el2=document.getElementById('staffContent2');
@@ -2210,25 +2212,47 @@ function renderStaffScreen(){
       const roleClass=role==='super_admin'?'role-admin':role==='accountant'?'role-accountant':'role-staff';
       const txCount=receipts.filter(r=>r.uploadedEmail===u.email).length;
       const lastTx=receipts.filter(r=>r.uploadedEmail===u.email).slice(-1)[0];
+      const lastDate=lastTx?lastTx.date:'';
       return `<div class="card mb-8" style="padding:14px">
         <div style="display:flex;align-items:center;gap:12px">
-          ${u.picture?`<img src="${u.picture}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`:`<div style="width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px">👤</div>`}
-          <div style="flex:1">
+          ${u.picture?`<img src="${u.picture}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`:`<div style="width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--primary)">${(p.fullname||u.name||u.email).charAt(0).toUpperCase()}</div>`}
+          <div style="flex:1;min-width:0">
             <div style="font-size:14px;font-weight:600">${p.fullname||u.name||u.email}</div>
-            <div style="font-size:11px;color:var(--mid)">${u.email}</div>
-            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+            <div style="font-size:11px;color:var(--mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
+            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center">
               <span class="status-badge ${roleClass}">${role}</span>
-              <span style="font-size:10px;color:var(--mid)">${txCount} resit${lastTx?' · terakhir '+lastTx.date:''}</span>
+              <span style="font-size:10px;color:var(--mid)">${txCount} resit${lastDate?' · terakhir '+lastDate:''}</span>
             </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
             <button class="btn btn-sm btn-outline" onclick="setStaffRole('${u.email}','accountant')">Akaun</button>
-            <button class="btn btn-sm ${role==='staff'?'btn-primary':'btn-secondary'}" onclick="setStaffRole('${u.email}','staff')">Staff</button>
+            <button class="btn btn-sm ${role==='staff'?'btn-primary':'btn-outline'}" onclick="setStaffRole('${u.email}','staff')">Staff</button>
           </div>
         </div>
       </div>`;
     }).join('');
   });
+}
+
+function showAddStaffModal(){
+  showModal('Tambah Staff','<div style="margin-bottom:12px"><label class="form-label">Nama Penuh</label><input class="form-input" id="newStaffName" placeholder="Nama penuh"></div><div style="margin-bottom:12px"><label class="form-label">Email Google</label><input class="form-input" id="newStaffEmail" type="email" placeholder="email@gmail.com"></div><div style="margin-bottom:16px"><label class="form-label">Role</label><select class="form-input" id="newStaffRole"><option value="staff">Staff</option><option value="accountant">Accountant</option></select></div><button class="btn btn-primary" style="width:100%" onclick="saveNewStaff()">Simpan</button>');
+}
+
+function saveNewStaff(){
+  const name=document.getElementById('newStaffName').value.trim();
+  const email=document.getElementById('newStaffEmail').value.trim().toLowerCase();
+  const role=document.getElementById('newStaffRole').value;
+  if(!email){showToast('Masukkan email ⚠️');return;}
+  const users=getRegisteredUsers();
+  if(users.find(u=>u.email===email)){showToast('Email sudah wujud ⚠️');return;}
+  users.push({email,name:name||email,role,picture:''});
+  setRegisteredUsers(users);
+  const profiles=getStaffProfiles();
+  if(!profiles[email]) profiles[email]={fullname:name,role};
+  setStaffProfiles(profiles);
+  hideModal();
+  showToast('Staff ditambah ✅');
+  renderStaffScreen();
 }
 
 // ===================== PAYMENT MODULE =====================
