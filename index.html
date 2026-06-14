@@ -202,7 +202,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.5 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.6 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1693,7 +1693,7 @@ async function ensureCategoriesSheet(){
 }
 
 async function appendToSheets(rows){
-  const token=currentToken;if(!token) return;
+  const token=accessToken||currentToken;if(!token) return;
   // Check if sheet is empty, add headers first
   const checkUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A1`;
   const check=await fetch(checkUrl,{headers:{Authorization:'Bearer '+token}});
@@ -2720,24 +2720,25 @@ function showPaymentWaPrompt(payment){
 }
 
 async function syncPaymentToSheet(p){
-  if(!accessToken) return;
+  const tok=accessToken||currentToken;
+  if(!tok) return;
   try{
     // Check/create Payments tab
     const tabUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A1:A1`;
-    const cr=await fetch(tabUrl,{headers:{Authorization:'Bearer '+accessToken}});
+    const cr=await fetch(tabUrl,{headers:{Authorization:'Bearer '+tok}});
     const cd=await cr.json();
     if(cd.error){
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
-        method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+        method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
         body:JSON.stringify({requests:[{addSheet:{properties:{title:'Payments'}}}]})
       });
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A1:G1?valueInputOption=RAW`,{
-        method:'PUT',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+        method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
         body:JSON.stringify({values:[['ID','Tarikh','Supplier','Jumlah(RM)','Kaedah','Rujukan','DirekoOleh']]})
       });
     }
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{
-      method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+      method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
       body:JSON.stringify({values:[[p.id,p.date,p.supplier,p.amount,p.method,p.note,p.recordedBy]]})
     });
   }catch(e){console.warn('Payment sheet sync:',e);}
