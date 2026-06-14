@@ -202,7 +202,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.2 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.3 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -2044,8 +2044,8 @@ function renderAdminDashboard(){
     <div class="kpi-grid" id="adminKpi"></div>
     <div class="chart-wrap"><div class="chart-title">Trend Perbelanjaan</div><canvas id="chartTrend" height="200"></canvas></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div class="chart-wrap"><div class="chart-title">Ikut Cawangan</div><canvas id="chartBranch" height="200"></canvas></div>
-      <div class="chart-wrap"><div class="chart-title">Ikut Kategori</div><canvas id="chartCat" height="200"></canvas></div>
+      <div class="chart-wrap" style="padding:10px"><div class="chart-title" style="font-size:11px;margin-bottom:4px">Ikut Cawangan</div><canvas id="chartBranch" height="140"></canvas></div>
+      <div class="chart-wrap" style="padding:10px"><div class="chart-title" style="font-size:11px;margin-bottom:4px">Ikut Kategori</div><canvas id="chartCat" height="140"></canvas></div>
     </div>
     <div class="chart-wrap"><div class="chart-title">Perbelanjaan Cawangan</div><canvas id="chartBar" height="200"></canvas></div>
     <div class="card mb-12" id="topSuppliers"></div>
@@ -2107,14 +2107,18 @@ function updateCharts(receipts){
 
   destroyChart('chartTrend');destroyChart('chartBranch');destroyChart('chartCat');destroyChart('chartBar');
 
+  // Format dates DD/MM/YY for display, sort ascending
+  const sortedDates=Object.keys(byDate).sort((a,b)=>new Date(a)-new Date(b));
+  const fmtLabels=sortedDates.map(d=>{const p=d.split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0].slice(2):d;});
+  const sortedAmounts=sortedDates.map(d=>byDate[d]);
   const c1=document.getElementById('chartTrend');
-  if(c1) charts.trend=new Chart(c1,{type:'line',data:{labels:dates,datasets:[{label:'RM',data:amounts,borderColor:'#1a7a4a',backgroundColor:'rgba(26,122,74,.1)',tension:.3,fill:true}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+  if(c1) charts.trend=new Chart(c1,{type:'line',data:{labels:fmtLabels,datasets:[{label:'RM',data:sortedAmounts,borderColor:'#1a7a4a',backgroundColor:'rgba(26,122,74,.1)',tension:.3,fill:true,pointRadius:3}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
 
   const c2=document.getElementById('chartBranch');
-  if(c2) charts.branch=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(byBranch),datasets:[{data:Object.values(byBranch),backgroundColor:BRANCH_COLORS}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}});
+  if(c2) charts.branch=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(byBranch),datasets:[{data:Object.values(byBranch),backgroundColor:BRANCH_COLORS}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10,padding:4}}}}});
 
   const c3=document.getElementById('chartCat');
-  if(c3) charts.cat=new Chart(c3,{type:'doughnut',data:{labels:Object.keys(byCat),datasets:[{data:Object.values(byCat),backgroundColor:Object.keys(byCat).map(c=>CAT_COLORS[c]||'#ccc')}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}}}});
+  if(c3) charts.cat=new Chart(c3,{type:'doughnut',data:{labels:Object.keys(byCat),datasets:[{data:Object.values(byCat),backgroundColor:Object.keys(byCat).map(c=>CAT_COLORS[c]||'#ccc')}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'bottom',labels:{font:{size:9},boxWidth:10,padding:4}}}}});
 
   const c4=document.getElementById('chartBar');
   if(c4) charts.bar=new Chart(c4,{type:'bar',data:{labels:Object.keys(byBranch),datasets:[{label:'Belanja (RM)',data:Object.values(byBranch),backgroundColor:BRANCH_COLORS}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
@@ -2590,14 +2594,16 @@ function renderPaymentScreen(){
   el.innerHTML=html;
 }
 
-function showAddPaymentModal(){
+function showAddPaymentModal(presetSupplier){
   const suppliers=getSuppliers();
-  const opts=suppliers.map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+  const opts=suppliers.map(s=>`<option value="${s.name}"${presetSupplier&&s.name===presetSupplier?' selected':''}>${s.name}</option>`).join('');
+  const presetSup=presetSupplier?suppliers.find(s=>s.name===presetSupplier):null;
+  const presetWa=presetSup&&presetSup.waNum?presetSup.waNum:'';
   const today=new Date().toISOString().split('T')[0];
   showModal('Rekod Bayaran',`
     <div class="form-group">
       <label class="form-label">Supplier</label>
-      <select id="pmtSupplier" class="form-input">${opts}</select>
+      <select id="pmtSupplier" class="form-input" onchange="pmtFillWa(this)">${opts}</select>
     </div>
     <div class="form-group">
       <label class="form-label">Tarikh Bayaran</label>
@@ -2622,10 +2628,18 @@ function showAddPaymentModal(){
     </div>
     <div class="form-group">
       <label class="form-label">No. WhatsApp Supplier</label>
-      <input type="tel" id="pmtWa" class="form-input" placeholder="60123456789">
+      <input type="tel" id="pmtWa" class="form-input" placeholder="60123456789" value="${presetWa}">
     </div>
     <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="savePayment()">Simpan & Rekod</button>
   `);
+  // If preselected supplier has WA, it's already filled via presetWa
+}
+
+function pmtFillWa(sel){
+  const suppliers=getSuppliers();
+  const s=suppliers.find(x=>x.name===sel.value);
+  const wa=document.getElementById('pmtWa');
+  if(wa&&s&&s.waNum) wa.value=s.waNum;
 }
 
 function savePayment(){
@@ -2669,7 +2683,7 @@ function showPaymentWaPrompt(payment){
     bodyHtml+=`
     <div style="font-size:12px;color:var(--mid);margin-bottom:10px">Hantar statement ke: <b>${payment.supplier}</b><br><span style="color:var(--green)">📱 ${phone}</span></div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" style="flex:1" onclick="hideModal();window.open('https://wa.me/${phone}?text='+encodeURIComponent(buildSupplierPaymentStatement('${payment.supplier}').msg),'_blank')">📱 Ya, Hantar WA</button>
+      <button class="btn btn-primary" style="flex:1" onclick="hideModal();showWaEditModal('${payment.supplier}')">Ya, Hantar WA</button>
       <button class="btn btn-outline" style="flex:1" onclick="hideModal()">Tidak</button>
     </div>`;
   } else {
@@ -2685,9 +2699,9 @@ function showPaymentWaPrompt(payment){
           const sups=getSuppliers();const s=sups.find(x=>x.name==='${payment.supplier}');
           if(s){s.waNum=num;lsSet('suppliers',sups);}
           hideModal();
-          window.open('https://wa.me/'+num+'?text='+encodeURIComponent(buildSupplierPaymentStatement('${payment.supplier}').msg),'_blank');
+          showWaEditModal('${payment.supplier}');
         } else { hideModal(); }
-      ">📱 Simpan & Hantar</button>
+      ">Simpan & Hantar</button>
       <button class="btn btn-outline" style="flex:1" onclick="hideModal()">Skip</button>
     </div>`;
   }
@@ -2751,9 +2765,9 @@ function showSupplierPaymentDetail(supplierName){
     </div>`).join('');
 
   html+=`<div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn btn-primary" style="flex:1" onclick="hideModal();showAddPaymentModal()">+ Bayaran Baru</button>
-    <button class="btn btn-outline" onclick="previewWaStatement('${supplierName}')">📋 Preview</button>
-    <button class="btn btn-outline" style="color:var(--green)" onclick="generateSupplierWaReport('${supplierName}')">📱 WA</button>
+    <button class="btn btn-primary" style="flex:1" onclick="hideModal();showAddPaymentModal('${supplierName}')">+ Bayaran Baru</button>
+    <button class="btn btn-outline" onclick="previewWaStatement('${supplierName}')">Preview</button>
+    <button class="btn btn-outline" style="color:var(--green)" onclick="showWaEditModal('${supplierName}')">WhatsApp</button>
   </div>`;
 
   showModal(supplierName, html);
@@ -2850,7 +2864,7 @@ function previewWaStatement(supplierName){
     bodyHtml+='<div style="'+style+'">'+(line||'&nbsp;')+'</div>';
   });
   bodyHtml+='</div>';
-  bodyHtml+='<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="generateSupplierWaReport(\'' +supplierName+ '\')">📱 Hantar WhatsApp</button>';
+  bodyHtml+='<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="showWaEditModal(\'' +supplierName+ '\')">📱 Hantar WhatsApp</button>';
   showModal('Statement: '+supplierName, bodyHtml);
 }
 
@@ -2868,14 +2882,59 @@ function sendPaymentWhatsApp(paymentId){
 }
 
 
-function generateSupplierWaReport(supplierName){
-  const {msg,waNum}=buildSupplierPaymentStatement(supplierName);
-  if(!waNum){
-    showModal('No. WhatsApp Supplier','<div style="font-size:13px;color:var(--mid);margin-bottom:12px">Tiada no. WA untuk <b>'+supplierName+'</b>.</div><input type="tel" id="quickWaNum2" class="form-input" placeholder="60123456789" style="margin-bottom:12px"><button class="btn btn-primary" style="width:100%" onclick="const num=document.getElementById(\'quickWaNum2\').value.replace(/\\D/g,\'\');if(!num)return;const sups=getSuppliers();const s=sups.find(x=>x.name===\''+supplierName+'\');if(s){s.waNum=num;lsSet(\'suppliers\',sups);}hideModal();generateSupplierWaReport(\''+supplierName+'\');">Simpan & Hantar</button>');
-    return;
-  }
-  window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
+function showWaEditModal(supplierName){
+  showWaEditModal(supplierName);
 }
+
+function showWaEditModal(supplierName){
+  const {msg,waNum}=buildSupplierPaymentStatement(supplierName);
+  const draftKey='waDraft_'+supplierName;
+  const saved=localStorage.getItem(draftKey);
+  const draft=saved||msg;
+  const noWaForm=waNum?'':`
+    <div style="margin-bottom:10px">
+      <label class="form-label">No. WhatsApp Supplier</label>
+      <input type="tel" id="waEditNum" class="form-input" placeholder="60123456789">
+    </div>`;
+  showModal('WhatsApp: '+supplierName,`
+    ${noWaForm}
+    <div style="font-size:11px;color:var(--mid);margin-bottom:6px">Edit mesej sebelum hantar:</div>
+    <textarea id="waEditMsg" class="form-input" rows="12" style="font-family:monospace;font-size:12px;line-height:1.8;resize:vertical">${draft}</textarea>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-primary" style="flex:2" onclick="sendWaEdited('${supplierName}','${waNum}')">Hantar WhatsApp</button>
+      <button class="btn btn-outline" style="flex:1" onclick="clearWaDraft('${supplierName}')">Reset</button>
+    </div>
+    <div style="font-size:10px;color:var(--mid);margin-top:8px;text-align:center">Teks disimpan automatik semasa edit</div>
+  `);
+  setTimeout(()=>{
+    const ta=document.getElementById('waEditMsg');
+    if(ta) ta.addEventListener('input',()=>{localStorage.setItem('waDraft_'+supplierName,ta.value);});
+  },100);
+}
+
+function sendWaEdited(supplierName,waNum){
+  const ta=document.getElementById('waEditMsg');
+  const numInput=document.getElementById('waEditNum');
+  let phone=(waNum||(numInput?numInput.value.replace(/\D/g,''):'')).replace(/\D/g,'');
+  if(!phone){showToast('Masukkan no. WhatsApp ⚠️');return;}
+  if(!waNum&&phone){
+    const sups=getSuppliers();const s=sups.find(x=>x.name===supplierName);
+    if(s){s.waNum=phone;lsSet('suppliers',sups);}
+  }
+  const editedMsg=ta?ta.value:buildSupplierPaymentStatement(supplierName).msg;
+  localStorage.setItem('waDraft_'+supplierName,editedMsg);
+  hideModal();
+  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(editedMsg),'_blank');
+}
+
+function clearWaDraft(supplierName){
+  localStorage.removeItem('waDraft_'+supplierName);
+  const {msg}=buildSupplierPaymentStatement(supplierName);
+  const ta=document.getElementById('waEditMsg');
+  if(ta) ta.value=msg;
+  showToast('Draft diset semula ✅');
+}
+
 
 
 function renderSupplierAdmin(){
