@@ -202,7 +202,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.3 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.4 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -2915,9 +2915,13 @@ function showWaEditModal(supplierName){
 function sendWaEdited(supplierName,waNum){
   const ta=document.getElementById('waEditMsg');
   const numInput=document.getElementById('waEditNum');
-  let phone=(waNum||(numInput?numInput.value.replace(/\D/g,''):'')).replace(/\D/g,'');
+  // waNum from template may be empty string — check input field first, fallback to param
+  let phone='';
+  if(numInput&&numInput.value) phone=numInput.value.replace(/\D/g,'');
+  if(!phone&&waNum) phone=waNum.replace(/\D/g,'');
   if(!phone){showToast('Masukkan no. WhatsApp ⚠️');return;}
-  if(!waNum&&phone){
+  if(numInput&&phone){
+    // Save WA num to supplier
     const sups=getSuppliers();const s=sups.find(x=>x.name===supplierName);
     if(s){s.waNum=phone;lsSet('suppliers',sups);}
   }
