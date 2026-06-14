@@ -2158,6 +2158,75 @@ function updateLatestTx(receipts){
 // =====================
 // STAFF SCREEN (ADMIN)
 // =====================
+function setStaffRole(email, role){
+  const profiles = getStaffProfiles();
+  if(!profiles[email]) profiles[email]={};
+  profiles[email].role = role;
+  setStaffProfiles(profiles);
+  // Update registered users list role
+  const users = getRegisteredUsers();
+  const u = users.find(x=>x.email===email);
+  if(u) u.role = role;
+  setRegisteredUsers(users);
+  showToast('Role dikemaskini: '+role+' ✅');
+  renderStaffScreen();
+}
+
+function renderStaffScreen(){
+  syncAllStaffFromSheet().catch(()=>{}).finally(()=>{
+    const el=document.getElementById('staffContent');
+    if(!el) return;
+    const profiles=getStaffProfiles();
+    const users=getRegisteredUsers();
+    const receipts=getReceipts();
+    const allStaff=users.filter(u=>getRole(u.email)==='staff');
+    const activeStaff=allStaff.filter(u=>receipts.some(r=>r.uploadedEmail===u.email));
+    const mostActive=allStaff.map(u=>({
+      ...u,
+      count:receipts.filter(r=>r.uploadedEmail===u.email).length
+    })).sort((a,b)=>b.count-a.count)[0];
+
+    let html=`<div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Jumlah Staff</div><div class="kpi-value">${allStaff.length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Aktif</div><div class="kpi-value" style="color:var(--green)">${activeStaff.length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Paling Aktif</div><div class="kpi-value" style="font-size:13px">${mostActive?mostActive.name||mostActive.email:'-'}</div></div>
+    </div>
+    <div id="staffContent2" style="margin-top:12px"></div>`;
+    el.innerHTML=html;
+
+    const el2=document.getElementById('staffContent2');
+    if(!el2) return;
+    if(!allStaff.length){
+      el2.innerHTML='<div class="empty-state"><div class="empty-icon">👤</div><div>Tiada staff berdaftar</div></div>';
+      return;
+    }
+    el2.innerHTML=allStaff.map(u=>{
+      const p=profiles[u.email]||{};
+      const role=getRole(u.email);
+      const roleClass=role==='super_admin'?'role-admin':role==='accountant'?'role-accountant':'role-staff';
+      const txCount=receipts.filter(r=>r.uploadedEmail===u.email).length;
+      const lastTx=receipts.filter(r=>r.uploadedEmail===u.email).slice(-1)[0];
+      return `<div class="card mb-8" style="padding:14px">
+        <div style="display:flex;align-items:center;gap:12px">
+          ${u.picture?`<img src="${u.picture}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`:`<div style="width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:18px">👤</div>`}
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:600">${p.fullname||u.name||u.email}</div>
+            <div style="font-size:11px;color:var(--mid)">${u.email}</div>
+            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+              <span class="status-badge ${roleClass}">${role}</span>
+              <span style="font-size:10px;color:var(--mid)">${txCount} resit${lastTx?' · terakhir '+lastTx.date:''}</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <button class="btn btn-sm btn-outline" onclick="setStaffRole('${u.email}','accountant')">Akaun</button>
+            <button class="btn btn-sm ${role==='staff'?'btn-primary':'btn-secondary'}" onclick="setStaffRole('${u.email}','staff')">Staff</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  });
+}
+
 // ===================== PAYMENT MODULE =====================
 function lsGetPayments(){return JSON.parse(localStorage.getItem('payments')||'[]');}
 function lsSetPayments(p){localStorage.setItem('payments',JSON.stringify(p));}
