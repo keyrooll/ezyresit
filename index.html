@@ -202,7 +202,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.4 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.5 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -571,6 +571,7 @@ const DEFAULT_SUPPLIERS = [
 // =====================
 let currentUser = null;
 let currentToken = null;
+let accessToken = null;
 let tokenClient = null;
 let currentRole = null;
 let currentStep = 1;
@@ -847,6 +848,7 @@ function initGIS(){
 async function handleTokenResponse(resp){
   if(resp.error){console.error(resp);return;}
   currentToken = resp.access_token;
+  accessToken = resp.access_token;
   const expiry = Date.now() + (resp.expires_in||3599)*1000;
   const kekal = document.getElementById('kekalCheck').checked;
   if(kekal){
@@ -906,6 +908,7 @@ function autoLogin(){
   const user = lsGet('ezy_user',null);
   if(token && expiry > Date.now() && user){
     currentToken = token;
+    accessToken = token;
     currentUser = user;
     currentRole = getRole(user.email);
     showMainApp();
@@ -2642,13 +2645,20 @@ function pmtFillWa(sel){
   if(wa&&s&&s.waNum) wa.value=s.waNum;
 }
 
+function normalizeWa(num){
+  let p=(num||'').replace(/\D/g,'');
+  if(p.startsWith('0')) p='6'+p;
+  else if(p&&!p.startsWith('6')) p='60'+p;
+  return p;
+}
+
 function savePayment(){
   const supplier=document.getElementById('pmtSupplier').value;
   const date=document.getElementById('pmtDate').value;
   const amount=parseFloat(document.getElementById('pmtAmount').value)||0;
   const method=document.getElementById('pmtMethod').value;
   const note=document.getElementById('pmtNote').value;
-  const waNum=document.getElementById('pmtWa').value.replace(/\D/g,'');
+  const waNum=normalizeWa(document.getElementById('pmtWa').value);
   if(!supplier||!date||!amount){showToast('Sila lengkapkan maklumat ⚠️');return;}
   const payments=lsGetPayments();
   const id='PMT-'+Date.now();
@@ -2920,6 +2930,9 @@ function sendWaEdited(supplierName,waNum){
   if(numInput&&numInput.value) phone=numInput.value.replace(/\D/g,'');
   if(!phone&&waNum) phone=waNum.replace(/\D/g,'');
   if(!phone){showToast('Masukkan no. WhatsApp ⚠️');return;}
+  // Auto-add Malaysia country code
+  if(phone.startsWith('0')) phone='6'+phone;
+  else if(!phone.startsWith('6')) phone='60'+phone;
   if(numInput&&phone){
     // Save WA num to supplier
     const sups=getSuppliers();const s=sups.find(x=>x.name===supplierName);
@@ -3063,7 +3076,7 @@ function saveEditSupplier(supplierId){
   s.account=document.getElementById('editSupAcc').value.trim();
   s.bankName=document.getElementById('editSupBank').value;
   s.bankAcc=document.getElementById('editSupBankAcc').value.trim();
-  s.waNum=document.getElementById('editSupWa').value.replace(/\D/g,'');
+  s.waNum=normalizeWa(document.getElementById('editSupWa').value);
   lsSet('suppliers',suppliers);
   hideModal();
   showToast('Supplier dikemaskini ✅');
