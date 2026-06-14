@@ -2,6 +2,10 @@
 <html lang="ms">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<!-- v1781420499 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>EzyResit Receipt System</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -198,7 +202,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.1 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.2 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -791,7 +795,7 @@ async function syncStaffToSheet(u){
 }
 
 async function syncAllStaffFromSheet(){
-  if(!accessToken) return;
+  if(!accessToken) return Promise.resolve();
   try{
     const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:E`,{headers:{Authorization:'Bearer '+accessToken}});
     const d=await r.json();
