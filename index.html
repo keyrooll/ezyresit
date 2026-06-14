@@ -2854,6 +2854,32 @@ function generateSupplierWaReport(supplierName){
 }
 
 
+function renderSupplierAdmin(){
+  const suppliers=getSuppliers().sort((a,b)=>b.count-a.count);
+  const receipts=getReceipts();
+  const totalSpend=receipts.reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  const mostTx=suppliers[0]||{name:'-'};
+  const highest=suppliers.reduce((max,s)=>{
+    const spend=receipts.filter(r=>r.vendor===s.name).reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    return spend>(max.spend||0)?{name:s.name,spend}:max;
+  },{name:'-',spend:0});
+  const el=document.getElementById('supplierAdminContent');
+  if(!el) return;
+  el.innerHTML=`
+    <div class="kpi-grid" style="margin-bottom:12px">
+      <div class="kpi-card"><div class="kpi-label">Jumlah Supplier</div><div class="kpi-value">${suppliers.length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Aktif</div><div class="kpi-value" style="color:var(--green)">${suppliers.filter(s=>s.count>0).length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Transaksi Terbanyak</div><div class="kpi-value" style="font-size:13px">${mostTx.name}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Belanja Tertinggi</div><div class="kpi-value" style="font-size:13px">${highest.name||'-'}</div></div>
+    </div>
+    <div class="section-title">Senarai Supplier</div>
+    <div id="supplierAdminList"></div>
+    <div style="margin-top:16px;font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">RINGKASAN HUTANG</div>
+    <div id="supplierDebtSummary"></div>`;
+  renderSupplierAdminList();
+  renderSupplierDebtSummary();
+}
+
 function renderSupplierDebtSummary(){
   const el=document.getElementById('supplierDebtSummary');
   if(!el) return;
