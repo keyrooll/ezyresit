@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.4.5 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.0</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -497,6 +497,9 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary" style="flex:1" onclick="exportBackup()">Export Backup</button>
         <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('importBackupFile').click()">Import Backup</button>
+      </div>
+      <button class="btn btn-outline" style="width:100%;margin-top:8px;color:var(--red);border-color:var(--red)" onclick="clearAllData()">Kosongkan Semua Data</button>
+      <div style="display:none">
         <input type="file" id="importBackupFile" accept=".json" style="display:none" onchange="importBackup(event)">
       </div>
       <div style="font-size:10px;color:var(--mid);margin-top:6px;text-align:center">Simpan semua data tempatan sebagai fail .json</div>
@@ -597,7 +600,16 @@ function lsGet(k, def=null){try{const v=localStorage.getItem(k);return v?JSON.pa
 function lsSet(k,v){localStorage.setItem(k,JSON.stringify(v))}
 function formatRM(val){
   const n=parseFloat(val)||0;
-  return 'RM '+n.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const str='RM '+Math.abs(n).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return n<0?`<span style="color:var(--red)">${str}</span>`:str;
+}
+function fmtDate(d){
+  if(!d) return '-';
+  // Accepts YYYY-MM-DD or DD/MM/YY or DD/MM/YYYY
+  const s=String(d).trim();
+  if(s.includes('-')){const p=s.split('-');if(p.length===3)return p[2].slice(-2)+'/'+p[1]+'/'+p[0].slice(2);}
+  if(s.includes('/')){const p=s.split('/');if(p.length===3)return p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2].slice(-2);}
+  return s;
 }
 function showModal(title,bodyHtml){
   let m=document.getElementById('genericModal');
@@ -730,7 +742,7 @@ function renderSameDateComparison(containerId){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div>
           <div style="font-size:13px;font-weight:600">${d.itemName}</div>
-          <div style="font-size:11px;color:var(--mid)">${d.date} · ${d.itemCode}</div>
+          <div style="font-size:11px;color:var(--mid)">${fmtDate(d.date)} · ${d.itemCode}</div>
         </div>
         <div style="font-size:11px;background:${diffPct>10?'#fee2e2':'#fef9c3'};color:${diffPct>10?'#b91c1c':'#854d0e'};padding:2px 8px;border-radius:20px">Beza ${diffPct}%</div>
       </div>
@@ -1100,6 +1112,18 @@ function saveProfileApiKey(){
   lsSet('ezy_openai_key',key);
   showToast('API Key dikemaskini ✓');
   document.getElementById('profileApiKey').value='';
+}
+function clearAllData(){
+  if(!confirm('AMARAN: Semua data akan dipadam. Tindakan ini tidak boleh dibuat alik. Teruskan?')) return;
+  const keep=['ezy_openai_key','ezy_registered_users','ezy_staff_profiles'];
+  const toRemove=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(!keep.includes(k)) toRemove.push(k);
+  }
+  toRemove.forEach(k=>localStorage.removeItem(k));
+  showToast('Semua data telah dikosongkan ✓');
+  setTimeout(()=>location.reload(),1200);
 }
 function exportBackup(){
   const keys=['ezy_receipts','ezy_suppliers','ezy_registered_users','ezy_staff_profiles','ezy_openai_key','payments','ezy_sheet_id'];
@@ -1600,7 +1624,7 @@ async function submitReceipt(){
     if(last5.length){
       recentEl.innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">5 TRANSAKSI TERBARU</div>`+
       last5.map(r=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
-        <div><div style="font-weight:500">${r.vendor||'-'}</div><div style="color:var(--mid)">${r.date}</div></div>
+        <div><div style="font-weight:500">${r.vendor||'-'}</div><div style="color:var(--mid)">${fmtDate(r.date)}</div></div>
         <div style="text-align:right"><div style="font-weight:600;color:var(--green)">${formatRM(parseFloat(r.amount||0))}</div>
         <span class="status-badge status-${(r.status||'').toLowerCase()}" style="font-size:10px">${r.status}</span></div>
       </div>`).join('');
@@ -1788,7 +1812,7 @@ function renderStaffResit(){
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
             <div style="font-size:13px;font-weight:600">${r.vendor||'-'}</div>
-            <div style="font-size:11px;color:var(--mid)">${r.date} · ${r.branch||'-'}</div>
+            <div style="font-size:11px;color:var(--mid)">${fmtDate(r.date)} · ${r.branch||'-'}</div>
           </div>
           <div style="text-align:right">
             <div style="font-size:13px;font-weight:600;color:var(--green)">${formatRM(parseFloat(r.amount||0))}</div>
@@ -1803,7 +1827,7 @@ function renderStaffResit(){
     html+=`<div class="table-wrap"><table class="data-table">
       <thead><tr><th>Tarikh</th><th>Vendor</th><th>RM</th><th>Status</th></tr></thead>
       <tbody>${last10.map(r=>`<tr>
-        <td>${r.date}</td><td>${r.vendor||'-'}</td>
+        <td>${fmtDate(r.date)}</td><td>${r.vendor||'-'}</td>
         <td>${formatRM(parseFloat(r.amount||0))}</td>
         <td><span class="status-badge status-${(r.status||'').toLowerCase()}">${r.status}</span></td>
       </tr>`).join('')}</tbody>
@@ -1881,7 +1905,7 @@ function showSupplierHistory(supplierName){
   else html+=receipts.map(r=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:6px">
       <div>
-        <div style="font-size:12px;font-weight:600">${r.date}</div>
+        <div style="font-size:12px;font-weight:600">${fmtDate(r.date)}</div>
         <div style="font-size:11px;color:var(--mid)">${r.branch||'-'} · ${r.category||'-'}</div>
         <div style="font-size:11px;color:var(--mid)">${(()=>{try{const it=Array.isArray(r.items)?r.items:(typeof r.items==='string'&&r.items?JSON.parse(r.items):[]);return it.length?it.map(i=>i.name||i).join(', ').slice(0,40):r.description||'';}catch{return r.description||'';}})()}</div>
       </div>
@@ -1894,7 +1918,7 @@ function showSupplierHistory(supplierName){
   else html+=payments.map(p=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f0fdf4;border-radius:8px;margin-bottom:6px">
       <div>
-        <div style="font-size:12px;font-weight:600">${p.date}</div>
+        <div style="font-size:12px;font-weight:600">${fmtDate(p.date)}</div>
         <div style="font-size:11px;color:var(--mid)">${p.method||'-'}${p.note?' · '+p.note:''}</div>
       </div>
       <div style="font-weight:700;color:var(--green)">${formatRM(p.amount)}</div>
@@ -1994,7 +2018,7 @@ function renderResitContent(tab){
         <table class="data-table">
           <thead><tr><th>Tarikh</th><th>Vendor</th><th>Cawangan</th><th>RM</th><th>Status</th></tr></thead>
           <tbody>${latest.map(r=>`<tr>
-            <td>${r.date}</td><td>${r.vendor}</td><td>${r.branch||'-'}</td>
+            <td>${fmtDate(r.date)}</td><td>${r.vendor}</td><td>${r.branch||'-'}</td>
             <td>${formatRM(parseFloat(r.amount||0))}</td>
             <td><span class="status-badge status-${(r.status||'').toLowerCase()}">${r.status}</span></td>
           </tr>`).join('')}</tbody>
@@ -2016,7 +2040,7 @@ function renderReceiptCard(r, tab){
       </div>
       <div class="receipt-amount">${formatRM(parseFloat(r.amount||0))}</div>
     </div>
-    <div class="receipt-meta">📅 ${r.date} · 🏬 ${r.branch}</div>
+    <div class="receipt-meta">📅 ${fmtDate(r.date)} · 🏬 ${r.branch}</div>
     <div class="receipt-meta">👤 ${r.uploadedBy} · ${CAT_EMOJI[r.category]||''} ${r.category}</div>
     ${r.nota?`<div class="receipt-meta" style="margin-top:4px;font-style:italic">"${r.nota}"</div>`:''}
     ${r.driveLink?`<div class="receipt-meta"><a href="${r.driveLink}" target="_blank" style="color:var(--green)">Lihat Gambar</a></div>`:''}
@@ -2340,7 +2364,7 @@ function updateLatestTx(receipts){
   if(!receipts.length){el.innerHTML='<div style="color:var(--mid);font-size:13px">Tiada transaksi</div>';return;}
   el.innerHTML=`<table class="data-table"><thead><tr><th>Tarikh</th><th>Vendor</th><th>Cawangan</th><th>RM</th><th>Status</th></tr></thead><tbody>`+
     receipts.map(r=>`<tr>
-      <td>${r.date}</td><td>${r.vendor}</td><td>${r.branch}</td>
+      <td>${fmtDate(r.date)}</td><td>${r.vendor}</td><td>${r.branch}</td>
       <td>${formatRM(parseFloat(r.amount||0))}</td>
       <td><span class="status-badge status-${r.status.toLowerCase()}">${r.status}</span></td>
     </tr>`).join('')+'</tbody></table>';
@@ -2412,7 +2436,7 @@ function renderStaffScreen(){
             <div style="font-size:11px;color:var(--mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
             <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center">
               <span class="status-badge ${roleClass}">${role}</span>
-              <span style="font-size:10px;color:var(--mid)">${txCount} resit${lastDate?' · terakhir '+lastDate:''}</span>
+              <span style="font-size:10px;color:var(--mid)">${txCount} resit${lastDate?' · terakhir '+fmtDate(lastDate):''}</span>
             </div>
             <div style="font-size:10px;color:var(--primary);margin-top:3px">📍 ${brLabel}</div>
           </div>
@@ -2685,7 +2709,7 @@ function pmtShowAiResult(){
         </div>
       </div>
       ${knockoffs.map(k=>`<div style="font-size:11px;padding:6px 8px;background:var(--surface2);border-radius:6px;margin-bottom:4px;display:flex;justify-content:space-between">
-        <span>Resit ${k.date} (${formatRM(k.receiptTotal)})</span>
+        <span>Resit ${fmtDate(k.date)} (${formatRM(k.receiptTotal)})</span>
         <span style="color:var(--green);font-weight:600">-${formatRM(k.apply)}</span>
       </div>`).join('')}
       ${remaining>0.01?`<div style="font-size:11px;color:var(--amber);margin-top:4px">Lebihan ${formatRM(remaining)} → advance credit</div>`:''}
@@ -2916,7 +2940,7 @@ function renderPaymentScreen(){
     html+=`<div class="table-wrap"><table class="data-table">
       <thead><tr><th>Tarikh</th><th>Supplier</th><th>RM</th><th>Kaedah</th><th></th></tr></thead>
       <tbody>${recent.map(p=>`<tr>
-        <td>${p.date}</td><td>${p.supplier}</td>
+        <td>${fmtDate(p.date)}</td><td>${p.supplier}</td>
         <td>${formatRM(parseFloat(p.amount))}</td>
         <td>${p.method||'-'}</td>
         <td><button class="btn btn-sm" onclick="sendPaymentWhatsApp('${p.id}')"></button></td>
@@ -3101,7 +3125,7 @@ function showSupplierPaymentDetail(supplierName){
   if(!myPayments.length) html+='<div style="text-align:center;color:var(--mid);padding:20px;font-size:13px">Tiada rekod bayaran</div>';
   else html+=myPayments.slice().reverse().map(p=>`
     <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">
-      <div><div style="font-weight:500">${p.date} · ${p.method}</div><div style="font-size:11px;color:var(--mid)">${p.note||'-'}</div></div>
+      <div><div style="font-weight:500">${fmtDate(p.date)} · ${p.method}</div><div style="font-size:11px;color:var(--mid)">${p.note||'-'}</div></div>
       <div style="font-weight:700;color:var(--green)">${formatRM(parseFloat(p.amount))}</div>
     </div>`).join('');
 
