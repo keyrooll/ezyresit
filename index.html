@@ -196,13 +196,11 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <div class="login-title" style="font-size:28px;font-weight:800;color:var(--dark);margin-bottom:4px">Receipt System</div>
   <div style="font-size:13px;color:var(--mid);margin-bottom:28px">smart staff, ezy working</div>
   <button class="btn-google" onclick="doLogin()">
-    <svg class="google-svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-    Log masuk dengan Google
-  </button>
+    <svg class="google-svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>Log masuk dengan Google</button>
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.3.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.3.3 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1949,7 +1947,7 @@ function showApprovalWaPrompt(r){
     bodyHtml+=`
     <div style="font-size:12px;color:var(--mid);margin-bottom:8px">Hantar ke: <b>${uploaderName}</b> (${staffWa})</div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" style="flex:1" onclick="hideModal();window.open('https://wa.me/${staffWa}?text='+encodeURIComponent(\`${msg.replace(/`/g,"'")}\`),'_blank')">📱 Ya, Hantar WA</button>
+      <button class="btn btn-primary" style="flex:1" onclick="hideModal();window.open('https://wa.me/${staffWa}?text='+encodeURIComponent(\`${msg.replace(/`/g,"'")}\`),'_blank')">Ya, Hantar WA</button>
       <button class="btn btn-outline" style="flex:1" onclick="hideModal()">Tidak</button>
     </div>`;
   } else {
@@ -1970,7 +1968,7 @@ function showApprovalWaPrompt(r){
           hideModal();
           window.open('https://wa.me/'+num+'?text='+encodeURIComponent(\`${msg.replace(/`/g,"'")}\`),'_blank');
         } else { hideModal(); }
-      ">📱 Hantar WA</button>
+      ">Hantar WA</button>
       <button class="btn btn-outline" style="flex:1" onclick="hideModal()">Skip</button>
     </div>`;
   }
@@ -2284,13 +2282,13 @@ function showPaymentUploadModal(){
       <div id="pmtPreviewWrap" style="display:none;margin-bottom:16px">
         <img id="pmtPreviewImg" style="width:100%;border-radius:8px;max-height:300px;object-fit:contain">
       </div>
-      <button class="btn btn-primary" style="width:100%" id="pmtScanBtn" onclick="pmtScanReceipt()" disabled>🔍 Scan dengan AI</button>
+      <button class="btn btn-primary" style="width:100%" id="pmtScanBtn" onclick="pmtScanReceipt()" disabled>Scan dengan AI</button>
     </div>
 
     <div id="pmtUploadStep2" style="display:none">
       <div id="pmtAiResultBox" style="background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:16px"></div>
       <div id="pmtKnockoffBox"></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:12px" id="pmtConfirmBtn" onclick="pmtConfirmPayment()">✅ Sahkan & Rekod Bayaran</button>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px" id="pmtConfirmBtn" onclick="pmtConfirmPayment()">Sahkan & Rekod Bayaran</button>
     </div>
   `);
 }
@@ -2315,7 +2313,7 @@ async function pmtScanReceipt(){
   const apiKey = getApiKey();
   if(!apiKey){ showToast('Set API Key dulu dalam Profile ⚠️'); return; }
   const btn = document.getElementById('pmtScanBtn');
-  btn.disabled = true; btn.textContent = '⏳ Mengimbas...';
+  btn.disabled = true; btn.textContent = 'Mengimbas...';
 
   try{
     const base64 = pmtUploadState.preview.split(',')[1];
@@ -2342,15 +2340,17 @@ Kembalikan JSON SAHAJA:
     const workerUrl = 'https://ezyresit.keyrooll.workers.dev/';
     const resp = await fetch(workerUrl, {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+apiKey
+      },
       body: JSON.stringify({
         model:'gpt-4o',
         messages:[{role:'user',content:[
           {type:'text',text:prompt},
           {type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64}`}}
         ]}],
-        max_tokens:1000,
-        apiKey
+        max_tokens:1000
       })
     });
     const data = await resp.json();
@@ -2360,9 +2360,9 @@ Kembalikan JSON SAHAJA:
     pmtUploadState.aiResult = JSON.parse(match[0]);
     pmtShowAiResult();
   } catch(e){
-    console.error(e);
-    showToast('Gagal scan ⚠️ Cuba semula');
-    btn.disabled = false; btn.textContent = '🔍 Scan dengan AI';
+    console.error('pmtScanReceipt error:',e);
+    showToast('Gagal scan: '+e.message+' ⚠️');
+    btn.disabled = false; btn.textContent = 'Scan dengan AI';
   }
 }
 
@@ -2552,8 +2552,8 @@ function renderPaymentScreen(){
 
   let html=`
   <div style="margin-bottom:16px;display:flex;gap:8px">
-    <button class="btn btn-primary" onclick="showPaymentUploadModal()" style="flex:1">📷 Upload Resit Bayaran</button>
-    <button class="btn btn-outline" onclick="showAddPaymentModal()" style="flex:1">✏️ Input Manual</button>
+    <button class="btn btn-primary" onclick="showPaymentUploadModal()" style="flex:1">Upload Resit Bayaran</button>
+    <button class="btn btn-outline" onclick="showAddPaymentModal()" style="flex:1">Input Manual</button>
   </div>
   <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">HUTANG SUPPLIER</div>`;
 
@@ -2590,7 +2590,7 @@ function renderPaymentScreen(){
         <td>${p.date}</td><td>${p.supplier}</td>
         <td>${formatRM(parseFloat(p.amount))}</td>
         <td>${p.method||'-'}</td>
-        <td><button class="btn btn-sm" onclick="sendPaymentWhatsApp('${p.id}')">📱</button></td>
+        <td><button class="btn btn-sm" onclick="sendPaymentWhatsApp('${p.id}')"></button></td>
       </tr>`).join('')}</tbody>
     </table></div>`;
   }
@@ -2876,7 +2876,7 @@ function previewWaStatement(supplierName){
     bodyHtml+='<div style="'+style+'">'+(line||'&nbsp;')+'</div>';
   });
   bodyHtml+='</div>';
-  bodyHtml+='<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="showWaEditModal(\'' +supplierName+ '\')">📱 Hantar WhatsApp</button>';
+  bodyHtml+='<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="showWaEditModal(\'' +supplierName+ '\')">Hantar WhatsApp</button>';
   showModal('Statement: '+supplierName, bodyHtml);
 }
 
