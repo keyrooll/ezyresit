@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.3.7 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.4.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -492,7 +492,16 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
       <div style="font-size:11px;color:var(--mid);margin-top:4px">Kosongkan untuk kekalkan key semasa</div>
     </div>
     <button class="btn btn-primary btn-block" onclick="saveProfile()">Simpan</button>
-    <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="closeModal('profileModal')">Batal</button>
+    <div style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:10px">BACKUP & RESTORE</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" style="flex:1" onclick="exportBackup()">Export Backup</button>
+        <button class="btn btn-secondary" style="flex:1" onclick="document.getElementById('importBackupFile').click()">Import Backup</button>
+        <input type="file" id="importBackupFile" accept=".json" style="display:none" onchange="importBackup(event)">
+      </div>
+      <div style="font-size:10px;color:var(--mid);margin-top:6px;text-align:center">Simpan semua data tempatan sebagai fail .json</div>
+    </div>
+    <button class="btn btn-secondary btn-block" style="margin-top:12px" onclick="closeModal('profileModal')">Batal</button>
   </div>
 </div>
 
@@ -1086,6 +1095,46 @@ function saveProfileApiKey(){
   lsSet('ezy_openai_key',key);
   showToast('API Key dikemaskini ✓');
   document.getElementById('profileApiKey').value='';
+}
+function exportBackup(){
+  const keys=['ezy_receipts','ezy_suppliers','ezy_registered_users','ezy_staff_profiles','ezy_openai_key','payments','ezy_sheet_id'];
+  const data={version:'ezyresit-backup-v1',exportedAt:new Date().toISOString()};
+  keys.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)data[k]=JSON.parse(v);});
+  // also grab per-user profiles and waDraft keys
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k.startsWith('ezy_user_profile_')||k.startsWith('waDraft_')){
+      try{data[k]=JSON.parse(localStorage.getItem(k));}catch{data[k]=localStorage.getItem(k);}
+    }
+  }
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='ezyresit-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(url);
+  showToast('Backup berjaya dieksport ✓');
+}
+function importBackup(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.version||!data.version.startsWith('ezyresit-backup')){
+        showToast('Fail backup tidak sah ⚠️');return;
+      }
+      if(!confirm('Import akan GANTIKAN semua data semasa. Teruskan?'))return;
+      const skip=['version','exportedAt'];
+      Object.keys(data).forEach(k=>{
+        if(skip.includes(k))return;
+        localStorage.setItem(k,JSON.stringify(data[k]));
+      });
+      showToast('Data berjaya dipulihkan ✓');
+      setTimeout(()=>location.reload(),1200);
+    }catch{showToast('Ralat membaca fail backup ⚠️');}
+  };
+  reader.readAsText(file);
+  e.target.value='';
 }
 function checkApiKeyOnLogin(){
   const key=lsGet('ezy_openai_key','');
@@ -1811,7 +1860,7 @@ function showSupplierHistory(supplierName){
       <div>
         <div style="font-size:12px;font-weight:600">${r.date}</div>
         <div style="font-size:11px;color:var(--mid)">${r.branch||'-'} · ${r.category||'-'}</div>
-        <div style="font-size:11px;color:var(--mid)">${r.items&&r.items.length?r.items.map(i=>i.name).join(', ').slice(0,40):''}</div>
+        <div style="font-size:11px;color:var(--mid)">${(()=>{try{const it=Array.isArray(r.items)?r.items:(typeof r.items==='string'&&r.items?JSON.parse(r.items):[]);return it.length?it.map(i=>i.name||i).join(', ').slice(0,40):r.description||'';}catch{return r.description||'';}})()}</div>
       </div>
       <div style="font-weight:700;color:var(--blue)">${formatRM(r.amount)}</div>
     </div>`).join('');
@@ -2109,8 +2158,8 @@ function renderAdminDashboard(){
     <div class="kpi-grid" id="adminKpi"></div>
     <div class="chart-wrap"><div class="chart-title">Trend Perbelanjaan</div><canvas id="chartTrend" height="200"></canvas></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div class="chart-wrap" style="padding:8px"><div class="chart-title" style="font-size:11px;margin-bottom:2px">Ikut Cawangan</div><canvas id="chartBranch" height="110"></canvas></div>
-      <div class="chart-wrap" style="padding:8px"><div class="chart-title" style="font-size:11px;margin-bottom:2px">Ikut Kategori</div><canvas id="chartCat" height="110"></canvas></div>
+      <div class="chart-wrap" style="padding:6px"><div class="chart-title" style="font-size:10px;margin-bottom:2px">Ikut Cawangan</div><div style="position:relative;height:80px"><canvas id="chartBranch"></canvas></div></div>
+      <div class="chart-wrap" style="padding:6px"><div class="chart-title" style="font-size:10px;margin-bottom:2px">Ikut Kategori</div><div style="position:relative;height:80px"><canvas id="chartCat"></canvas></div></div>
     </div>
     <div class="chart-wrap"><div class="chart-title">Perbelanjaan Cawangan</div><canvas id="chartBar" height="200"></canvas></div>
     <div class="card mb-12" id="topSuppliers"></div>
@@ -2180,10 +2229,10 @@ function updateCharts(receipts){
   if(c1) charts.trend=new Chart(c1,{type:'line',data:{labels:fmtLabels,datasets:[{label:'RM',data:sortedAmounts,borderColor:'#1a7a4a',backgroundColor:'rgba(26,122,74,.1)',tension:.3,fill:true,pointRadius:3}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
 
   const c2=document.getElementById('chartBranch');
-  if(c2) charts.branch=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(byBranch),datasets:[{data:Object.values(byBranch),backgroundColor:BRANCH_COLORS}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': RM'+c.parsed.toLocaleString();}}}}}});
+  if(c2) charts.branch=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(byBranch),datasets:[{data:Object.values(byBranch),backgroundColor:BRANCH_COLORS}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': RM'+c.parsed.toLocaleString();}}}}}});
 
   const c3=document.getElementById('chartCat');
-  if(c3) charts.cat=new Chart(c3,{type:'doughnut',data:{labels:Object.keys(byCat),datasets:[{data:Object.values(byCat),backgroundColor:Object.keys(byCat).map(c=>CAT_COLORS[c]||'#ccc')}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': RM'+c.parsed.toLocaleString();}}}}}});
+  if(c3) charts.cat=new Chart(c3,{type:'doughnut',data:{labels:Object.keys(byCat),datasets:[{data:Object.values(byCat),backgroundColor:Object.keys(byCat).map(c=>CAT_COLORS[c]||'#ccc')}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': RM'+c.parsed.toLocaleString();}}}}}});
 
   const c4=document.getElementById('chartBar');
   if(c4) charts.bar=new Chart(c4,{type:'bar',data:{labels:Object.keys(byBranch),datasets:[{label:'Belanja (RM)',data:Object.values(byBranch),backgroundColor:BRANCH_COLORS}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
@@ -2657,18 +2706,8 @@ function pmtConfirmPayment(){
   });
 
   lsSetPayments(payments);
-  hideModal();
   showToast(`${plan.length} bayaran direkod ✅`);
   renderPaymentScreen();
-  // WA prompt for each supplier paid
-  const uniqueSuppliers=[...new Set(plan.map(x=>x.supplier||'').filter(Boolean))];
-  if(uniqueSuppliers.length===1){
-    const lastPmt=payments.slice(-1)[0];
-    if(lastPmt) setTimeout(()=>showPaymentWaPrompt(lastPmt),300);
-  } else if(uniqueSuppliers.length>1){
-    // Multiple suppliers - offer bulk WA
-    setTimeout(()=>showBulkPaymentWaPrompt(uniqueSuppliers),300);
-  }
 }
 
 function showBulkPaymentWaPrompt(supplierNames){
