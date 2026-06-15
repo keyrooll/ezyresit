@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.4.0 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.4.1 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1043,6 +1043,11 @@ function openProfile(){
   document.getElementById('profilePhone').value=profile.phone||'';
   document.getElementById('profileEmail').value=u.email;
   document.getElementById('profilePicPreview').src=profile.picture||u.picture||'';
+  // Only admin/super_admin can restore backup
+  const role=currentRole||'staff';
+  const importBtn=document.getElementById('importBackupFile');
+  const importBtnWrap=importBtn?importBtn.previousElementSibling:null;
+  if(importBtnWrap){importBtnWrap.style.display=(role==='super_admin'||role==='admin')?'':'none';}
   openModal('profileModal');
 }
 
@@ -1812,21 +1817,39 @@ function renderSuppliersList(){
   const el=document.getElementById('suppliersList');
   if(!el) return;
   if(!suppliers.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div><div>Tiada supplier</div></div>';return;}
-  el.innerHTML=suppliers.map(s=>{
-    const receipts=getReceipts().filter(r=>r.vendor===s.name&&r.status==='Approved');
-    const payments=lsGetPayments().filter(p=>p.supplier===s.name);
-    const totalBeli=receipts.reduce((a,r)=>a+parseFloat(r.amount||0),0);
-    const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
-    const baki=totalBeli-totalBayar;
+  // Build KPI summary
+  const receipts=getReceipts();
+  const payments=lsGetPayments();
+  const totalBeli=receipts.filter(r=>r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  const totalHutang=totalBeli-totalBayar;
+  const suppliersWithDebt=suppliers.filter(s=>{
+    const beli=receipts.filter(r=>r.vendor===s.name&&r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    const bayar=payments.filter(p=>p.supplier===s.name).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+    return (beli-bayar)>0.01;
+  });
+  const kpiHtml=`<div class="kpi-grid" style="margin-bottom:12px">
+    <div class="kpi-card"><div class="kpi-label">Jumlah Supplier</div><div class="kpi-value">${suppliers.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Ada Hutang</div><div class="kpi-value" style="color:var(--red)">${suppliersWithDebt.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Jumlah Beli</div><div class="kpi-value" style="font-size:14px">${formatRM(totalBeli)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Baki Hutang</div><div class="kpi-value" style="font-size:14px;color:${totalHutang>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(totalHutang))}</div></div>
+  </div>`;
+  const listHtml=suppliers.map(s=>{
+    const sRec=receipts.filter(r=>r.vendor===s.name&&r.status==='Approved');
+    const sPay=payments.filter(p=>p.supplier===s.name);
+    const sBeli=sRec.reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    const sBayar=sPay.reduce((a,p)=>a+parseFloat(p.amount||0),0);
+    const baki=sBeli-sBayar;
     return `<div class="supplier-card" onclick="showSupplierHistory('${s.name.replace(/'/g,"\'")}')">
       <div class="supplier-info">
         <div class="supplier-name">${s.name}</div>
         <div class="supplier-meta">${CAT_EMOJI[s.category]||''} ${s.category||'-'} · ${s.count||0}x transaksi</div>
-        ${baki>0?`<div style="font-size:11px;color:var(--red);margin-top:2px">Hutang: ${formatRM(baki)}</div>`:(totalBeli>0?`<div style="font-size:11px;color:var(--green);margin-top:2px">Selesai</div>`:'')}
+        ${baki>0?`<div style="font-size:11px;color:var(--red);margin-top:2px">Hutang: ${formatRM(baki)}</div>`:(sBeli>0?`<div style="font-size:11px;color:var(--green);margin-top:2px">Selesai</div>`:'')}
       </div>
       <span class="supplier-count" style="color:${baki>0?'var(--red)':'var(--green)'}">${baki>0?formatRM(baki):'✓'}</span>
     </div>`;
   }).join('');
+  el.innerHTML=kpiHtml+listHtml;
 }
 
 function showSupplierHistory(supplierName){
@@ -2158,8 +2181,8 @@ function renderAdminDashboard(){
     <div class="kpi-grid" id="adminKpi"></div>
     <div class="chart-wrap"><div class="chart-title">Trend Perbelanjaan</div><canvas id="chartTrend" height="200"></canvas></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div class="chart-wrap" style="padding:6px"><div class="chart-title" style="font-size:10px;margin-bottom:2px">Ikut Cawangan</div><div style="position:relative;height:80px"><canvas id="chartBranch"></canvas></div></div>
-      <div class="chart-wrap" style="padding:6px"><div class="chart-title" style="font-size:10px;margin-bottom:2px">Ikut Kategori</div><div style="position:relative;height:80px"><canvas id="chartCat"></canvas></div></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:6px;overflow:hidden"><div style="font-size:10px;font-weight:600;color:var(--dark);margin-bottom:2px">Ikut Cawangan</div><div style="position:relative;height:75px"><canvas id="chartBranch"></canvas></div></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:6px;overflow:hidden"><div style="font-size:10px;font-weight:600;color:var(--dark);margin-bottom:2px">Ikut Kategori</div><div style="position:relative;height:75px"><canvas id="chartCat"></canvas></div></div>
     </div>
     <div class="chart-wrap"><div class="chart-title">Perbelanjaan Cawangan</div><canvas id="chartBar" height="200"></canvas></div>
     <div class="card mb-12" id="topSuppliers"></div>
@@ -2664,16 +2687,20 @@ function pmtConfirmSingle(idx){
   all.push(payment);
   lsSetPayments(all);
   syncPaymentToSheet(payment);
-  // Mark card as done
+  // Mark card as done — keep card visible, replace button with WA button
   const card=document.getElementById('knockCard_'+idx);
   if(card){
-    card.style.opacity='0.5';
+    card.style.opacity='0.6';
+    card.style.pointerEvents='none';
     const btn=document.getElementById('confirmBtn_'+idx);
-    if(btn){btn.textContent='Direkod';btn.disabled=true;btn.style.background='var(--green)';}
+    if(btn){
+      btn.outerHTML=`<div style="display:flex;gap:6px;margin-top:8px">
+        <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--green);padding:8px;background:#f0fdf4;border-radius:8px">✓ Direkod</div>
+        <button class="btn btn-sm" style="background:#25D366;color:#fff;pointer-events:all" onclick="event.stopPropagation();showWaEditModal('${plan.supplier.replace(/'/g,"\\'")}')">WhatsApp</button>
+      </div>`;
+    }
   }
   showToast(plan.supplier+' direkod ✅');
-  // Open WA
-  setTimeout(()=>showWaEditModal(plan.supplier),400);
 }
 
 function pmtConfirmPayment(){
