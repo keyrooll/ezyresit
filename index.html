@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.2</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.8</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -355,7 +355,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
           <div class="section-title">Item Breakdown</div>
           <div class="table-wrap" style="margin-bottom:12px">
             <table class="items-table" id="itemsTable">
-              <thead><tr><th>Nama Item</th><th>Harga</th><th>Kategori</th><th>Akaun</th><th></th></tr></thead>
+              <thead><tr><th>Nama Item</th><th>Harga</th><th>Kod</th><th>SKU</th><th>Akaun</th><th></th></tr></thead>
               <tbody id="itemsBody"></tbody>
             </table>
           </div>
@@ -550,6 +550,7 @@ const CLIENT_ID = '27154479564-ufljm52nmlh4gg7ie54knphff44jvrrq.apps.googleuserc
 const SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
 const DRIVE_FOLDER_NAME = 'EzyResit Receipts';
 const DRIVE_ROOT_FOLDER_ID = '1GmJWOikquZb-As-XdJAYgZao_EXQcfY-'; // ezyresit shared folder
+const SKU_SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8'; // same spreadsheet, tab List SKU
 const SUPER_ADMIN = 'keyrooll@gmail.com';
 const ACCOUNTANTS = ['marzuwita@gmail.com','keyroollgambar@gmail.com'];
 const BRANCHES = ['Batu Caves','Shah Alam','Bangi Cafe','Bangi Durian','Putrajaya','TTDI','Bakery','Central Kitchen'];
@@ -936,6 +937,18 @@ function autoLogin(){
   }
 }
 
+// Returns a valid token or null. If token expired, silently requests a new one.
+function getValidToken(){
+  const expiry = lsGet('ezy_token_expiry', 0);
+  const stillValid = expiry > Date.now() + 60000; // 1 min buffer
+  if(stillValid && currentToken) return currentToken;
+  // Token expired — request new one silently (no prompt)
+  if(tokenClient){
+    tokenClient.requestAccessToken({prompt:''});
+  }
+  return null; // caller should skip and retry later
+}
+
 function logoutUser(){
   currentToken=null;currentUser=null;currentRole=null;
   localStorage.removeItem('ezy_token');localStorage.removeItem('ezy_token_expiry');
@@ -953,6 +966,7 @@ function showMainApp(){
   setupAppForRole();
   checkApiKeyOnLogin();
   setTimeout(()=>ensureCategoriesSheet().catch(()=>{}),3000);
+  setTimeout(()=>loadSkuList().catch(()=>{}),2000);
   // setTimeout(()=>loadItemRegistryFromSheet().catch(()=>{}),1000);
   // Load fresh data from Sheets so all devices stay in sync
   setTimeout(async()=>{
@@ -1220,7 +1234,22 @@ function goStep(n){
   });
   if(n===1) document.getElementById('wStep1').style.display='';
   else if(n===2){document.getElementById('wStep2').style.display='';stepTwoInit();}
-  else if(n===3) document.getElementById('wStep3').style.display='';
+  else if(n===3){
+    document.getElementById('wStep3').style.display='';
+    // Ensure SKU list loaded before rendering items
+    if(!skuList.length){
+      loadSkuList().then(()=>{
+        // Re-render existing item rows with correct SKU dropdowns
+        const tbody=document.getElementById('itemsBody');
+        if(tbody&&wizardItems.length){
+          tbody.innerHTML='';
+          const items=wizardItems.filter(it=>!it._deleted);
+          wizardItems=[];
+          items.forEach(it=>addItemRow(it));
+        }
+      }).catch(()=>{});
+    }
+  }
   else if(n===4){document.getElementById('wStep4').style.display='';renderReview();}
 }
 
@@ -1448,10 +1477,16 @@ function populateBranchSelector(){
 function addItemRow(prefill=null){
   const tbody=document.getElementById('itemsBody');
   const idx=wizardItems.length;
-  const item={name:prefill?prefill.name||'':'',price:prefill?(parseFloat(prefill.price)||prefill.price||''):'',category:prefill?prefill.category||'':'',account:prefill?prefill.account_code||'':''};
+  // Only prefill category if it exists in skuList; otherwise leave blank for staff to pick
+  const prefillCat = prefill ? (prefill.category||'') : '';
+  const validCat = skuList.length ? (skuList.find(s=>s.category===prefillCat) ? prefillCat : '') : prefillCat;
+  const item={name:prefill?prefill.name||'':'',price:prefill?(parseFloat(prefill.price)||prefill.price||''):'',category:validCat,account:prefill?prefill.account_code||'':''};
   wizardItems.push(item);
   const accOpts=ACCOUNT_CODES.map(a=>`<option value="${a.code}" ${item.account==a.code?'selected':''}>${a.code}-${a.name}</option>`).join('');
-  const catOpts=CATEGORIES.map(c=>`<option value="${c}" ${item.category==c?'selected':''}>${c}</option>`).join('');
+  // Use SKU list if loaded, fallback to CATEGORIES
+  const skuOpts = skuList.length
+    ? skuList.map(s=>`<option value="${s.category}" ${item.category==s.category?'selected':''}>${s.category} — ${s.jenis} ${s.grade}</option>`).join('')
+    : CATEGORIES.map(c=>`<option value="${c}" ${item.category==c?'selected':''}>${c}</option>`).join('');
   const tr=document.createElement('tr');
   tr.id='item-row-'+idx;
   // Auto-assign item code if prefill has name
@@ -1460,13 +1495,51 @@ function addItemRow(prefill=null){
     <td><input value="${prefill?prefill.name||'':''}" oninput="updateItem(${idx},'name',this.value);autoFillCode(${idx})" placeholder="Nama" style="min-width:70px"></td>
     <td><input type="number" step="0.01" value="${prefill?prefill.price||'':''}" oninput="updateItem(${idx},'price',this.value);updateSplit()" placeholder="0.00" style="min-width:60px"></td>
     <td><input id="item-code-${idx}" value="${item.code||''}" oninput="updateItem(${idx},'code',this.value)" placeholder="ITM-" style="min-width:60px;font-size:11px;color:var(--mid)"></td>
-    <td><select onchange="updateItem(${idx},'category',this.value);updateSplit()"><option value="">Pilih</option>${catOpts}</select></td>
+    <td>
+      <select id="cat-sel-${idx}" onchange="updateItem(${idx},'category',this.value);updateSplit();showSuggestionHint(${idx},this.value)">
+        <option value="">Pilih</option>${skuOpts}
+        <option value="__new__">+ Cadangan Baru</option>
+      </select>
+      <div id="cat-hint-${idx}" style="font-size:10px;color:var(--mid);margin-top:2px"></div>
+      <input id="cat-new-${idx}" style="display:none;margin-top:4px;font-size:11px;width:90px" placeholder="Kod baru..." onblur="saveCatSuggestion(${idx},this.value)">
+    </td>
     <td><select onchange="updateItem(${idx},'account',this.value)"><option value="">Pilih</option>${accOpts}</select></td>
     <td><button class="btn btn-sm btn-danger" onclick="removeItemRow(${idx})">Buang</button></td>`;
   tbody.appendChild(tr);
 }
 
 function updateItem(idx,field,val){if(wizardItems[idx]) wizardItems[idx][field]=val;}
+
+function showSuggestionHint(idx, catVal){
+  const hint=document.getElementById('cat-hint-'+idx);
+  const newInput=document.getElementById('cat-new-'+idx);
+  if(!hint||!newInput) return;
+  if(catVal==='__new__'){
+    newInput.style.display='block';
+    newInput.focus();
+    hint.textContent='';
+    updateItem(idx,'category','');
+    return;
+  }
+  newInput.style.display='none';
+  const sku=skuList.find(s=>s.category===catVal);
+  if(sku&&sku.suggestion) hint.textContent='💡 '+sku.suggestion;
+  else hint.textContent='';
+}
+
+function saveCatSuggestion(idx, val){
+  if(!val.trim()) return;
+  const catSel=document.getElementById('cat-sel-'+idx);
+  // Add new option to this dropdown
+  const opt=document.createElement('option');
+  opt.value=val.trim(); opt.textContent=val.trim()+' (baru)'; opt.selected=true;
+  catSel.insertBefore(opt, catSel.lastElementChild);
+  catSel.value=val.trim();
+  updateItem(idx,'category',val.trim());
+  // Save to Sheet col F as suggestion (no existing category match — append as new row suggestion)
+  saveSuggestionToSheet('__new__:'+val.trim(), val.trim());
+  document.getElementById('cat-new-'+idx).style.display='none';
+}
 function autoFillCode(idx){
   const name=wizardItems[idx]&&wizardItems[idx].name;
   if(!name) return;
@@ -1658,8 +1731,9 @@ function resetWizard(){
 async function uploadToDrive(base64,vendorName,date,amount){
   const token=currentToken;
   if(!token) throw new Error('No token');
-  // Format filename: DDMMYY-SupplierName-Amount
-  const d=new Date(date);
+  // Filename uses receipt date; folder uses TODAY's date (upload date)
+  const d=new Date(date); // receipt date for filename
+  const today=new Date(); // upload date for folder
   const dd=String(d.getDate()).padStart(2,'0');
   const mm=String(d.getMonth()+1).padStart(2,'0');
   const yy=String(d.getFullYear()).slice(-2);
@@ -1667,8 +1741,9 @@ async function uploadToDrive(base64,vendorName,date,amount){
   const cleanAmount='RM'+((parseFloat(amount)||0).toFixed(2));
   const filename=`${dd}${mm}${yy}-${cleanVendor}-${cleanAmount}`;
   const blob=base64ToBlob(base64,'image/jpeg');
-  // Subfolder: YYYY-MM (e.g. 2026-06) inside shared root folder
-  const monthFolder=`${d.getFullYear()}-${mm}`;
+  // Subfolder: YYYY-MM based on TODAY (upload month), not receipt date
+  const todayMM=String(today.getMonth()+1).padStart(2,'0');
+  const monthFolder=`${today.getFullYear()}-${todayMM}`;
   const folderId=await getOrCreateSubfolder(token, DRIVE_ROOT_FOLDER_ID, monthFolder);
   const metadata={name:filename+'.jpg',parents:[folderId]};
   const form=new FormData();
@@ -1781,22 +1856,76 @@ async function ensureCategoriesSheet(){
   }catch(e){console.warn('Categories sheet:',e);}
 }
 
+// ===================== SKU CATEGORIES =====================
+let skuList = []; // [{no,jenis,grade,category,suggestion}]
+
+async function loadSkuList(){
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SKU_SHEET_ID}/values/List%20SKU!B2:F100`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(d.error||!d.values) return;
+    skuList=d.values.map(row=>({
+      no:row[0]||'',
+      jenis:(row[1]||'').trim(),
+      grade:(row[2]||'').trim(),
+      category:(row[3]||'').trim(),
+      suggestion:(row[4]||'').trim()
+    })).filter(s=>s.category);
+    console.log('Loaded',skuList.length,'SKU entries');
+  }catch(e){console.warn('Load SKU:',e);}
+}
+
+async function saveSuggestionToSheet(category, suggestion){
+  const tok=accessToken||currentToken;
+  if(!tok||!suggestion.trim()) return;
+  try{
+    // Find row with matching category (col E = index 3 in B:F, so actual col F = index 4)
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SKU_SHEET_ID}/values/List%20SKU!B2:F100`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(!d.values) return;
+    const rowIdx=d.values.findIndex(row=>(row[3]||'').trim()===category.trim());
+    if(rowIdx===-1) return;
+    const sheetRow=rowIdx+2; // +2 for header and 1-based
+    // Append to existing suggestion (col F = column 6)
+    const existing=(d.values[rowIdx][4]||'').trim();
+    const newVal=existing?existing+', '+suggestion.trim():suggestion.trim();
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SKU_SHEET_ID}/values/List%20SKU!F${sheetRow}?valueInputOption=RAW`,{
+      method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[newVal]]})
+    });
+    // Update local cache
+    const local=skuList.find(s=>s.category===category.trim());
+    if(local) local.suggestion=newVal;
+    showToast('Cadangan disimpan ✓');
+  }catch(e){console.warn('Save suggestion:',e);}
+}
+
+function getSkuOptions(){
+  // Returns array of {value, label} for dropdown
+  return skuList.map(s=>({
+    value:s.category,
+    label:`${s.category} — ${s.jenis} ${s.grade}`.trim()
+  }));
+}
+
 async function appendToSheets(rows){
   const token=accessToken||currentToken;if(!token) return;
   // Check if sheet is empty, add headers first
-  const checkUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A1`;
+  const checkUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A1`;
   const check=await fetch(checkUrl,{headers:{Authorization:'Bearer '+token}});
   const checkData=await check.json();
   const isEmpty=!checkData.values||!checkData.values.length;
   if(isEmpty){
     const headers=[['Tarikh','Vendor','Item','Item Code','Harga','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A1:M1?valueInputOption=USER_ENTERED`,{
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A1:N1?valueInputOption=USER_ENTERED`,{
       method:'PUT',
       headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify({values:headers})
     });
   }
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:M:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A:N:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
   const r=await fetch(url,{
     method:'POST',
     headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
@@ -2064,11 +2193,11 @@ function renderReceiptCard(r, tab){
 }
 
 async function syncReceiptStatusToSheet(r,status){
-  const tok=accessToken||currentToken;
+  const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
     // Search all rows for matching vendor+date+amount
-    const findUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:N`;
+    const findUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A:N`;
     const fr=await fetch(findUrl,{headers:{Authorization:'Bearer '+tok}});
     const fd=await fr.json();
     if(!fd.values) return;
@@ -2084,7 +2213,7 @@ async function syncReceiptStatusToSheet(r,status){
     if(rowIdx<1) return;
     const approvedByName=currentUser?(currentUser.name||currentUser.email):'System';
     const approvedAtStr=new Date().toLocaleString('en-MY');
-    const updateUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!K${rowIdx}:L${rowIdx}?valueInputOption=RAW`;
+    const updateUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!K${rowIdx}:L${rowIdx}?valueInputOption=RAW`;
     await fetch(updateUrl,{
       method:'PUT',
       headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
@@ -2523,7 +2652,7 @@ function lsGetPayments(){return JSON.parse(localStorage.getItem('payments')||'[]
 function lsSetPayments(p){localStorage.setItem('payments',JSON.stringify(p));syncPaymentsToSheet().catch(e=>console.warn('Payment sync failed',e));}
 
 async function syncPaymentsToSheet(){
-  const tok=accessToken||currentToken;
+  const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
     const payments=lsGetPaymentsRaw();
@@ -2541,7 +2670,7 @@ async function syncPaymentsToSheet(){
       });
     }
     // Full overwrite
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A:H:clear`,{
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A1:H10000:clear`,{
       method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'}
     });
     const rows=[['ID','Tarikh','Supplier','Jumlah','Kaedah','Nota','DirekoOleh','Type']];
@@ -3118,7 +3247,7 @@ function showPaymentWaPrompt(payment){
 }
 
 async function syncPaymentToSheet(p){
-  const tok=accessToken||currentToken;
+  const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
     // Check/create Payments tab
@@ -3144,7 +3273,7 @@ async function syncPaymentToSheet(p){
 
 // ===================== SUPPLIERS SHEET SYNC =====================
 async function syncSuppliersToSheet(){
-  const tok=accessToken||currentToken;
+  const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
     const suppliers=getSuppliers();
@@ -3158,7 +3287,7 @@ async function syncSuppliersToSheet(){
       });
     }
     // Full overwrite — clear then write
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Suppliers!A:J:clear`,{
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Suppliers!A1:J10000:clear`,{
       method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'}
     });
     const rows=[['ID','Nama','Kategori','Akaun','NoWA','BankNama','BankAkaun','RegNo','Count','KemaskiniPada']];
@@ -3171,7 +3300,7 @@ async function syncSuppliersToSheet(){
 }
 
 async function loadSuppliersFromSheet(){
-  const tok=accessToken||currentToken;
+  const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
     const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Suppliers!A2:J`,{headers:{Authorization:'Bearer '+tok}});
@@ -3189,7 +3318,7 @@ async function loadSuppliersFromSheet(){
 }
 
 async function loadPaymentsFromSheet(){
-  const tok=accessToken||currentToken;
+  const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
     const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A2:H`,{headers:{Authorization:'Bearer '+tok}});
@@ -3207,10 +3336,10 @@ async function loadPaymentsFromSheet(){
 }
 
 async function loadReceiptsFromSheet(){
-  const tok=accessToken||currentToken;
+  const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
-    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A2:N`,{headers:{Authorization:'Bearer '+tok}});
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A2:N`,{headers:{Authorization:'Bearer '+tok}});
     const d=await r.json();
     if(d.error||!d.values||!d.values.length) return;
     const receipts=d.values.map(row=>({
@@ -3228,6 +3357,8 @@ async function loadReceiptsFromSheet(){
 }
 
 async function loadAllFromSheets(){
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok){console.warn('loadAllFromSheets: no valid token, skip');return;}
   showToast('Memuatkan data...');
   await Promise.all([
     loadReceiptsFromSheet(),
