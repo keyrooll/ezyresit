@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.10</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.11</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -355,7 +355,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
           <div class="section-title">Item Breakdown</div>
           <div class="table-wrap" style="margin-bottom:12px">
             <table class="items-table" id="itemsTable">
-              <thead><tr><th>Nama Item</th><th>Harga</th><th>Kod</th><th>SKU</th><th>Akaun</th><th></th></tr></thead>
+              <thead><tr><th style="min-width:90px">Nama Item</th><th style="width:70px;text-align:center">Harga</th><th style="width:40px;text-align:center">QTY</th><th style="min-width:140px">SKU</th><th style="width:70px;text-align:center">Total</th><th style="width:50px"></th></tr></thead>
               <tbody id="itemsBody"></tbody>
             </table>
           </div>
@@ -1478,35 +1478,48 @@ function addItemRow(prefill=null){
   // Only prefill category if it exists in skuList; otherwise leave blank for staff to pick
   const prefillCat = prefill ? (prefill.category||'') : '';
   const validCat = skuList.length ? (skuList.find(s=>s.category===prefillCat) ? prefillCat : '') : prefillCat;
-  const item={name:prefill?prefill.name||'':'',price:prefill?(parseFloat(prefill.price)||prefill.price||''):'',category:validCat,account:prefill?prefill.account_code||'':''};
+  const initQty = prefill?prefill.qty||1:1;
+  const initPrice = prefill?(parseFloat(prefill.price)||0):0;
+  const item={name:prefill?prefill.name||'':'',price:initPrice,qty:initQty,category:validCat,account:prefill?prefill.account_code||'101':''};
   wizardItems.push(item);
-  const accOpts=ACCOUNT_CODES.map(a=>`<option value="${a.code}" ${item.account==a.code?'selected':''}>${a.code}-${a.name}</option>`).join('');
   // Use SKU list if loaded, fallback to CATEGORIES
   const skuOpts = skuList.length
     ? skuList.map(s=>`<option value="${s.category}" ${item.category==s.category?'selected':''}>${s.category} — ${s.jenis} ${s.grade}</option>`).join('')
     : CATEGORIES.map(c=>`<option value="${c}" ${item.category==c?'selected':''}>${c}</option>`).join('');
   const tr=document.createElement('tr');
   tr.id='item-row-'+idx;
-  // Auto-assign item code if prefill has name
-  if(prefill&&prefill.name) item.code=getOrCreateItemCode(prefill.name);
+  const initTotal=(initPrice*initQty).toFixed(2);
   tr.innerHTML=`
-    <td><input value="${prefill?prefill.name||'':''}" oninput="updateItem(${idx},'name',this.value);autoFillCode(${idx})" placeholder="Nama" style="min-width:70px"></td>
-    <td><input type="number" step="0.01" value="${prefill?prefill.price||'':''}" oninput="updateItem(${idx},'price',this.value);updateSplit()" placeholder="0.00" style="min-width:60px"></td>
-    <td><input id="item-code-${idx}" value="${item.code||''}" oninput="updateItem(${idx},'code',this.value)" placeholder="ITM-" style="min-width:60px;font-size:11px;color:var(--mid)"></td>
+    <td><input value="${item.name}" oninput="updateItem(${idx},'name',this.value)" placeholder="Nama item" style="min-width:80px"></td>
+    <td style="text-align:center">
+      <div style="display:flex;align-items:center;gap:2px;justify-content:center">
+        <span style="font-size:11px;color:var(--mid)">RM</span>
+        <input type="number" step="0.01" value="${initPrice||''}" oninput="updateItem(${idx},'price',parseFloat(this.value)||0);calcRowTotal(${idx});updateSplit()" placeholder="0.00" style="width:55px;text-align:center">
+      </div>
+    </td>
+    <td style="text-align:center"><input type="number" step="1" min="1" value="${initQty}" oninput="updateItem(${idx},'qty',parseInt(this.value)||1);calcRowTotal(${idx});updateSplit()" style="width:38px;text-align:center"></td>
     <td>
-      <select id="cat-sel-${idx}" onchange="updateItem(${idx},'category',this.value);updateSplit();showSuggestionHint(${idx},this.value)">
-        <option value="">Pilih</option>${skuOpts}
+      <select id="cat-sel-${idx}" onchange="updateItem(${idx},'category',this.value);updateSplit();showSuggestionHint(${idx},this.value)" style="min-width:130px;font-size:11px">
+        <option value="">Pilih SKU</option>${skuOpts}
         <option value="__new__">+ Cadangan Baru</option>
       </select>
       <div id="cat-hint-${idx}" style="font-size:10px;color:var(--mid);margin-top:2px"></div>
-      <input id="cat-new-${idx}" style="display:none;margin-top:4px;font-size:11px;width:90px" placeholder="Kod baru..." onblur="saveCatSuggestion(${idx},this.value)">
+      <input id="cat-new-${idx}" style="display:none;margin-top:4px;font-size:11px;width:120px" placeholder="Kod baru..." onblur="saveCatSuggestion(${idx},this.value)">
     </td>
-    <td><select onchange="updateItem(${idx},'account',this.value)"><option value="">Pilih</option>${accOpts}</select></td>
+    <td style="text-align:center;font-weight:600" id="row-total-${idx}">RM ${initTotal}</td>
     <td><button class="btn btn-sm btn-danger" onclick="removeItemRow(${idx})">Buang</button></td>`;
   tbody.appendChild(tr);
 }
 
 function updateItem(idx,field,val){if(wizardItems[idx]) wizardItems[idx][field]=val;}
+
+function calcRowTotal(idx){
+  const it=wizardItems[idx];
+  if(!it) return;
+  const total=((parseFloat(it.price)||0)*(parseInt(it.qty)||1)).toFixed(2);
+  const el=document.getElementById('row-total-'+idx);
+  if(el) el.textContent='RM '+total;
+}
 
 function showSuggestionHint(idx, catVal){
   const hint=document.getElementById('cat-hint-'+idx);
@@ -1582,25 +1595,68 @@ function renderReview(){
   const items=wizardItems.filter(i=>!i._deleted);
   const vendor=selectedVendor;
   const date=document.getElementById('receiptDate').value;
-  const amount=document.getElementById('receiptAmount').value;
+  const receiptAmount=parseFloat(document.getElementById('receiptAmount').value)||0;
   const nota=document.getElementById('receiptNota').value;
   const branch=document.getElementById('receiptBranch').value;
+
+  // Calculate total from items (qty × price)
+  const calcTotal=items.reduce((s,i)=>{
+    const qty=parseInt(i.qty)||1;
+    const price=parseFloat(i.price)||0;
+    return s+(qty*price);
+  },0);
+  const diff=Math.abs(receiptAmount-calcTotal);
+  const match=diff<=0.01;
+
   let html=`
     <div class="review-row"><span class="review-label">Vendor</span><span class="review-value">${vendor?vendor.name:'-'}</span></div>
     <div class="review-row"><span class="review-label">Tarikh</span><span class="review-value">${date}</span></div>
-    <div class="review-row"><span class="review-label">Jumlah</span><span class="review-value" style="color:var(--green);font-weight:700">${formatRM(parseFloat(amount||0))}</span></div>
     <div class="review-row"><span class="review-label">Cawangan</span><span class="review-value">${branch}</span></div>
     <div class="review-row"><span class="review-label">Nota</span><span class="review-value">${nota||'-'}</span></div>
-    <div class="review-row"><span class="review-label">Kategori</span><span class="review-value">${vendor?vendor.category:'-'}</span></div>
-    <div class="review-row"><span class="review-label">Akaun</span><span class="review-value">${vendor?vendor.account:'-'}</span></div>
-    <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--mid)">ITEM (${items.length})</div>`;
-  items.forEach(i=>{
-    const code=i.name?getOrCreateItemCode(i.name):null;
+    <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--mid)">ITEM (${items.length})</div>
+    <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:12px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--surface2)">
+          <th style="padding:6px 8px;text-align:left">Item</th>
+          <th style="padding:6px 8px;text-align:center">SKU</th>
+          <th style="padding:6px 4px;text-align:center">QTY</th>
+          <th style="padding:6px 4px;text-align:right">Harga</th>
+          <th style="padding:6px 8px;text-align:right">Total</th>
+        </tr></thead>
+        <tbody>`;
+  items.forEach((i,n)=>{
+    const qty=parseInt(i.qty)||1;
     const price=parseFloat(i.price)||0;
-    const cmp=code&&price>0?getPriceComparison(code,price,selectedVendor?selectedVendor.name:null):null;
-    const badge=cmp?`<span style="font-size:10px;padding:2px 6px;border-radius:8px;background:${cmp.color}22;color:${cmp.color};font-weight:600;margin-left:4px">${cmp.emoji} ${cmp.status} (avg ${formatRM(cmp.avg)})</span>`:'';
-    html+=`<div class="review-row"><span class="review-label">${i.name||'Item'}</span><span class="review-value" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end">${formatRM(price)}${badge}</span></div>`;
+    const total=qty*price;
+    const skuEntry=skuList.find(s=>s.category===i.category);
+    const skuLabel=skuEntry?`${i.category}`:(i.category||'-');
+    html+=`<tr style="border-top:1px solid var(--border)${n%2?' background:#fafafa':''}">
+      <td style="padding:6px 8px">${i.name||'Item'}</td>
+      <td style="padding:6px 8px;text-align:center;font-size:11px;color:var(--mid)">${skuLabel}</td>
+      <td style="padding:6px 4px;text-align:center">${qty}</td>
+      <td style="padding:6px 4px;text-align:right">RM ${price.toFixed(2)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">RM ${total.toFixed(2)}</td>
+    </tr>`;
   });
+  html+=`</tbody></table></div>`;
+
+  // Price verification section
+  html+=`<div style="border-radius:8px;padding:12px;background:${match?'#f0fdf4':'#fff7f7'};border:1px solid ${match?'var(--green)':'var(--red)'}">
+    <div style="font-size:12px;font-weight:700;color:var(--mid);margin-bottom:8px">SEMAKAN HARGA</div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+      <span>Kiraan sebenar (QTY × Harga)</span>
+      <span style="font-weight:700">RM ${calcTotal.toFixed(2)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
+      <span>Jumlah di resit</span>
+      <span style="font-weight:700">RM ${receiptAmount.toFixed(2)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid ${match?'var(--green)':'var(--red)'}">
+      <span style="font-size:13px;font-weight:700;color:${match?'var(--green)':'var(--red)'}">${match?'✓ Jumlah Sepadan':'⚠️ Tidak Sepadan'}</span>
+      ${!match?`<span style="font-size:12px;color:var(--red)">Perbezaan: RM ${diff.toFixed(2)}</span>`:''}
+    </div>
+  </div>`;
+
   document.getElementById('reviewContent').innerHTML=html;
 }
 
