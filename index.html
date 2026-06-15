@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.4.3 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.4.4 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1963,10 +1963,22 @@ function switchResitTab(tab, tabs){
 function renderResitContent(tab){
   const el=document.getElementById('resitContent');
   let receipts=getReceipts();
+  // KPI summary (all receipts, not filtered by tab)
+  const allR=receipts;
+  const totalSpend=allR.filter(r=>r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  const pendingCount=allR.filter(r=>r.status==='Pending').length;
+  const approvedCount=allR.filter(r=>r.status==='Approved').length;
+  const avg=approvedCount?totalSpend/approvedCount:0;
+  const kpiHtml=`<div class="kpi-grid" style="margin-bottom:12px">
+    <div class="kpi-card"><div class="kpi-label">Jumlah Resit</div><div class="kpi-value">${allR.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pendingCount}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Jumlah Belanja</div><div class="kpi-value" style="font-size:14px">${formatRM(totalSpend)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Purata Resit</div><div class="kpi-value" style="font-size:14px">${formatRM(avg)}</div></div>
+  </div>`;
   if(tab==='Pending') receipts=receipts.filter(r=>r.status==='Pending');
   else if(tab==='Approved') receipts=receipts.filter(r=>r.status==='Approved');
   // 'All' shows all
-  let html='';
+  let html=kpiHtml;
   if(!receipts.length){
     html='<div class="empty-state"><div class="empty-icon">📋</div><div>Tiada resit</div></div>';
   } else {
@@ -2366,10 +2378,12 @@ function renderStaffScreen(){
       count:receipts.filter(r=>r.uploadedEmail===u.email).length
     })).sort((a,b)=>b.count-a.count)[0];
 
+    const totalResitStaff=receipts.filter(r=>allStaff.some(u=>u.email===r.uploadedEmail)).length;
     let html=`<div class="kpi-grid">
       <div class="kpi-card"><div class="kpi-label">Jumlah Staff</div><div class="kpi-value">${allStaff.length}</div></div>
       <div class="kpi-card"><div class="kpi-label">Aktif</div><div class="kpi-value" style="color:var(--green)">${activeStaff.length}</div></div>
       <div class="kpi-card"><div class="kpi-label">Paling Aktif</div><div class="kpi-value" style="font-size:13px">${mostActive?mostActive.name||mostActive.email:'-'}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Total Resit</div><div class="kpi-value">${totalResitStaff}</div></div>
     </div>
     <button class="btn btn-primary" style="width:100%;margin:12px 0" onclick="showAddStaffModal()">+ Tambah Staff</button>
     <div id="staffContent2" style="margin-top:4px"></div>`;
