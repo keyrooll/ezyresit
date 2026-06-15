@@ -117,6 +117,8 @@ body{font-family:'Inter',sans-serif;background:#f9fafb;color:var(--dark);min-hei
 .items-table th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--mid);font-weight:500;font-size:12px}
 .items-table td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top}
 .items-table input,.items-table select{width:100%;border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:12px;font-family:inherit}
+.no-spinner::-webkit-outer-spin-button,.no-spinner::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.no-spinner{-moz-appearance:textfield}
 /* SECTION TITLE */
 .section-title{font-size:13px;font-weight:600;color:var(--mid);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
 /* BANNER */
@@ -200,7 +202,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.13</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.14</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -360,9 +362,6 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
             </table>
           </div>
           <button class="btn btn-secondary btn-block mb-12" onclick="addItemRow()">Tambah Item</button>
-          <div class="card mb-12" id="splitSummary">
-            <div id="splitRows"></div>
-          </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-secondary" style="flex:1" onclick="goStep(2)">Kembali</button>
             <button class="btn btn-primary" style="flex:1" onclick="goStep(4)">Seterusnya</button>
@@ -1487,8 +1486,8 @@ function addItemRow(prefill=null){
   const initTotal=(initPrice*initQty).toFixed(2);
   tr.innerHTML=`
     <td><input value="${item.name}" oninput="updateItem(${idx},'name',this.value)" placeholder="Nama item" style="min-width:80px"></td>
-    <td style="text-align:center"><input type="number" step="0.01" value="${initPrice||''}" oninput="updateItem(${idx},'price',parseFloat(this.value)||0);calcRowTotal(${idx});updateSplit()" placeholder="0.00" style="width:38px;text-align:center"></td>
-    <td style="text-align:center"><input type="number" step="1" min="1" value="${initQty}" oninput="updateItem(${idx},'qty',parseInt(this.value)||1);calcRowTotal(${idx});updateSplit()" style="width:38px;text-align:center"></td>
+    <td style="text-align:center"><input type="number" step="0.01" value="${initPrice||''}" oninput="updateItem(${idx},'price',parseFloat(this.value)||0);calcRowTotal(${idx});updateSplit()" placeholder="0.00" style="width:52px;text-align:center;-moz-appearance:textfield" class="no-spinner"></td>
+    <td style="text-align:center"><input type="number" step="1" min="1" value="${initQty}" oninput="updateItem(${idx},'qty',parseInt(this.value)||1);calcRowTotal(${idx});updateSplit()" style="width:42px;text-align:center;-moz-appearance:textfield" class="no-spinner"></td>
     <td>
       <select id="cat-sel-${idx}" onchange="updateItem(${idx},'category',this.value);updateSplit();showSuggestionHint(${idx},this.value)" style="min-width:130px;font-size:11px">
         <option value="">Pilih SKU</option>${skuOpts}
@@ -1566,8 +1565,9 @@ function updateSplit(){
     byCat[i.category]+=(parseFloat(i.price)||0)*(parseInt(i.qty)||1);
   });
   const el=document.getElementById('splitRows');
+  if(!el) return;
   const total=Object.values(byCat).reduce((a,b)=>a+b,0);
-  const receiptTotal=parseFloat(document.getElementById('receiptAmount').value)||0;
+  const receiptTotal=parseFloat(document.getElementById('receiptAmount')?.value)||0;
   let html='';
   Object.entries(byCat).forEach(([cat,amt])=>{
     html+=`<div class="split-row"><span>${CAT_EMOJI[cat]||''} ${cat}</span><span>${formatRM(amt)}</span></div>`;
