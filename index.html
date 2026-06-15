@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.3.3 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.3.4 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -2318,24 +2318,30 @@ async function pmtScanReceipt(){
   try{
     const base64 = pmtUploadState.preview.split(',')[1];
     const suppliers = getSuppliers().map(s=>s.name);
-    const prompt = `Ini adalah slip bayaran/transfer bank. Sila kenal pasti SEMUA pembayaran dalam dokumen ini.
+    const prompt = `Ini adalah slip bayaran/transfer bank yang mengandungi BANYAK baris bayaran.
 
-Untuk setiap baris bayaran, keluarkan:
-1. Nama penerima/supplier (kolum paling kanan atau nama selepas akaun)
-2. Jumlah bayaran (MYR x,xxx.xx)
+Format slip biasanya ada kolum: Jumlah | Pengirim | No. Akaun | Nama Penerima
 
-Senarai supplier yang ada dalam sistem: ${suppliers.join(', ')}
+Tugas kau: Kenal pasti SEMUA baris bayaran dalam dokumen ini tanpa tinggal satu pun.
 
-Padankan nama dalam slip dengan nama supplier sistem (fuzzy match, nama lebih kurang sama).
+Untuk setiap baris:
+1. Nama penerima (kolum paling kanan / nama selepas nombor akaun)
+2. Jumlah bayaran (MYR)
 
-Kembalikan JSON SAHAJA:
+Senarai supplier dalam sistem: ${suppliers.join(', ')}
+
+Padankan nama penerima dengan nama supplier sistem (fuzzy match — nama lebih kurang sama, abaikan singkatan atau ejaan berbeza sedikit).
+
+Kembalikan JSON SAHAJA (tiada teks lain):
 {
   "payments": [
     {"supplierRaw": "nama dalam slip", "supplierMatched": "nama dalam sistem atau null", "amount": 1234.56, "confidence": "high/medium/low"},
     ...
   ],
   "paymentDate": "YYYY-MM-DD atau null"
-}`;
+}
+
+PENTING: Sertakan SEMUA baris — jangan skip mana-mana bayaran.`;
 
     const workerUrl = 'https://ezyresit.keyrooll.workers.dev/';
     const resp = await fetch(workerUrl, {
