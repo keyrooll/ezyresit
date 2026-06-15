@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.3.6 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.3.7 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -2345,7 +2345,7 @@ function showPaymentUploadModal(){
       <div id="pmtPreviewWrap" style="display:none;margin-bottom:16px">
         <img id="pmtPreviewImg" style="width:100%;border-radius:8px;max-height:300px;object-fit:contain">
       </div>
-      <button class="btn btn-primary" style="width:100%" id="pmtScanBtn" onclick="pmtScanReceipt()" disabled>Scan dengan AI</button>
+      <button class="btn btn-primary" style="width:100%" id="pmtScanBtn" onclick="pmtScanReceipt()" disabled style="display:none">Scan dengan AI</button>
     </div>
 
     <div id="pmtUploadStep2" style="display:none">
@@ -2368,6 +2368,8 @@ function pmtFileSelected(input){
     img.src = e.target.result;
     wrap.style.display = 'block';
     document.getElementById('pmtScanBtn').disabled = false;
+    // Auto scan
+    setTimeout(()=>pmtScanReceipt(), 300);
   };
   reader.readAsDataURL(file);
 }
@@ -2465,18 +2467,20 @@ function pmtShowAiResult(){
   result.payments.forEach((p,i)=>{
     const supplier = p.supplierMatched;
     if(!supplier){ 
-      knockHtml += `<div class="card mb-8" style="padding:12px;border:1px solid var(--amber)">
+      knockHtml += `<div class="card mb-8" style="padding:12px;border:1px solid var(--amber)" id="knockCard_${i}">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <div style="font-size:12px;font-weight:600;color:var(--amber)">⚠️ ${p.supplierRaw}</div>
+          <div>
+            <div style="font-size:12px;font-weight:600;color:var(--amber)">⚠️ ${p.supplierRaw}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--green);margin-top:2px">${formatRM(p.amount)}</div>
+          </div>
           <button class="btn btn-sm btn-outline" style="font-size:11px" onclick="pmtAddNewSupplier('${p.supplierRaw.replace(/'/g,"\'")}',${i})">+ Tambah Supplier</button>
         </div>
-        <div style="font-size:11px;color:var(--mid);margin-top:4px">Supplier tak dikenali — pilih dari senarai atau tambah baru</div>
-        <div style="margin-top:8px"><label style="font-size:11px">Assign ke supplier:</label>
-          <select id="pmtFallbackSupplier_${i}" class="form-input" style="margin-top:4px;font-size:12px" onchange="pmtRefreshKnockoff(${i},this.value)">
-            <option value="">-- Pilih Supplier --</option>
-            ${getSuppliers().map(s=>`<option value="${s.name}">${s.name}</option>`).join('')}
-          </select>
-        </div>
+        <div style="font-size:11px;color:var(--mid);margin-top:6px;margin-bottom:6px">Pilih supplier atau tambah baru, kemudian tekan Rekod:</div>
+        <select id="pmtFallbackSupplier_${i}" class="form-input" style="font-size:12px;margin-bottom:8px">
+          <option value="">-- Pilih Supplier --</option>
+          ${getSuppliers().map(s=>`<option value="${s.name}">${s.name}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary" style="width:100%;font-size:12px" id="confirmBtn_${i}" onclick="pmtConfirmSingle(${i})">Rekod Bayaran</button>
       </div>`;
       pmtUploadState.knockoffPlan.push({idx:i, supplier:null, amount:p.amount, type:'advance', fallbackId:`pmtFallbackSupplier_${i}`});
       return;
@@ -2587,6 +2591,12 @@ function pmtSaveNewSupplier(idx){
 function pmtConfirmSingle(idx){
   const plan=pmtUploadState.knockoffPlan.find(p=>p.idx===idx);
   if(!plan){showToast('Data tidak dijumpai ⚠️');return;}
+  // If unknown supplier, get from fallback select
+  if(!plan.supplier){
+    const sel=document.getElementById('pmtFallbackSupplier_'+idx);
+    if(!sel||!sel.value){showToast('Pilih supplier dahulu ⚠️');return;}
+    plan.supplier=sel.value;
+  }
   const date=document.getElementById('pmtUploadDate')?document.getElementById('pmtUploadDate').value:new Date().toISOString().split('T')[0];
   const method=document.getElementById('pmtUploadMethod')?document.getElementById('pmtUploadMethod').value:'TT / Bank Transfer';
   const note=document.getElementById('pmtUploadNote')?document.getElementById('pmtUploadNote').value:'';
@@ -2998,10 +3008,21 @@ function buildSupplierPaymentStatement(supplierName){
             const idx2=sameDay.indexOf(r);
             const label=sameDay.length>1?'BIL '+day+'/'+mn+'('+( idx2+1)+')':'BIL '+day+'/'+mn;
             const paid=paidReceiptIds.has(r.id);
-            msg+=label+' - '+formatRM(parseFloat(r.amount||0))+(paid?'✅':'')+'\n';
+            msg+=label+' - '+formatRM(parseFloat(r.amount||0))+(paid?' ✅':'')+'\n';
           });
+          // Show payments for this month
+          const monthPayments=payments.filter(p=>{
+            const pd=new Date(p.date||'');
+            return pd.getFullYear()===m.year && pd.getMonth()===m.month;
+          });
+          if(monthPayments.length){
+            monthPayments.forEach(p=>{
+              msg+='BAYAR '+new Date(p.date).getDate()+'/'+(new Date(p.date).getMonth()+1)+' - '+formatRM(p.amount)+'\n';
+            });
+          }
         }
       });
+    msg+='\n';
   });
 
   msg+='BALANCE : '+formatRM(Math.abs(balance));
