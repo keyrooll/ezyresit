@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.4.4 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.4.5 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1980,9 +1980,9 @@ function renderResitContent(tab){
   // 'All' shows all
   let html=kpiHtml;
   if(!receipts.length){
-    html='<div class="empty-state"><div class="empty-icon">📋</div><div>Tiada resit</div></div>';
+    html+=`<div class="empty-state"><div class="empty-icon">📋</div><div>Tiada resit</div></div>`;
   } else {
-    html=receipts.slice().reverse().map(r=>renderReceiptCard(r,tab)).join('');
+    html+=receipts.slice().reverse().map(r=>renderReceiptCard(r,tab)).join('');
   }
   // Tambah 10 transaksi terakhir di bawah
   const allReceipts=getReceipts();
@@ -2863,7 +2863,23 @@ function renderPaymentScreen(){
     return {totalPurchase,totalPaid,balance:totalPurchase-totalPaid};
   }
 
+  // Payment KPIs
+  const totalBeli=receipts.filter(r=>r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  const totalHutang=totalBeli-totalBayar;
+  const suppliersOwed=suppliers.filter(s=>{
+    const b=receipts.filter(r=>r.vendor===s.name&&r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    const p=payments.filter(x=>x.supplier===s.name).reduce((a,x)=>a+parseFloat(x.amount||0),0);
+    return (b-p)>0.01;
+  }).length;
+
   let html=`
+  <div class="kpi-grid" style="margin-bottom:14px">
+    <div class="kpi-card"><div class="kpi-label">Jumlah Belian</div><div class="kpi-value" style="font-size:14px">${formatRM(totalBeli)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Jumlah Bayaran</div><div class="kpi-value" style="font-size:14px;color:var(--green)">${formatRM(totalBayar)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Baki Hutang</div><div class="kpi-value" style="font-size:14px;color:${totalHutang>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(totalHutang))}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Supplier Berhutang</div><div class="kpi-value" style="color:${suppliersOwed>0?'var(--red)':'var(--green)'}">${suppliersOwed}</div></div>
+  </div>
   <div style="margin-bottom:16px;display:flex;gap:8px">
     <button class="btn btn-primary" onclick="showPaymentUploadModal()" style="flex:1">Upload Resit Bayaran</button>
     <button class="btn btn-outline" onclick="showAddPaymentModal()" style="flex:1">Input Manual</button>
@@ -3324,13 +3340,13 @@ function renderSupplierAdminList(){
   const suppliers=getSuppliers().sort((a,b)=>b.count-a.count);
   const el=document.getElementById('supplierAdminList');if(!el) return;
   el.innerHTML=suppliers.map(s=>`
-    <div class="supplier-card">
+    <div class="supplier-card" onclick="showSupplierHistory('${s.name.replace(/'/g,"\\'")}');" style="cursor:pointer">
       <div class="supplier-info">
         <div class="supplier-name">${s.name}</div>
         <div class="supplier-meta">${CAT_EMOJI[s.category]||''} ${s.category} · Akaun ${s.account}${s.waNum?' · 📱 '+s.waNum:''}</div>
         ${s.bankName?`<div style="font-size:10px;color:var(--mid)">${s.bankName} ${s.bankAcc||''}</div>`:''}
       </div>
-      <div style="display:flex;gap:4px;align-items:center">
+      <div style="display:flex;gap:4px;align-items:center" onclick="event.stopPropagation()">
         <span class="supplier-count">${s.count}x</span>
         <button class="btn btn-sm btn-outline" onclick="showEditSupplierModal('${s.id}')">Edit</button>
         <button class="btn btn-sm btn-danger" onclick="deleteSupplier('${s.id}')">Buang</button>
