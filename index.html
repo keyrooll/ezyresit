@@ -202,7 +202,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.2.9 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.3.0 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -585,6 +585,7 @@ let charts = {};
 // =====================
 // STORAGE HELPERS
 // =====================
+function getApiKey(){return lsGet('ezy_openai_key','');}
 function lsGet(k, def=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def}}
 function lsSet(k,v){localStorage.setItem(k,JSON.stringify(v))}
 function formatRM(val){
