@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.3.4 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.3.6 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1763,14 +1763,77 @@ function renderSuppliersList(){
   const el=document.getElementById('suppliersList');
   if(!el) return;
   if(!suppliers.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div><div>Tiada supplier</div></div>';return;}
-  el.innerHTML=suppliers.map(s=>`
-    <div class="supplier-card">
+  el.innerHTML=suppliers.map(s=>{
+    const receipts=getReceipts().filter(r=>r.vendor===s.name&&r.status==='Approved');
+    const payments=lsGetPayments().filter(p=>p.supplier===s.name);
+    const totalBeli=receipts.reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
+    const baki=totalBeli-totalBayar;
+    return `<div class="supplier-card" onclick="showSupplierHistory('${s.name.replace(/'/g,"\'")}')">
       <div class="supplier-info">
         <div class="supplier-name">${s.name}</div>
-        <div class="supplier-meta">${CAT_EMOJI[s.category]||''} ${s.category} · Akaun ${s.account}</div>
+        <div class="supplier-meta">${CAT_EMOJI[s.category]||''} ${s.category||'-'} · ${s.count||0}x transaksi</div>
+        ${baki>0?`<div style="font-size:11px;color:var(--red);margin-top:2px">Hutang: ${formatRM(baki)}</div>`:(totalBeli>0?`<div style="font-size:11px;color:var(--green);margin-top:2px">Selesai</div>`:'')}
       </div>
-      <span class="supplier-count">${s.count}x</span>
+      <span class="supplier-count" style="color:${baki>0?'var(--red)':'var(--green)'}">${baki>0?formatRM(baki):'✓'}</span>
+    </div>`;
+  }).join('');
+}
+
+function showSupplierHistory(supplierName){
+  const receipts=getReceipts().filter(r=>r.vendor===supplierName&&r.status==='Approved').sort((a,b)=>b.date.localeCompare(a.date));
+  const payments=lsGetPayments().filter(p=>p.supplier===supplierName).sort((a,b)=>b.date.localeCompare(a.date));
+  const totalBeli=receipts.reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  const baki=totalBeli-totalBayar;
+
+  let html=`
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;text-align:center">
+    <div style="background:var(--surface2);border-radius:10px;padding:10px">
+      <div style="font-size:16px;font-weight:700;color:var(--blue)">${formatRM(totalBeli)}</div>
+      <div style="font-size:10px;color:var(--mid)">JUMLAH BELI</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:10px;padding:10px">
+      <div style="font-size:16px;font-weight:700;color:var(--green)">${formatRM(totalBayar)}</div>
+      <div style="font-size:10px;color:var(--mid)">JUMLAH BAYAR</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:10px;padding:10px">
+      <div style="font-size:16px;font-weight:700;color:${baki>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(baki))}</div>
+      <div style="font-size:10px;color:var(--mid)">${baki>0?'HUTANG':'LEBIHAN'}</div>
+    </div>
+  </div>
+
+  <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">SEJARAH BELIAN (${receipts.length})</div>`;
+
+  if(!receipts.length) html+='<div style="font-size:12px;color:var(--mid);padding:8px;text-align:center">Tiada rekod belian</div>';
+  else html+=receipts.map(r=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:6px">
+      <div>
+        <div style="font-size:12px;font-weight:600">${r.date}</div>
+        <div style="font-size:11px;color:var(--mid)">${r.branch||'-'} · ${r.category||'-'}</div>
+        <div style="font-size:11px;color:var(--mid)">${r.items&&r.items.length?r.items.map(i=>i.name).join(', ').slice(0,40):''}</div>
+      </div>
+      <div style="font-weight:700;color:var(--blue)">${formatRM(r.amount)}</div>
     </div>`).join('');
+
+  html+=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin:12px 0 8px">SEJARAH BAYARAN (${payments.length})</div>`;
+
+  if(!payments.length) html+='<div style="font-size:12px;color:var(--mid);padding:8px;text-align:center">Tiada rekod bayaran</div>';
+  else html+=payments.map(p=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f0fdf4;border-radius:8px;margin-bottom:6px">
+      <div>
+        <div style="font-size:12px;font-weight:600">${p.date}</div>
+        <div style="font-size:11px;color:var(--mid)">${p.method||'-'}${p.note?' · '+p.note:''}</div>
+      </div>
+      <div style="font-weight:700;color:var(--green)">${formatRM(p.amount)}</div>
+    </div>`).join('');
+
+  html+=`<div style="display:flex;gap:8px;margin-top:16px">
+    <button class="btn btn-primary" style="flex:1" onclick="hideModal();showAddPaymentModal('${supplierName}')">+ Bayaran Baru</button>
+    <button class="btn btn-outline" onclick="showWaEditModal('${supplierName}')">WhatsApp</button>
+  </div>`;
+
+  showModal(supplierName, html);
 }
 
 // =====================
@@ -2403,10 +2466,13 @@ function pmtShowAiResult(){
     const supplier = p.supplierMatched;
     if(!supplier){ 
       knockHtml += `<div class="card mb-8" style="padding:12px;border:1px solid var(--amber)">
-        <div style="font-size:12px;font-weight:600;color:var(--amber)">⚠️ ${p.supplierRaw} — Advance Payment</div>
-        <div style="font-size:11px;color:var(--mid);margin-top:4px">Supplier tak dikenali — akan disimpan sebagai advance payment</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:12px;font-weight:600;color:var(--amber)">⚠️ ${p.supplierRaw}</div>
+          <button class="btn btn-sm btn-outline" style="font-size:11px" onclick="pmtAddNewSupplier('${p.supplierRaw.replace(/'/g,"\'")}',${i})">+ Tambah Supplier</button>
+        </div>
+        <div style="font-size:11px;color:var(--mid);margin-top:4px">Supplier tak dikenali — pilih dari senarai atau tambah baru</div>
         <div style="margin-top:8px"><label style="font-size:11px">Assign ke supplier:</label>
-          <select id="pmtFallbackSupplier_${i}" class="form-input" style="margin-top:4px;font-size:12px">
+          <select id="pmtFallbackSupplier_${i}" class="form-input" style="margin-top:4px;font-size:12px" onchange="pmtRefreshKnockoff(${i},this.value)">
             <option value="">-- Pilih Supplier --</option>
             ${getSuppliers().map(s=>`<option value="${s.name}">${s.name}</option>`).join('')}
           </select>
@@ -2445,16 +2511,19 @@ function pmtShowAiResult(){
       remaining -= apply;
     }
 
-    knockHtml += `<div class="card mb-8" style="padding:12px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+    knockHtml += `<div class="card mb-8" style="padding:12px" id="knockCard_${i}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="font-size:13px;font-weight:600">${supplier}</div>
-        <div style="font-weight:700;color:var(--green)">${formatRM(p.amount)}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div style="font-weight:700;color:var(--green)">${formatRM(p.amount)}</div>
+          <button class="btn btn-sm btn-primary" id="confirmBtn_${i}" onclick="pmtConfirmSingle(${i})" style="font-size:11px">Confirm</button>
+        </div>
       </div>
       ${knockoffs.map(k=>`<div style="font-size:11px;padding:6px 8px;background:var(--surface2);border-radius:6px;margin-bottom:4px;display:flex;justify-content:space-between">
-        <span>📋 Resit ${k.date} (${formatRM(k.receiptTotal)})</span>
+        <span>Resit ${k.date} (${formatRM(k.receiptTotal)})</span>
         <span style="color:var(--green);font-weight:600">-${formatRM(k.apply)}</span>
       </div>`).join('')}
-      ${remaining>0.01?`<div style="font-size:11px;color:var(--amber);margin-top:4px">⚡ Lebihan ${formatRM(remaining)} → advance credit</div>`:''}
+      ${remaining>0.01?`<div style="font-size:11px;color:var(--amber);margin-top:4px">Lebihan ${formatRM(remaining)} → advance credit</div>`:''}
     </div>`;
     pmtUploadState.knockoffPlan.push({idx:i, supplier, amount:p.amount, type:'knockoff', knockoffs, advance:remaining>0.01?remaining:0});
   });
@@ -2476,6 +2545,76 @@ function pmtShowAiResult(){
   </div>`;
 
   document.getElementById('pmtKnockoffBox').innerHTML = knockHtml;
+}
+
+
+function pmtAddNewSupplier(rawName, idx){
+  showModal('Tambah Supplier Baru',`
+    <div class="form-group"><label class="form-label">Nama Supplier</label>
+      <input class="form-input" id="newSupNamePmt" value="${rawName}"></div>
+    <div class="form-group"><label class="form-label">No. Reg (optional)</label>
+      <input class="form-input" id="newSupRegPmt" placeholder="ROC/ROB"></div>
+    <div class="form-group"><label class="form-label">No. WhatsApp (optional)</label>
+      <input class="form-input" id="newSupWaPmt" placeholder="60123456789"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="pmtSaveNewSupplier(${idx})">Simpan & Guna</button>
+  `);
+}
+
+function pmtSaveNewSupplier(idx){
+  const name=document.getElementById('newSupNamePmt').value.trim();
+  if(!name){showToast('Masukkan nama supplier ⚠️');return;}
+  const reg=document.getElementById('newSupRegPmt').value.trim();
+  const wa=normalizeWa(document.getElementById('newSupWaPmt').value);
+  const suppliers=getSuppliers();
+  if(suppliers.find(s=>s.name===name)){showToast('Supplier dah wujud ⚠️');return;}
+  const newSup={id:'sup_'+Date.now(),name,regNo:reg,waNum:wa,count:0,category:''};
+  suppliers.push(newSup);
+  setSuppliers(suppliers);
+  hideModal();
+  showToast(name+' ditambah ✅');
+  // Update the fallback select
+  const sel=document.getElementById('pmtFallbackSupplier_'+idx);
+  if(sel){
+    const opt=document.createElement('option');
+    opt.value=name; opt.text=name; opt.selected=true;
+    sel.appendChild(opt);
+    // Update knockoff plan
+    const plan=pmtUploadState.knockoffPlan.find(p=>p.idx===idx);
+    if(plan) plan.supplier=name;
+  }
+}
+
+function pmtConfirmSingle(idx){
+  const plan=pmtUploadState.knockoffPlan.find(p=>p.idx===idx);
+  if(!plan){showToast('Data tidak dijumpai ⚠️');return;}
+  const date=document.getElementById('pmtUploadDate')?document.getElementById('pmtUploadDate').value:new Date().toISOString().split('T')[0];
+  const method=document.getElementById('pmtUploadMethod')?document.getElementById('pmtUploadMethod').value:'TT / Bank Transfer';
+  const note=document.getElementById('pmtUploadNote')?document.getElementById('pmtUploadNote').value:'';
+  const u=currentUser;
+  const profile=getUserProfile(u.email);
+  const recordedBy=profile.fullname||u.name||u.email;
+  const payment={
+    id:'pmt_'+Date.now()+'_'+idx,
+    date, supplier:plan.supplier, amount:plan.amount,
+    method, note, recordedBy,
+    type:plan.type,
+    knockoffReceiptIds: plan.knockoffs?plan.knockoffs.map(k=>k.receiptId):[],
+    advance: plan.advance||0
+  };
+  const all=lsGetPayments();
+  all.push(payment);
+  lsSetPayments(all);
+  syncPaymentToSheet(payment);
+  // Mark card as done
+  const card=document.getElementById('knockCard_'+idx);
+  if(card){
+    card.style.opacity='0.5';
+    const btn=document.getElementById('confirmBtn_'+idx);
+    if(btn){btn.textContent='Direkod';btn.disabled=true;btn.style.background='var(--green)';}
+  }
+  showToast(plan.supplier+' direkod ✅');
+  // Open WA
+  setTimeout(()=>showWaEditModal(plan.supplier),400);
 }
 
 function pmtConfirmPayment(){
