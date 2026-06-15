@@ -202,7 +202,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.14</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.15</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -2181,9 +2181,9 @@ function renderResitContent(tab){
   const avg=approvedCount?totalSpend/approvedCount:0;
   const kpiHtml=`<div class="kpi-grid" style="margin-bottom:12px">
     <div class="kpi-card"><div class="kpi-label">Jumlah Resit</div><div class="kpi-value">${allR.length}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pendingCount}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Jumlah Belanja</div><div class="kpi-value" style="font-size:14px">${formatRM(totalSpend)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Purata Resit</div><div class="kpi-value" style="font-size:14px">${formatRM(avg)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Telah Diluluskan</div><div class="kpi-value" style="color:var(--green)">${approvedCount}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Pending Approval</div><div class="kpi-value" style="color:var(--amber)">${pendingCount}</div></div>
+    <div class="kpi-card"><div class="kpi-label">RM Purata Resit</div><div class="kpi-value" style="font-size:14px">${formatRM(avg)}</div></div>
   </div>`;
   if(tab==='Pending') receipts=receipts.filter(r=>r.status==='Pending');
   else if(tab==='Approved') receipts=receipts.filter(r=>r.status==='Approved');
@@ -2462,9 +2462,9 @@ function updateAdminKpi(receipts){
   // Top branch this period
   const byBranch={};receipts.forEach(r=>{if(r.branch)byBranch[r.branch]=(byBranch[r.branch]||0)+parseFloat(r.amount||0);});
   const topBranch=Object.entries(byBranch).sort((a,b)=>b[1]-a[1])[0];
-  // Avg receipt value
-  const approved=receipts.filter(r=>r.status==='Approved');
-  const avg=approved.length?approved.reduce((a,r)=>a+parseFloat(r.amount||0),0)/approved.length:0;
+  // Avg receipt value (all receipts, not just approved)
+  const allReceipts=getReceipts();
+  const avg=allReceipts.length?allReceipts.reduce((a,r)=>a+parseFloat(r.amount||0),0)/allReceipts.length:0;
   el.innerHTML=`
     <div class="kpi-card"><div class="kpi-label">Belanja Tempoh</div><div class="kpi-value" style="font-size:15px">${formatRM(spend)}</div></div>
     <div class="kpi-card"><div class="kpi-label">Hutang Supplier</div><div class="kpi-value" style="font-size:15px;color:${totalHutang>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(totalHutang))}</div></div>
