@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.4.1 · EzyResit</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">v3.4.3 · EzyResit</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -2180,9 +2180,21 @@ function renderAdminDashboard(){
     </div>
     <div class="kpi-grid" id="adminKpi"></div>
     <div class="chart-wrap"><div class="chart-title">Trend Perbelanjaan</div><canvas id="chartTrend" height="200"></canvas></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:6px;overflow:hidden"><div style="font-size:10px;font-weight:600;color:var(--dark);margin-bottom:2px">Ikut Cawangan</div><div style="position:relative;height:75px"><canvas id="chartBranch"></canvas></div></div>
-      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:6px;overflow:hidden"><div style="font-size:10px;font-weight:600;color:var(--dark);margin-bottom:2px">Ikut Kategori</div><div style="position:relative;height:75px"><canvas id="chartCat"></canvas></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:8px;overflow:hidden">
+        <div style="font-size:10px;font-weight:600;color:var(--mid);margin-bottom:4px;text-align:center">CAWANGAN</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="position:relative;width:56px;height:56px;flex-shrink:0"><canvas id="chartBranch"></canvas></div>
+          <div id="legendBranch" style="flex:1;font-size:9px;line-height:1.6;overflow:hidden"></div>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:8px;overflow:hidden">
+        <div style="font-size:10px;font-weight:600;color:var(--mid);margin-bottom:4px;text-align:center">KATEGORI</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="position:relative;width:56px;height:56px;flex-shrink:0"><canvas id="chartCat"></canvas></div>
+          <div id="legendCat" style="flex:1;font-size:9px;line-height:1.6;overflow:hidden"></div>
+        </div>
+      </div>
     </div>
     <div class="chart-wrap"><div class="chart-title">Perbelanjaan Cawangan</div><canvas id="chartBar" height="200"></canvas></div>
     <div class="card mb-12" id="topSuppliers"></div>
@@ -2216,15 +2228,26 @@ function setPeriod(period, btn){
 
 function updateAdminKpi(receipts){
   const el=document.getElementById('adminKpi');if(!el) return;
-  const total=receipts.length;
+  // Business KPIs — more useful than receipt counts
+  const allPayments=lsGetPayments();
+  const allReceipts=getReceipts();
+  // Total hutang (all approved - all paid)
+  const totalBeli=allReceipts.filter(r=>r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  const totalBayar=allPayments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  const totalHutang=totalBeli-totalBayar;
+  // Belanja period
   const spend=receipts.reduce((a,r)=>a+parseFloat(r.amount||0),0);
-  const pending=receipts.filter(r=>r.status==='Pending').length;
-  const approved=receipts.filter(r=>r.status==='Approved').length;
+  // Top branch this period
+  const byBranch={};receipts.forEach(r=>{if(r.branch)byBranch[r.branch]=(byBranch[r.branch]||0)+parseFloat(r.amount||0);});
+  const topBranch=Object.entries(byBranch).sort((a,b)=>b[1]-a[1])[0];
+  // Avg receipt value
+  const approved=receipts.filter(r=>r.status==='Approved');
+  const avg=approved.length?approved.reduce((a,r)=>a+parseFloat(r.amount||0),0)/approved.length:0;
   el.innerHTML=`
-    <div class="kpi-card"><div class="kpi-label">Total Resit</div><div class="kpi-value">${total}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Jumlah Belanja</div><div class="kpi-value" style="font-size:16px">${formatRM(spend)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pending}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Approved</div><div class="kpi-value" style="color:var(--green)">${approved}</div></div>`;
+    <div class="kpi-card"><div class="kpi-label">Belanja Tempoh</div><div class="kpi-value" style="font-size:15px">${formatRM(spend)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Hutang Supplier</div><div class="kpi-value" style="font-size:15px;color:${totalHutang>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(totalHutang))}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Cawangan Teratas</div><div class="kpi-value" style="font-size:12px">${topBranch?topBranch[0]:'-'}</div>${topBranch?`<div class="kpi-sub">${formatRM(topBranch[1])}</div>`:''}</div>
+    <div class="kpi-card"><div class="kpi-label">Purata Resit</div><div class="kpi-value" style="font-size:15px">${formatRM(avg)}</div></div>`;
 }
 
 function updateCharts(receipts){
@@ -2252,10 +2275,21 @@ function updateCharts(receipts){
   if(c1) charts.trend=new Chart(c1,{type:'line',data:{labels:fmtLabels,datasets:[{label:'RM',data:sortedAmounts,borderColor:'#1a7a4a',backgroundColor:'rgba(26,122,74,.1)',tension:.3,fill:true,pointRadius:3}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
 
   const c2=document.getElementById('chartBranch');
-  if(c2) charts.branch=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(byBranch),datasets:[{data:Object.values(byBranch),backgroundColor:BRANCH_COLORS}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': RM'+c.parsed.toLocaleString();}}}}}});
+  if(c2){
+    charts.branch=new Chart(c2,{type:'doughnut',data:{labels:Object.keys(byBranch),datasets:[{data:Object.values(byBranch),backgroundColor:BRANCH_COLORS}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': RM'+c.parsed.toLocaleString();}}}}},cutout:'60%'});
+    const totalB=Object.values(byBranch).reduce((a,b)=>a+b,0);
+    const lb=document.getElementById('legendBranch');
+    if(lb) lb.innerHTML=Object.entries(byBranch).map(([k,v],i)=>`<div style="display:flex;align-items:center;gap:3px"><span style="width:7px;height:7px;border-radius:50%;background:${BRANCH_COLORS[i%BRANCH_COLORS.length]};flex-shrink:0;display:inline-block"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${k}</span><span style="color:var(--mid);flex-shrink:0">${totalB?Math.round(v/totalB*100):0}%</span></div>`).join('');
+  }
 
   const c3=document.getElementById('chartCat');
-  if(c3) charts.cat=new Chart(c3,{type:'doughnut',data:{labels:Object.keys(byCat),datasets:[{data:Object.values(byCat),backgroundColor:Object.keys(byCat).map(c=>CAT_COLORS[c]||'#ccc')}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': RM'+c.parsed.toLocaleString();}}}}}});
+  if(c3){
+    const catColors=Object.keys(byCat).map(c=>CAT_COLORS[c]||'#ccc');
+    charts.cat=new Chart(c3,{type:'doughnut',data:{labels:Object.keys(byCat),datasets:[{data:Object.values(byCat),backgroundColor:catColors}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': RM'+c.parsed.toLocaleString();}}}}},cutout:'60%'});
+    const totalC=Object.values(byCat).reduce((a,b)=>a+b,0);
+    const lc=document.getElementById('legendCat');
+    if(lc) lc.innerHTML=Object.entries(byCat).map(([k,v],i)=>`<div style="display:flex;align-items:center;gap:3px"><span style="width:7px;height:7px;border-radius:50%;background:${catColors[i]};flex-shrink:0;display:inline-block"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${k}</span><span style="color:var(--mid);flex-shrink:0">${totalC?Math.round(v/totalC*100):0}%</span></div>`).join('');
+  }
 
   const c4=document.getElementById('chartBar');
   if(c4) charts.bar=new Chart(c4,{type:'bar',data:{labels:Object.keys(byBranch),datasets:[{label:'Belanja (RM)',data:Object.values(byBranch),backgroundColor:BRANCH_COLORS}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
@@ -2354,6 +2388,8 @@ function renderStaffScreen(){
       const txCount=receipts.filter(r=>r.uploadedEmail===u.email).length;
       const lastTx=receipts.filter(r=>r.uploadedEmail===u.email).slice(-1)[0];
       const lastDate=lastTx?lastTx.date:'';
+      const staffBr=getStaffBranches(u.email);
+      const brLabel=staffBr.length===BRANCHES.length?'Semua cawangan':staffBr.slice(0,2).join(', ')+(staffBr.length>2?' +'+(staffBr.length-2):'');
       return `<div class="card mb-8" style="padding:14px">
         <div style="display:flex;align-items:center;gap:12px">
           ${u.picture?`<img src="${u.picture}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`:`<div style="width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--primary)">${(p.fullname||u.name||u.email).charAt(0).toUpperCase()}</div>`}
@@ -2364,10 +2400,12 @@ function renderStaffScreen(){
               <span class="status-badge ${roleClass}">${role}</span>
               <span style="font-size:10px;color:var(--mid)">${txCount} resit${lastDate?' · terakhir '+lastDate:''}</span>
             </div>
+            <div style="font-size:10px;color:var(--primary);margin-top:3px">📍 ${brLabel}</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
             <button class="btn btn-sm btn-outline" onclick="setStaffRole('${u.email}','accountant')">Akaun</button>
             <button class="btn btn-sm ${role==='staff'?'btn-primary':'btn-outline'}" onclick="setStaffRole('${u.email}','staff')">Staff</button>
+            <button class="btn btn-sm btn-outline" style="font-size:9px;color:var(--primary)" onclick="showAssignBranchModal('${u.email}')">📍 Branch</button>
           </div>
         </div>
       </div>`;
@@ -2396,6 +2434,40 @@ function saveNewStaff(){
   renderStaffScreen();
 }
 
+function showAssignBranchModal(email){
+  const current=getStaffBranches(email);
+  const checks=BRANCHES.map(b=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:6px;cursor:pointer">
+      <input type="checkbox" value="${b}" ${current.includes(b)?'checked':''} style="width:16px;height:16px;accent-color:var(--green)">
+      <span style="font-size:13px">${b}</span>
+    </label>`).join('');
+  showModal('Assign Branch',`
+    <div style="font-size:12px;color:var(--mid);margin-bottom:12px">Pilih cawangan yang dibenarkan untuk staff ini. Staff hanya boleh pilih dari cawangan yang diassign.</div>
+    <label style="display:flex;align-items:center;gap:10px;padding:10px;background:#f0fdf4;border-radius:8px;margin-bottom:10px;cursor:pointer;border:1px solid var(--green)">
+      <input type="checkbox" id="branchAll" onchange="toggleAllBranches(this)" style="width:16px;height:16px;accent-color:var(--green)">
+      <span style="font-size:13px;font-weight:600;color:var(--green)">Semua Cawangan</span>
+    </label>
+    <div id="branchCheckList">${checks}</div>
+    <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="saveAssignBranch('${email}')">Simpan</button>
+  `);
+  // Set "all" checkbox state
+  setTimeout(()=>{const a=document.getElementById('branchAll');if(a)a.checked=current.length===BRANCHES.length;},50);
+}
+function toggleAllBranches(cb){
+  document.querySelectorAll('#branchCheckList input[type=checkbox]').forEach(c=>{c.checked=cb.checked;});
+}
+function saveAssignBranch(email){
+  const checked=[...document.querySelectorAll('#branchCheckList input[type=checkbox]:checked')].map(c=>c.value);
+  if(!checked.length){showToast('Pilih sekurang-kurangnya 1 cawangan ⚠️');return;}
+  const profiles=getStaffProfiles();
+  if(!profiles[email]) profiles[email]={};
+  profiles[email].branches=checked;
+  setStaffProfiles(profiles);
+  hideModal();
+  showToast('Branch dikemaskini ✅');
+  renderStaffScreen();
+}
+
 // ===================== PAYMENT MODULE =====================
 function lsGetPayments(){return JSON.parse(localStorage.getItem('payments')||'[]');}
 function lsSetPayments(p){localStorage.setItem('payments',JSON.stringify(p));}
@@ -2406,7 +2478,11 @@ let pmtUploadState = {file:null, preview:null, aiResult:null};
 
 function showPaymentUploadModal(){
   pmtUploadState = {file:null, preview:null, aiResult:null};
-  showModal('Upload Resit Bayaran', `
+  // Render inline in paymentContent — NOT in modal — so WA modal doesn't destroy state
+  const el=document.getElementById('paymentContent');
+  if(!el) return;
+  el.innerHTML=`
+    <button class="btn btn-outline" style="margin-bottom:14px;width:100%" onclick="renderPaymentScreen()">← Kembali</button>
     <div id="pmtUploadStep1">
       <div style="border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;margin-bottom:16px;cursor:pointer" onclick="document.getElementById('pmtFileInput').click()">
         <div style="font-size:32px;margin-bottom:8px">📄</div>
@@ -2417,15 +2493,14 @@ function showPaymentUploadModal(){
       <div id="pmtPreviewWrap" style="display:none;margin-bottom:16px">
         <img id="pmtPreviewImg" style="width:100%;border-radius:8px;max-height:300px;object-fit:contain">
       </div>
-      <button class="btn btn-primary" style="width:100%" id="pmtScanBtn" onclick="pmtScanReceipt()" disabled style="display:none">Scan dengan AI</button>
+      <button class="btn btn-primary" style="width:100%" id="pmtScanBtn" onclick="pmtScanReceipt()" disabled>Scan dengan AI</button>
     </div>
-
     <div id="pmtUploadStep2" style="display:none">
       <div id="pmtAiResultBox" style="background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:16px"></div>
       <div id="pmtKnockoffBox"></div>
-      <button class="btn btn-primary" style="width:100%;margin-top:12px" id="pmtConfirmBtn" onclick="pmtConfirmPayment()">Sahkan & Rekod Bayaran</button>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px" id="pmtConfirmBtn" onclick="pmtConfirmPayment()">Sahkan & Rekod Semua</button>
     </div>
-  `);
+  `;
 }
 
 function pmtFileSelected(input){
@@ -2734,7 +2809,10 @@ function pmtConfirmPayment(){
 
   lsSetPayments(payments);
   showToast(`${plan.length} bayaran direkod ✅`);
-  renderPaymentScreen();
+  // Don't reset screen — show done state so user can still send WA
+  const confirmBtn=document.getElementById('pmtConfirmBtn');
+  if(confirmBtn){confirmBtn.textContent='✓ Semua Direkod';confirmBtn.disabled=true;confirmBtn.style.background='var(--green)';}
+  setTimeout(()=>renderPaymentScreen(), 3000);
 }
 
 function showBulkPaymentWaPrompt(supplierNames){
