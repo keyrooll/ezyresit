@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.0</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.2</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -549,6 +549,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
 const CLIENT_ID = '27154479564-ufljm52nmlh4gg7ie54knphff44jvrrq.apps.googleusercontent.com';
 const SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
 const DRIVE_FOLDER_NAME = 'EzyResit Receipts';
+const DRIVE_ROOT_FOLDER_ID = '1GmJWOikquZb-As-XdJAYgZao_EXQcfY-'; // ezyresit shared folder
 const SUPER_ADMIN = 'keyrooll@gmail.com';
 const ACCOUNTANTS = ['marzuwita@gmail.com','keyroollgambar@gmail.com'];
 const BRANCHES = ['Batu Caves','Shah Alam','Bangi Cafe','Bangi Durian','Putrajaya','TTDI','Bakery','Central Kitchen'];
@@ -657,7 +658,7 @@ function getSuppliers(){
   if(!s){s=DEFAULT_SUPPLIERS;lsSet('ezy_suppliers',s)}
   return s;
 }
-function setSuppliers(s){lsSet('ezy_suppliers',s)}
+function setSuppliers(s){lsSet('ezy_suppliers',s);syncSuppliersToSheet().catch(e=>console.warn('Supplier sync failed',e));}
 // =====================
 // ITEM REGISTRY
 // =====================
@@ -953,6 +954,13 @@ function showMainApp(){
   checkApiKeyOnLogin();
   setTimeout(()=>ensureCategoriesSheet().catch(()=>{}),3000);
   // setTimeout(()=>loadItemRegistryFromSheet().catch(()=>{}),1000);
+  // Load fresh data from Sheets so all devices stay in sync
+  setTimeout(async()=>{
+    try{
+      await loadAllFromSheets();
+      setupAppForRole();
+    }catch(e){console.warn('Sheets sync failed',e);}
+  },1200);
 }
 
 // =====================
@@ -1650,20 +1658,18 @@ function resetWizard(){
 async function uploadToDrive(base64,vendorName,date,amount){
   const token=currentToken;
   if(!token) throw new Error('No token');
-  // Format: DDMMYY-SupplierName-Amount
+  // Format filename: DDMMYY-SupplierName-Amount
   const d=new Date(date);
   const dd=String(d.getDate()).padStart(2,'0');
   const mm=String(d.getMonth()+1).padStart(2,'0');
   const yy=String(d.getFullYear()).slice(-2);
-  const cleanVendor=vendorName.replace(/[^a-zA-Z0-9]/g,'');
-  const cleanAmount=Math.round(parseFloat(amount)||0);
+  const cleanVendor=vendorName.replace(/[^a-zA-Z0-9]/g,'').slice(0,20);
+  const cleanAmount='RM'+((parseFloat(amount)||0).toFixed(2));
   const filename=`${dd}${mm}${yy}-${cleanVendor}-${cleanAmount}`;
   const blob=base64ToBlob(base64,'image/jpeg');
-  const year=String(d.getFullYear());
-  const month=mm;
-  const monthName=d.toLocaleString('ms-MY',{month:'long'});
-  // Create folder: EzyResit/2026/06-Jun/
-  const folderId=await getOrCreateFolder(token,`${DRIVE_FOLDER_NAME}/${year}/${mm}-${monthName}`);
+  // Subfolder: YYYY-MM (e.g. 2026-06) inside shared root folder
+  const monthFolder=`${d.getFullYear()}-${mm}`;
+  const folderId=await getOrCreateSubfolder(token, DRIVE_ROOT_FOLDER_ID, monthFolder);
   const metadata={name:filename+'.jpg',parents:[folderId]};
   const form=new FormData();
   form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));
@@ -1672,25 +1678,31 @@ async function uploadToDrive(base64,vendorName,date,amount){
     method:'POST',headers:{Authorization:'Bearer '+token},body:form
   });
   const driveRes=await r.json();
+  if(driveRes.error) throw new Error(driveRes.error.message);
   return {link:driveRes.webViewLink||'',filename:filename+'.jpg'};
 }
 
+// Get or create a single subfolder inside a known parent folder ID
+async function getOrCreateSubfolder(token, parentId, folderName){
+  const q=`name='${folderName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,{headers:{Authorization:'Bearer '+token}});
+  const d=await r.json();
+  if(d.files&&d.files.length) return d.files[0].id;
+  const cr=await fetch('https://www.googleapis.com/drive/v3/files',{
+    method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({name:folderName,mimeType:'application/vnd.google-apps.folder',parents:[parentId]})
+  });
+  const cd=await cr.json();
+  if(cd.error) throw new Error('Cannot create folder: '+cd.error.message);
+  return cd.id;
+}
+
+// Legacy multi-level folder creator (kept for backward compat)
 async function getOrCreateFolder(token, path){
   const parts=path.split('/');
   let parentId='root';
   for(const part of parts){
-    const q=`name='${part}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-    const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,{headers:{Authorization:'Bearer '+token}});
-    const d=await r.json();
-    if(d.files&&d.files.length){parentId=d.files[0].id;}
-    else{
-      const cr=await fetch('https://www.googleapis.com/drive/v3/files',{
-        method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
-        body:JSON.stringify({name:part,mimeType:'application/vnd.google-apps.folder',parents:[parentId]})
-      });
-      const cd=await cr.json();
-      parentId=cd.id;
-    }
+    parentId=await getOrCreateSubfolder(token,parentId,part);
   }
   return parentId;
 }
@@ -2508,7 +2520,39 @@ function saveAssignBranch(email){
 
 // ===================== PAYMENT MODULE =====================
 function lsGetPayments(){return JSON.parse(localStorage.getItem('payments')||'[]');}
-function lsSetPayments(p){localStorage.setItem('payments',JSON.stringify(p));}
+function lsSetPayments(p){localStorage.setItem('payments',JSON.stringify(p));syncPaymentsToSheet().catch(e=>console.warn('Payment sync failed',e));}
+
+async function syncPaymentsToSheet(){
+  const tok=accessToken||currentToken;
+  if(!tok) return;
+  try{
+    const payments=lsGetPaymentsRaw();
+    // Ensure Payments tab exists
+    const cr=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A1:A1`,{headers:{Authorization:'Bearer '+tok}});
+    const cd=await cr.json();
+    if(cd.error){
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+        method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({requests:[{addSheet:{properties:{title:'Payments'}}}]})
+      });
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A1:H1?valueInputOption=RAW`,{
+        method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[['ID','Tarikh','Supplier','Jumlah','Kaedah','Nota','DirekoOleh','Type']]})
+      });
+    }
+    // Full overwrite
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A:H:clear`,{
+      method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'}
+    });
+    const rows=[['ID','Tarikh','Supplier','Jumlah','Kaedah','Nota','DirekoOleh','Type']];
+    payments.forEach(p=>rows.push([p.id||'',p.date||'',p.supplier||'',p.amount||0,p.method||'',p.note||'',p.recordedBy||'',p.type||'manual']));
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A1?valueInputOption=RAW`,{
+      method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({values:rows})
+    });
+  }catch(e){console.warn('Payment sheet sync:',e);}
+}
+function lsGetPaymentsRaw(){return JSON.parse(localStorage.getItem('payments')||'[]');}
 
 
 // ===================== PAYMENT RECEIPT UPLOAD =====================
@@ -3096,6 +3140,101 @@ async function syncPaymentToSheet(p){
       body:JSON.stringify({values:[[p.id,p.date,p.supplier,p.amount,p.method,p.note,p.recordedBy]]})
     });
   }catch(e){console.warn('Payment sheet sync:',e);}
+}
+
+// ===================== SUPPLIERS SHEET SYNC =====================
+async function syncSuppliersToSheet(){
+  const tok=accessToken||currentToken;
+  if(!tok) return;
+  try{
+    const suppliers=getSuppliers();
+    // Ensure tab exists
+    const cr=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Suppliers!A1`,{headers:{Authorization:'Bearer '+tok}});
+    const cd=await cr.json();
+    if(cd.error){
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+        method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({requests:[{addSheet:{properties:{title:'Suppliers'}}}]})
+      });
+    }
+    // Full overwrite — clear then write
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Suppliers!A:J:clear`,{
+      method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'}
+    });
+    const rows=[['ID','Nama','Kategori','Akaun','NoWA','BankNama','BankAkaun','RegNo','Count','KemaskiniPada']];
+    suppliers.forEach(s=>rows.push([s.id||'',s.name||'',s.category||'',s.account||'',s.waNum||'',s.bankName||'',s.bankAcc||'',s.regNo||'',s.count||0,new Date().toLocaleString('en-MY')]));
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Suppliers!A1?valueInputOption=RAW`,{
+      method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({values:rows})
+    });
+  }catch(e){console.warn('Supplier sheet sync:',e);}
+}
+
+async function loadSuppliersFromSheet(){
+  const tok=accessToken||currentToken;
+  if(!tok) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Suppliers!A2:J`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(d.error||!d.values||!d.values.length) return;
+    const suppliers=d.values.map(row=>({
+      id:row[0]||'sup_'+Date.now()+Math.random(),
+      name:row[1]||'',category:row[2]||'',account:row[3]||'',
+      waNum:row[4]||'',bankName:row[5]||'',bankAcc:row[6]||'',
+      regNo:row[7]||'',count:parseInt(row[8])||0
+    })).filter(s=>s.name);
+    if(suppliers.length) lsSet('ezy_suppliers',suppliers);
+    console.log('Loaded',suppliers.length,'suppliers from Sheets');
+  }catch(e){console.warn('Load suppliers:',e);}
+}
+
+async function loadPaymentsFromSheet(){
+  const tok=accessToken||currentToken;
+  if(!tok) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A2:H`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(d.error||!d.values||!d.values.length) return;
+    const payments=d.values.map(row=>({
+      id:row[0]||'pmt_'+Date.now(),
+      date:row[1]||'',supplier:row[2]||'',amount:parseFloat(row[3])||0,
+      method:row[4]||'',note:row[5]||'',recordedBy:row[6]||'',
+      type:row[7]||'manual'
+    })).filter(p=>p.supplier&&p.amount);
+    if(payments.length) lsSetPayments(payments);
+    console.log('Loaded',payments.length,'payments from Sheets');
+  }catch(e){console.warn('Load payments:',e);}
+}
+
+async function loadReceiptsFromSheet(){
+  const tok=accessToken||currentToken;
+  if(!tok) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A2:N`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(d.error||!d.values||!d.values.length) return;
+    const receipts=d.values.map(row=>({
+      id:row[0]||'r_'+Date.now(),
+      date:row[1]||'',vendor:row[2]||'',branch:row[3]||'',
+      category:row[4]||'',amount:parseFloat(row[5])||0,
+      status:row[6]||'Pending',uploadedBy:row[7]||'',
+      uploadedEmail:row[8]||'',uploadedAt:row[9]||'',
+      approvedBy:row[10]||'',approvedAt:row[11]||'',
+      note:row[12]||'',imageUrl:row[13]||''
+    })).filter(r=>r.vendor&&r.amount);
+    if(receipts.length) lsSet('ezy_receipts',receipts);
+    console.log('Loaded',receipts.length,'receipts from Sheets');
+  }catch(e){console.warn('Load receipts:',e);}
+}
+
+async function loadAllFromSheets(){
+  showToast('Memuatkan data...');
+  await Promise.all([
+    loadReceiptsFromSheet(),
+    loadPaymentsFromSheet(),
+    loadSuppliersFromSheet()
+  ]);
+  showToast('Data dikemaskini ✓');
 }
 
 function showSupplierPaymentDetail(supplierName){
