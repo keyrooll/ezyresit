@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.8</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.9</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -937,16 +937,12 @@ function autoLogin(){
   }
 }
 
-// Returns a valid token or null. If token expired, silently requests a new one.
+// Returns a valid token or null. Does NOT auto-refresh (avoid popup blocked errors).
 function getValidToken(){
   const expiry = lsGet('ezy_token_expiry', 0);
   const stillValid = expiry > Date.now() + 60000; // 1 min buffer
   if(stillValid && currentToken) return currentToken;
-  // Token expired — request new one silently (no prompt)
-  if(tokenClient){
-    tokenClient.requestAccessToken({prompt:''});
-  }
-  return null; // caller should skip and retry later
+  return null; // token expired, caller should skip
 }
 
 function logoutUser(){
@@ -1236,18 +1232,20 @@ function goStep(n){
   else if(n===2){document.getElementById('wStep2').style.display='';stepTwoInit();}
   else if(n===3){
     document.getElementById('wStep3').style.display='';
-    // Ensure SKU list loaded before rendering items
+    const renderItems=()=>{
+      const tbody=document.getElementById('itemsBody');
+      if(tbody&&wizardItems.length){
+        tbody.innerHTML='';
+        const items=wizardItems.filter(it=>!it._deleted);
+        wizardItems=[];
+        items.forEach(it=>addItemRow(it));
+      }
+    };
+    // Always re-render with latest skuList
     if(!skuList.length){
-      loadSkuList().then(()=>{
-        // Re-render existing item rows with correct SKU dropdowns
-        const tbody=document.getElementById('itemsBody');
-        if(tbody&&wizardItems.length){
-          tbody.innerHTML='';
-          const items=wizardItems.filter(it=>!it._deleted);
-          wizardItems=[];
-          items.forEach(it=>addItemRow(it));
-        }
-      }).catch(()=>{});
+      loadSkuList().then(renderItems).catch(renderItems);
+    } else {
+      renderItems();
     }
   }
   else if(n===4){document.getElementById('wStep4').style.display='';renderReview();}
