@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.11</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.13</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -355,13 +355,12 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
           <div class="section-title">Item Breakdown</div>
           <div class="table-wrap" style="margin-bottom:12px">
             <table class="items-table" id="itemsTable">
-              <thead><tr><th style="min-width:90px">Nama Item</th><th style="width:70px;text-align:center">Harga</th><th style="width:40px;text-align:center">QTY</th><th style="min-width:140px">SKU</th><th style="width:70px;text-align:center">Total</th><th style="width:50px"></th></tr></thead>
+              <thead><tr><th style="min-width:80px">Nama Item</th><th style="width:44px;text-align:center">RM Harga</th><th style="width:36px;text-align:center">QTY</th><th style="min-width:130px">SKU</th><th style="width:54px;text-align:center">RM Total</th><th style="width:44px"></th></tr></thead>
               <tbody id="itemsBody"></tbody>
             </table>
           </div>
           <button class="btn btn-secondary btn-block mb-12" onclick="addItemRow()">Tambah Item</button>
           <div class="card mb-12" id="splitSummary">
-            <div class="card-title mb-8">Ringkasan Split</div>
             <div id="splitRows"></div>
           </div>
           <div style="display:flex;gap:8px">
@@ -450,9 +449,6 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
     </div>
     <div class="nav-item" id="nav-resit-staff" onclick="switchNav('resit-staff')">
       <span class="nav-icon">🧾</span>Resit
-    </div>
-    <div class="nav-item" id="nav-suppliers" onclick="switchNav('suppliers')">
-      <span class="nav-icon">📦</span>Supplier
     </div>
   </div>
 </div><!-- end mainApp -->
@@ -1491,12 +1487,7 @@ function addItemRow(prefill=null){
   const initTotal=(initPrice*initQty).toFixed(2);
   tr.innerHTML=`
     <td><input value="${item.name}" oninput="updateItem(${idx},'name',this.value)" placeholder="Nama item" style="min-width:80px"></td>
-    <td style="text-align:center">
-      <div style="display:flex;align-items:center;gap:2px;justify-content:center">
-        <span style="font-size:11px;color:var(--mid)">RM</span>
-        <input type="number" step="0.01" value="${initPrice||''}" oninput="updateItem(${idx},'price',parseFloat(this.value)||0);calcRowTotal(${idx});updateSplit()" placeholder="0.00" style="width:55px;text-align:center">
-      </div>
-    </td>
+    <td style="text-align:center"><input type="number" step="0.01" value="${initPrice||''}" oninput="updateItem(${idx},'price',parseFloat(this.value)||0);calcRowTotal(${idx});updateSplit()" placeholder="0.00" style="width:38px;text-align:center"></td>
     <td style="text-align:center"><input type="number" step="1" min="1" value="${initQty}" oninput="updateItem(${idx},'qty',parseInt(this.value)||1);calcRowTotal(${idx});updateSplit()" style="width:38px;text-align:center"></td>
     <td>
       <select id="cat-sel-${idx}" onchange="updateItem(${idx},'category',this.value);updateSplit();showSuggestionHint(${idx},this.value)" style="min-width:130px;font-size:11px">
@@ -1506,7 +1497,7 @@ function addItemRow(prefill=null){
       <div id="cat-hint-${idx}" style="font-size:10px;color:var(--mid);margin-top:2px"></div>
       <input id="cat-new-${idx}" style="display:none;margin-top:4px;font-size:11px;width:120px" placeholder="Kod baru..." onblur="saveCatSuggestion(${idx},this.value)">
     </td>
-    <td style="text-align:center;font-weight:600" id="row-total-${idx}">RM ${initTotal}</td>
+    <td style="text-align:center;font-weight:600" id="row-total-${idx}">${initTotal}</td>
     <td><button class="btn btn-sm btn-danger" onclick="removeItemRow(${idx})">Buang</button></td>`;
   tbody.appendChild(tr);
 }
@@ -1518,7 +1509,7 @@ function calcRowTotal(idx){
   if(!it) return;
   const total=((parseFloat(it.price)||0)*(parseInt(it.qty)||1)).toFixed(2);
   const el=document.getElementById('row-total-'+idx);
-  if(el) el.textContent='RM '+total;
+  if(el) el.textContent=total;
 }
 
 function showSuggestionHint(idx, catVal){
@@ -1572,7 +1563,7 @@ function updateSplit(){
   const byCat={};
   rows.forEach(i=>{
     if(!byCat[i.category]) byCat[i.category]=0;
-    byCat[i.category]+=parseFloat(i.price)||0;
+    byCat[i.category]+=(parseFloat(i.price)||0)*(parseInt(i.qty)||1);
   });
   const el=document.getElementById('splitRows');
   const total=Object.values(byCat).reduce((a,b)=>a+b,0);
@@ -3115,7 +3106,7 @@ function renderPaymentScreen(){
   }
 
   // Payment KPIs
-  const totalBeli=receipts.filter(r=>r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  const totalBeli=receipts.reduce((a,r)=>a+parseFloat(r.amount||0),0);
   const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
   const totalHutang=totalBeli-totalBayar;
   const suppliersOwed=suppliers.filter(s=>{
@@ -3165,12 +3156,11 @@ function renderPaymentScreen(){
   if(recent.length){
     html+=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin:16px 0 8px">BAYARAN TERBARU</div>`;
     html+=`<div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Tarikh</th><th>Supplier</th><th>RM</th><th>Kaedah</th><th></th></tr></thead>
+      <thead><tr><th>Tarikh</th><th>Supplier</th><th>RM</th><th></th></tr></thead>
       <tbody>${recent.map(p=>`<tr>
         <td>${fmtDate(p.date)}</td><td>${p.supplier}</td>
         <td>${formatRM(parseFloat(p.amount))}</td>
-        <td>${p.method||'-'}</td>
-        <td><button class="btn btn-sm" onclick="sendPaymentWhatsApp('${p.id}')"></button></td>
+        <td><button class="btn btn-sm" style="background:#25D366;color:#fff;padding:6px 10px;font-size:12px" onclick="sendPaymentWhatsApp('${p.id}')">WhatsApp</button></td>
       </tr>`).join('')}</tbody>
     </table></div>`;
   }
