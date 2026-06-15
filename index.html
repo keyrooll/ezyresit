@@ -200,7 +200,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.9</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.10</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -3340,15 +3340,36 @@ async function loadReceiptsFromSheet(){
     const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A2:N`,{headers:{Authorization:'Bearer '+tok}});
     const d=await r.json();
     if(d.error||!d.values||!d.values.length) return;
-    const receipts=d.values.map(row=>({
-      id:row[0]||'r_'+Date.now(),
-      date:row[1]||'',vendor:row[2]||'',branch:row[3]||'',
-      category:row[4]||'',amount:parseFloat(row[5])||0,
-      status:row[6]||'Pending',uploadedBy:row[7]||'',
-      uploadedEmail:row[8]||'',uploadedAt:row[9]||'',
-      approvedBy:row[10]||'',approvedAt:row[11]||'',
-      note:row[12]||'',imageUrl:row[13]||''
-    })).filter(r=>r.vendor&&r.amount);
+    // Sheet columns: A=Tarikh,B=Vendor,C=Item,D=ItemCode,E=Harga,F=Akaun,G=Kategori,H=Cawangan,I=Staff,J=Email,K=Status,L=ApprovedBy,M=DriveLink,N=Nota
+    // Group rows by vendor+date+uploadedAt into single receipt entries
+    const map={};
+    d.values.forEach(row=>{
+      const date=row[0]||'';
+      const vendor=row[1]||'';
+      const amount=parseFloat(row[4])||0;
+      const status=row[10]||'Pending';
+      const uploadedBy=row[8]||'';
+      const uploadedEmail=row[9]||'';
+      const branch=row[7]||'';
+      const category=row[6]||'';
+      const approvedBy=row[11]||'';
+      const driveLink=row[12]||'';
+      const nota=row[13]||'';
+      if(!vendor||!date) return;
+      // Key by vendor+date+uploadedEmail to group items into one receipt
+      const key=`${date}__${vendor}__${uploadedEmail}`;
+      if(!map[key]){
+        map[key]={
+          id:'r_'+key.replace(/[^a-z0-9]/gi,'_'),
+          date,vendor,branch,category,
+          amount:0,status,uploadedBy,uploadedEmail,
+          approvedBy,driveLink,nota,items:[]
+        };
+      }
+      map[key].amount+=amount;
+      map[key].items.push({name:row[2]||'',code:row[3]||'',price:amount,account:row[5]||'',category});
+    });
+    const receipts=Object.values(map).filter(r=>r.vendor&&r.amount);
     if(receipts.length) lsSet('ezy_receipts',receipts);
     console.log('Loaded',receipts.length,'receipts from Sheets');
   }catch(e){console.warn('Load receipts:',e);}
