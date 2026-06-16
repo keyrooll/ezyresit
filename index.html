@@ -87,6 +87,7 @@ body{font-family:'Inter',sans-serif;background:#f9fafb;color:var(--dark);min-hei
 .status-pending{background:#fffbeb;color:var(--amber)}
 .status-approved{background:var(--green-light);color:var(--green)}
 .status-rejected{background:#fee2e2;color:var(--red)}
+.status-paid{background:#dbeafe;color:#1d4ed8}
 .receipt-actions{display:flex;gap:8px;margin-top:12px}
 /* FORM */
 .form-group{margin-bottom:16px}
@@ -202,7 +203,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.22</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.23</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -2193,7 +2194,8 @@ function renderResitContent(tab){
   const allR=receipts;
   const totalSpend=allR.reduce((a,r)=>a+parseFloat(r.amount||0),0);
   const pendingCount=allR.filter(r=>r.status==='Pending').length;
-  const approvedCount=allR.filter(r=>r.status==='Approved').length;
+  const approvedCount=allR.filter(r=>r.status==='Approved'||r.status==='Paid').length;
+  const paidCount=allR.filter(r=>r.status==='Paid').length;
   const avg=allR.length?totalSpend/allR.length:0;
   const kpiHtml=`<div class="kpi-grid" style="margin-bottom:12px">
     <div class="kpi-card"><div class="kpi-label">Jumlah Resit</div><div class="kpi-value">${allR.length}</div></div>
@@ -2202,7 +2204,7 @@ function renderResitContent(tab){
     <div class="kpi-card"><div class="kpi-label">RM Purata Resit</div><div class="kpi-value" style="font-size:14px">${formatRM(avg)}</div></div>
   </div>`;
   if(tab==='Pending') receipts=receipts.filter(r=>r.status==='Pending');
-  else if(tab==='Approved') receipts=receipts.filter(r=>r.status==='Approved');
+  else if(tab==='Approved') receipts=receipts.filter(r=>r.status==='Approved'||r.status==='Paid');
   // 'All' shows all
   let html=kpiHtml;
   if(!receipts.length){
@@ -2233,7 +2235,7 @@ function renderResitContent(tab){
 
 function renderReceiptCard(r, tab){
   const canAct=(currentRole==='accountant'||currentRole==='super_admin')&&r.status==='Pending';
-  const statusClass=r.status==='Pending'?'status-pending':r.status==='Approved'?'status-approved':'status-rejected';
+  const statusClass=r.status==='Pending'?'status-pending':r.status==='Approved'?'status-approved':r.status==='Paid'?'status-paid':'status-rejected';
   return `<div class="receipt-card" id="card-${r.id}">
     <div class="receipt-header">
       <div>
@@ -2293,6 +2295,8 @@ function approveReceipt(id){
   r.status='Approved';
   r.approvedBy=profile.fullname||u.name||u.email;
   setReceipts(receipts);
+  // Check if this vendor already has enough payment to mark as Paid
+  markReceiptsPaid(r.vendor);
   syncReceiptStatusToSheet(r,'Approved');
   renderResitContent(activeResitTab);
   showApprovalWaPrompt(r);
@@ -3238,6 +3242,27 @@ function normalizeWa(num){
   return p;
 }
 
+function markReceiptsPaid(supplierName){
+  // Recalculate: total paid for supplier vs total Approved receipts
+  // Mark oldest Approved receipts as Paid until payments are exhausted
+  const allPayments=lsGetPayments();
+  const totalPaid=allPayments.filter(p=>p.supplier===supplierName).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  const receipts=getReceipts();
+  // Get all receipts for this supplier sorted oldest first
+  const supplierReceipts=receipts.filter(r=>r.vendor===supplierName&&(r.status==='Approved'||r.status==='Paid')).sort((a,b)=>a.date.localeCompare(b.date));
+  let remaining=totalPaid;
+  supplierReceipts.forEach(r=>{
+    if(remaining>=parseFloat(r.amount||0)){
+      r.status='Paid';
+      remaining-=parseFloat(r.amount||0);
+    } else {
+      // Revert to Approved if payment no longer covers (e.g. payment deleted)
+      if(r.status==='Paid') r.status='Approved';
+    }
+  });
+  setReceipts(receipts);
+}
+
 function savePayment(){
   const supplier=document.getElementById('pmtSupplier').value;
   const date=document.getElementById('pmtDate').value;
@@ -3257,6 +3282,8 @@ function savePayment(){
     const s=suppliers.find(x=>x.name===supplier);
     if(s){s.waNum=waNum;lsSet('ezy_suppliers',suppliers);}
   }
+  // Mark oldest Approved receipts for this supplier as Paid
+  markReceiptsPaid(supplier);
   // Sync to Sheets
   syncPaymentToSheet(payment);
   hideModal();
