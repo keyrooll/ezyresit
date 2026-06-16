@@ -990,6 +990,7 @@ function setupAppForRole(){
     setupTabs([
       {id:'dashboard',label:'Dashboard',fn:renderAccountantDashboard},
       {id:'resit',label:'Resit',fn:()=>renderResit(['Pending','Approved'])},
+      {id:'upload',label:'Upload',fn:()=>initWizard()},
       {id:'suppliers',label:'Supplier',fn:renderSuppliersList},
       {id:'payment',label:'Bayaran',fn:renderPaymentScreen}
     ]);
