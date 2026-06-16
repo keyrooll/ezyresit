@@ -202,7 +202,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.18</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.20</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1689,7 +1689,7 @@ async function submitReceipt(){
     const cat=i.category||'OTHERS';
     if(!byCat[cat]) byCat[cat]={items:[],total:0,account:i.account||'101'};
     byCat[cat].items.push(i);
-    byCat[cat].total+=parseFloat(i.price)||0;
+    byCat[cat].total+=(parseFloat(i.price)||0)*(parseFloat(i.qty)||1);
   });
   if(!Object.keys(byCat).length){
     // No items - use receipt amount with vendor category
@@ -1715,7 +1715,8 @@ async function submitReceipt(){
     // Assign item codes
     const itemDetails=data.items.map(i=>{
       const code=i.code||getOrCreateItemCode(i.name||'Item');
-      return{code,name:i.name||'Item',price:parseFloat(i.price)||0,category:i.category||cat,account:i.account||data.account};
+      const lineTotal=(parseFloat(i.price)||0)*(parseFloat(i.qty)||1);
+      return{code,name:i.name||'Item',qty:parseFloat(i.qty)||1,price:parseFloat(i.price)||0,lineTotal,category:i.category||cat,account:i.account||data.account};
     });
     const entry={
       id,date,vendor:vendor?vendor.name:'',amount:data.total,
@@ -1728,7 +1729,7 @@ async function submitReceipt(){
     receipts.push(entry);
     // Sheet columns: Tarikh,Vendor,Item,ItemCode,Harga,Akaun,Kategori,Cawangan,Staff,Email,Status,ApprovedBy,DriveLink,Nota
     itemDetails.forEach(it=>{
-      sheetRows.push([date,vendor?vendor.name:'',it.name,it.code,it.price,it.account,it.category,branch,uploadedBy,u.email,'Pending','','',nota||'']);
+      sheetRows.push([date,vendor?vendor.name:'',it.name,it.code,it.lineTotal||it.price,it.account,it.category,branch,uploadedBy,u.email,'Pending','','',nota||'']);
     });
     if(!itemDetails.length){
       sheetRows.push([date,vendor?vendor.name:'','',''  ,data.total,data.account,cat,branch,uploadedBy,u.email,'Pending','','',nota||'']);
