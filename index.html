@@ -202,7 +202,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.20</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.21</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -653,7 +653,8 @@ function setReceipts(r){lsSet('ezy_receipts',r)}
 function getSuppliers(){
   let s=lsGet('ezy_suppliers',null);
   if(!s){s=DEFAULT_SUPPLIERS;lsSet('ezy_suppliers',s)}
-  return s;
+  // Filter out corrupt entries (no name, or name is pure number)
+  return s.filter(x=>x.name&&x.name.trim()&&!/^\d+$/.test(x.name.trim()));
 }
 function setSuppliers(s){lsSet('ezy_suppliers',s);syncSuppliersToSheet().catch(e=>console.warn('Supplier sync failed',e));}
 // =====================
@@ -2185,10 +2186,10 @@ function renderResitContent(tab){
   let receipts=getReceipts();
   // KPI summary (all receipts, not filtered by tab)
   const allR=receipts;
-  const totalSpend=allR.filter(r=>r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  const totalSpend=allR.reduce((a,r)=>a+parseFloat(r.amount||0),0);
   const pendingCount=allR.filter(r=>r.status==='Pending').length;
   const approvedCount=allR.filter(r=>r.status==='Approved').length;
-  const avg=approvedCount?totalSpend/approvedCount:0;
+  const avg=allR.length?totalSpend/allR.length:0;
   const kpiHtml=`<div class="kpi-grid" style="margin-bottom:12px">
     <div class="kpi-card"><div class="kpi-label">Jumlah Resit</div><div class="kpi-value">${allR.length}</div></div>
     <div class="kpi-card"><div class="kpi-label">Telah Diluluskan</div><div class="kpi-value" style="color:var(--green)">${approvedCount}</div></div>
