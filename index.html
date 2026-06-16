@@ -2463,7 +2463,6 @@ function updateAdminKpi(receipts){
   const byBranch={};receipts.forEach(r=>{if(r.branch)byBranch[r.branch]=(byBranch[r.branch]||0)+parseFloat(r.amount||0);});
   const topBranch=Object.entries(byBranch).sort((a,b)=>b[1]-a[1])[0];
   // Avg receipt value (all receipts, not just approved)
-  const allReceipts=getReceipts();
   const avg=allReceipts.length?allReceipts.reduce((a,r)=>a+parseFloat(r.amount||0),0)/allReceipts.length:0;
   el.innerHTML=`
     <div class="kpi-card"><div class="kpi-label">Belanja Tempoh</div><div class="kpi-value" style="font-size:15px">${formatRM(spend)}</div></div>
