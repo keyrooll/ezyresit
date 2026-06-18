@@ -203,7 +203,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.30-1806/1130</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.31-1806/1200</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -3579,7 +3579,7 @@ async function loadReceiptsFromSheet(){
     d.values.forEach(row=>{
       const date=row[0]||'';
       const vendor=row[1]||'';
-      const amount=parseFloat(row[3])||0;
+      const amount=parseFloat((row[3]||'').toString().replace(/,/g,''))||0;
       const status=row[9]||'Pending';
       const uploadedBy=row[7]||'';
       const uploadedEmail=row[8]||'';
