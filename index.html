@@ -203,7 +203,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.25</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.28</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -816,21 +816,19 @@ async function syncStaffToSheet(u){
 }
 
 async function syncAllStaffFromSheet(){
-  if(!accessToken) return Promise.resolve();
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok) return;
   try{
-    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:E`,{headers:{Authorization:'Bearer '+accessToken}});
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:E`,{headers:{Authorization:'Bearer '+tok}});
     const d=await r.json();
-    if(!d.values) return;
-    const users=getRegisteredUsers();
-    let changed=false;
-    d.values.forEach(row=>{
-      const email=row[0],name=row[1],role=row[2],picture=row[3]||'';
-      if(email && !users.find(u=>u.email===email)){
-        users.push({email,name,role,picture,joinedAt:Date.now(),fromSheet:true});
-        changed=true;
-      }
-    });
-    if(changed) lsSet('registeredUsers',users);
+    if(d.error) return;
+    if(!d.values||!d.values.length){lsSet('ezy_registered_users',[]);return;}
+    // Sheet is source of truth — replace localStorage
+    const users=d.values.filter(row=>row[0]).map(row=>({
+      email:row[0],name:row[1]||row[0],role:row[2]||'staff',
+      picture:row[3]||'',joinedAt:row[4]||Date.now(),fromSheet:true
+    }));
+    lsSet('ezy_registered_users',users);
   }catch(e){console.warn('Staff from sheet:',e);}
 }
 
@@ -1429,6 +1427,7 @@ function saveNewVendor(){
   const phone=document.getElementById('newVendorPhone').value.trim();
   const s={id:'s'+Date.now(),name,pic:pic||'',phone:phone||'',category:'OTHERS',account:'101',count:0,addedAt:new Date().toISOString()};
   const suppliers=getSuppliers();suppliers.push(s);setSuppliers(suppliers);
+  createSupplierTab(s.name).catch(()=>{});
   selectVendor(s);
   document.getElementById('newVendorForm').style.display='none';
   document.getElementById('newVendorName').value='';
@@ -1444,6 +1443,7 @@ function confirmAiNewSupplier(){
   const phone=document.getElementById('newVendorPhone').value.trim();
   const s={id:'s'+Date.now(),name,pic,phone,category:'OTHERS',account:'101',count:0,addedAt:new Date().toISOString()};
   const suppliers=getSuppliers();suppliers.push(s);setSuppliers(suppliers);
+  createSupplierTab(s.name).catch(()=>{});
   selectVendor(s);
   document.getElementById('aiNewSupplierBanner').style.display='none';
   document.getElementById('newVendorForm').style.display='none';
@@ -1743,6 +1743,8 @@ async function submitReceipt(){
     sheetRows.push([date,vendor?vendor.name:'','','',totalAmount,primaryAccount,primaryCat,branch,uploadedBy,u.email,'Pending','','',nota||'']);
   }
   setReceipts(receipts);
+  // Update supplier tab in Sheet
+  if(vendor) setTimeout(()=>updateSupplierTab(vendor.name).catch(()=>{}),3000);
 
   // Increment supplier count
   if(vendor){
@@ -3048,6 +3050,7 @@ function pmtSaveNewSupplier(idx){
   const newSup={id:'sup_'+Date.now(),name,regNo:reg,waNum:wa,count:0,category:''};
   suppliers.push(newSup);
   setSuppliers(suppliers);
+  createSupplierTab(newSup.name).catch(()=>{});
   hideModal();
   showToast(name+' ditambah ✅');
   // Update the fallback select
@@ -3338,6 +3341,7 @@ function savePayment(){
   markReceiptsPaid(supplier);
   // Sync to Sheets
   syncPaymentToSheet(payment);
+  setTimeout(()=>updateSupplierTab(supplier).catch(()=>{}),3000);
   hideModal();
   showToast('Bayaran direkod ✅');
   renderPaymentScreen();
@@ -3410,6 +3414,92 @@ async function syncPaymentToSheet(p){
 }
 
 // ===================== SUPPLIERS SHEET SYNC =====================
+async function createSupplierTab(supplierName){
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok||!supplierName) return;
+  // Truncate name to 100 chars (Sheet tab limit)
+  const tabName=supplierName.substring(0,100);
+  try{
+    // Check if tab already exists
+    const metaR=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=sheets.properties`,{headers:{Authorization:'Bearer '+tok}});
+    const meta=await metaR.json();
+    const exists=(meta.sheets||[]).some(s=>s.properties.title===tabName);
+    if(exists) return; // tab dah ada, skip
+
+    // Create new tab
+    const addR=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+      method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({requests:[{addSheet:{properties:{title:tabName}}}]})
+    });
+    const addD=await addR.json();
+    const sheetId=addD.replies&&addD.replies[0]&&addD.replies[0].addSheet&&addD.replies[0].addSheet.properties.sheetId;
+
+    // Write header rows
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(tabName)}!A1?valueInputOption=RAW`,{
+      method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[
+        ['SUPPLIER: '+tabName],
+        [],
+        ['SEJARAH BELIAN'],
+        ['Tarikh','Cawangan','Kategori','Jumlah (RM)','Status','Upload Oleh'],
+        [],
+        ['SEJARAH BAYARAN'],
+        ['Tarikh','Kaedah','Jumlah (RM)','Rujukan','Direkod Oleh']
+      ]})
+    });
+
+    // Protect tab — restrict editing to owner only
+    if(sheetId){
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+        method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({requests:[{addProtectedRange:{protectedRange:{
+          range:{sheetId},
+          description:'Supplier tab — protected by EzyResit',
+          warningOnly:false,
+          editors:{users:[SUPER_ADMIN]}
+        }}}]})
+      });
+    }
+    console.log('Created supplier tab:',tabName);
+  }catch(e){console.warn('createSupplierTab error:',e);}
+}
+
+async function updateSupplierTab(supplierName){
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok||!supplierName) return;
+  const tabName=supplierName.substring(0,100);
+  try{
+    const receipts=getReceipts().filter(r=>r.vendor===supplierName).sort((a,b)=>a.date.localeCompare(b.date));
+    const payments=lsGetPayments().filter(p=>p.supplier===supplierName).sort((a,b)=>a.date.localeCompare(b.date));
+    const totalBeli=receipts.filter(r=>r.status==='Approved'||r.status==='Paid').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
+    const hutang=totalBeli-totalBayar;
+
+    const rows=[
+      ['SUPPLIER: '+tabName],
+      ['Jumlah Beli','Jumlah Bayar','Hutang'],
+      [totalBeli,totalBayar,hutang],
+      [],
+      ['SEJARAH BELIAN ('+receipts.length+')'],
+      ['Tarikh','Cawangan','Kategori','Jumlah (RM)','Status','Upload Oleh'],
+      ...receipts.map(r=>[r.date,r.branch||'',r.category||'',parseFloat(r.amount||0),r.status,r.uploadedBy||'']),
+      [],
+      ['SEJARAH BAYARAN ('+payments.length+')'],
+      ['Tarikh','Kaedah','Jumlah (RM)','Rujukan','Direkod Oleh'],
+      ...payments.map(p=>[p.date,p.method||'',parseFloat(p.amount||0),p.note||'',p.recordedBy||''])
+    ];
+
+    // Clear and rewrite
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(tabName)}!A1:Z1000:clear`,{
+      method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'}
+    });
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(tabName)}!A1?valueInputOption=RAW`,{
+      method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({values:rows})
+    });
+  }catch(e){console.warn('updateSupplierTab error:',e);}
+}
+
 async function syncSuppliersToSheet(){
   const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
@@ -3443,14 +3533,15 @@ async function loadSuppliersFromSheet(){
   try{
     const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Suppliers!A2:J`,{headers:{Authorization:'Bearer '+tok}});
     const d=await r.json();
-    if(d.error||!d.values||!d.values.length) return;
+    if(d.error) return;
+    if(!d.values||!d.values.length){lsSet('ezy_suppliers',[]);return;}
     const suppliers=d.values.map(row=>({
       id:row[0]||'sup_'+Date.now()+Math.random(),
       name:row[1]||'',category:row[2]||'',account:row[3]||'',
       waNum:row[4]||'',bankName:row[5]||'',bankAcc:row[6]||'',
       regNo:row[7]||'',count:parseInt(row[8])||0
     })).filter(s=>s.name);
-    if(suppliers.length) lsSet('ezy_suppliers',suppliers);
+    lsSet('ezy_suppliers',suppliers);
     console.log('Loaded',suppliers.length,'suppliers from Sheets');
   }catch(e){console.warn('Load suppliers:',e);}
 }
@@ -3461,14 +3552,15 @@ async function loadPaymentsFromSheet(){
   try{
     const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Payments!A2:H`,{headers:{Authorization:'Bearer '+tok}});
     const d=await r.json();
-    if(d.error||!d.values||!d.values.length) return;
+    if(d.error) return;
+    if(!d.values||!d.values.length){localStorage.setItem('payments',JSON.stringify([]));return;}
     const payments=d.values.map(row=>({
       id:row[0]||'pmt_'+Date.now(),
       date:row[1]||'',supplier:row[2]||'',amount:parseFloat(row[3])||0,
       method:row[4]||'',note:row[5]||'',recordedBy:row[6]||'',
       type:row[7]||'manual'
     })).filter(p=>p.supplier&&p.amount);
-    if(payments.length) lsSetPayments(payments);
+    localStorage.setItem('payments',JSON.stringify(payments));
     console.log('Loaded',payments.length,'payments from Sheets');
   }catch(e){console.warn('Load payments:',e);}
 }
@@ -3479,9 +3571,10 @@ async function loadReceiptsFromSheet(){
   try{
     const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A2:N`,{headers:{Authorization:'Bearer '+tok}});
     const d=await r.json();
-    if(d.error||!d.values||!d.values.length) return;
+    if(d.error) return;
+    // Sheet is source of truth — always replace localStorage
+    if(!d.values||!d.values.length){lsSet('ezy_receipts',[]);return;}
     // Sheet columns: A=Tarikh,B=Vendor,C=Item,D=ItemCode,E=Harga,F=Akaun,G=Kategori,H=Cawangan,I=Staff,J=Email,K=Status,L=ApprovedBy,M=DriveLink,N=Nota
-    // Group rows by vendor+date+uploadedAt into single receipt entries
     const map={};
     d.values.forEach(row=>{
       const date=row[0]||'';
@@ -3496,7 +3589,6 @@ async function loadReceiptsFromSheet(){
       const driveLink=row[12]||'';
       const nota=row[13]||'';
       if(!vendor||!date) return;
-      // Key by vendor+date+uploadedEmail to group items into one receipt
       const key=`${date}__${vendor}__${uploadedEmail}`;
       if(!map[key]){
         map[key]={
@@ -3510,7 +3602,7 @@ async function loadReceiptsFromSheet(){
       map[key].items.push({name:row[2]||'',code:row[3]||'',price:amount,account:row[5]||'',category});
     });
     const receipts=Object.values(map).filter(r=>r.vendor&&r.amount);
-    if(receipts.length) lsSet('ezy_receipts',receipts);
+    lsSet('ezy_receipts',receipts);
     console.log('Loaded',receipts.length,'receipts from Sheets');
   }catch(e){console.warn('Load receipts:',e);}
 }
@@ -3522,7 +3614,8 @@ async function loadAllFromSheets(){
   await Promise.all([
     loadReceiptsFromSheet(),
     loadPaymentsFromSheet(),
-    loadSuppliersFromSheet()
+    loadSuppliersFromSheet(),
+    syncAllStaffFromSheet()
   ]);
   showToast('Data dikemaskini ✓');
 }
