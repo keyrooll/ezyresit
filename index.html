@@ -203,7 +203,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.29</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.30-1806/1130</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1734,13 +1734,13 @@ async function submitReceipt(){
     status:'Pending',approvedBy:'',driveLink,filename,nota
   };
   receipts.push(entry);
-  // Sheet columns: Tarikh,Vendor,Item,ItemCode,Harga,Akaun,Kategori,Cawangan,Staff,Email,Status,ApprovedBy,DriveLink,Nota
+  // Sheet columns: Tarikh,Vendor,Item,Jumlah,Akaun,Kategori,Cawangan,Staff,Email,Status,ApprovedBy,DriveLink,Nota
   if(allItemDetails.length){
     allItemDetails.forEach(it=>{
-      sheetRows.push([date,vendor?vendor.name:'',it.name,it.code,it.lineTotal||it.price,it.account,it.category,branch,uploadedBy,u.email,'Pending','','',nota||'']);
+      sheetRows.push([date,vendor?vendor.name:'',it.name,it.lineTotal||it.price,it.account,it.category,branch,uploadedBy,u.email,'Pending','','',nota||'']);
     });
   } else {
-    sheetRows.push([date,vendor?vendor.name:'','','',totalAmount,primaryAccount,primaryCat,branch,uploadedBy,u.email,'Pending','','',nota||'']);
+    sheetRows.push([date,vendor?vendor.name:'','',totalAmount,primaryAccount,primaryCat,branch,uploadedBy,u.email,'Pending','','',nota||'']);
   }
   setReceipts(receipts);
   // Update supplier tab in Sheet
@@ -1982,7 +1982,7 @@ async function appendToSheets(rows){
   const checkData=await check.json();
   const isEmpty=!checkData.values||!checkData.values.length;
   if(isEmpty){
-    const headers=[['Tarikh','Vendor','Item','Item Code','Harga','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
+    const headers=[['Tarikh','Vendor','Item','Jumlah','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A1:N1?valueInputOption=USER_ENTERED`,{
       method:'PUT',
       headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
@@ -2267,8 +2267,8 @@ async function syncReceiptStatusToSheet(r,status){
     const fd=await fr.json();
     if(!fd.values) return;
     const rows=fd.values;
-    // Headers: Tarikh,Vendor,Item,Item Code,Harga,Akaun,Kategori,Cawangan,Staff,Email,Status,Approved By,Drive Link,Nota
-    // Col:      A     B      C    D          E     F     G        H        I     J     K      L           M          N
+    // Headers: Tarikh,Vendor,Item,Jumlah,Akaun,Kategori,Cawangan,Staff,Email,Status,Approved By,Drive Link,Nota
+    // Col:      A     B      C    D      E     F        G        H     I     J      K           L          M
     const dateStr=r.date||'';
     const vendor=r.vendor||'';
     let rowIdx=-1;
@@ -2278,7 +2278,7 @@ async function syncReceiptStatusToSheet(r,status){
     if(rowIdx<1) return;
     const approvedByName=currentUser?(currentUser.name||currentUser.email):'System';
     const approvedAtStr=new Date().toLocaleString('en-MY');
-    const updateUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!K${rowIdx}:L${rowIdx}?valueInputOption=RAW`;
+    const updateUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!J${rowIdx}:K${rowIdx}?valueInputOption=RAW`;
     await fetch(updateUrl,{
       method:'PUT',
       headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
@@ -3574,20 +3574,20 @@ async function loadReceiptsFromSheet(){
     if(d.error) return;
     // Sheet is source of truth — always replace localStorage
     if(!d.values||!d.values.length){lsSet('ezy_receipts',[]);return;}
-    // Sheet columns: A=Tarikh,B=Vendor,C=Item,D=ItemCode,E=Harga,F=Akaun,G=Kategori,H=Cawangan,I=Staff,J=Email,K=Status,L=ApprovedBy,M=DriveLink,N=Nota
+    // Sheet columns: A=Tarikh,B=Vendor,C=Item,D=Jumlah,E=Akaun,F=Kategori,G=Cawangan,H=Staff,I=Email,J=Status,K=ApprovedBy,L=DriveLink,M=Nota
     const map={};
     d.values.forEach(row=>{
       const date=row[0]||'';
       const vendor=row[1]||'';
-      const amount=parseFloat(row[4])||0;
-      const status=row[10]||'Pending';
-      const uploadedBy=row[8]||'';
-      const uploadedEmail=row[9]||'';
-      const branch=row[7]||'';
-      const category=row[6]||'';
-      const approvedBy=row[11]||'';
-      const driveLink=row[12]||'';
-      const nota=row[13]||'';
+      const amount=parseFloat(row[3])||0;
+      const status=row[9]||'Pending';
+      const uploadedBy=row[7]||'';
+      const uploadedEmail=row[8]||'';
+      const branch=row[6]||'';
+      const category=row[5]||'';
+      const approvedBy=row[10]||'';
+      const driveLink=row[11]||'';
+      const nota=row[12]||'';
       if(!vendor||!date) return;
       const key=`${date}__${vendor}__${uploadedEmail}`;
       if(!map[key]){
