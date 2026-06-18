@@ -203,7 +203,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.28</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.29</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -1977,19 +1977,19 @@ function getSkuOptions(){
 async function appendToSheets(rows){
   const token=accessToken||currentToken;if(!token) return;
   // Check if sheet is empty, add headers first
-  const checkUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A1`;
+  const checkUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A1`;
   const check=await fetch(checkUrl,{headers:{Authorization:'Bearer '+token}});
   const checkData=await check.json();
   const isEmpty=!checkData.values||!checkData.values.length;
   if(isEmpty){
     const headers=[['Tarikh','Vendor','Item','Item Code','Harga','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A1:N1?valueInputOption=USER_ENTERED`,{
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A1:N1?valueInputOption=USER_ENTERED`,{
       method:'PUT',
       headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify({values:headers})
     });
   }
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A:N:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A:N:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
   const r=await fetch(url,{
     method:'POST',
     headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
@@ -2262,7 +2262,7 @@ async function syncReceiptStatusToSheet(r,status){
   if(!tok) return;
   try{
     // Search all rows for matching vendor+date+amount
-    const findUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A:N`;
+    const findUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A:N`;
     const fr=await fetch(findUrl,{headers:{Authorization:'Bearer '+tok}});
     const fd=await fr.json();
     if(!fd.values) return;
@@ -2278,7 +2278,7 @@ async function syncReceiptStatusToSheet(r,status){
     if(rowIdx<1) return;
     const approvedByName=currentUser?(currentUser.name||currentUser.email):'System';
     const approvedAtStr=new Date().toLocaleString('en-MY');
-    const updateUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!K${rowIdx}:L${rowIdx}?valueInputOption=RAW`;
+    const updateUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!K${rowIdx}:L${rowIdx}?valueInputOption=RAW`;
     await fetch(updateUrl,{
       method:'PUT',
       headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
@@ -3569,7 +3569,7 @@ async function loadReceiptsFromSheet(){
   const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
-    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Data%20dari%20apps!A2:N`,{headers:{Authorization:'Bearer '+tok}});
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A2:N`,{headers:{Authorization:'Bearer '+tok}});
     const d=await r.json();
     if(d.error) return;
     // Sheet is source of truth — always replace localStorage
