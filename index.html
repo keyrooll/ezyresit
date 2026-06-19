@@ -204,7 +204,17 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.37-1906/1100</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.38-2006/1000</div>
+</div>
+
+<!-- PENDING SCREEN -->
+<div id="pendingScreen" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;text-align:center;background:#f9fafb">
+  <div style="font-size:64px;margin-bottom:16px">⏳</div>
+  <div style="font-size:22px;font-weight:700;color:var(--dark);margin-bottom:8px">Menunggu Kelulusan</div>
+  <div style="font-size:14px;color:var(--mid);margin-bottom:8px">Akaun anda sedang menunggu kelulusan admin.</div>
+  <div id="pendingEmail" style="font-size:13px;color:var(--mid);margin-bottom:24px"></div>
+  <div style="font-size:13px;color:var(--mid);background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;max-width:300px;margin-bottom:24px">Sila hubungi admin untuk kelulusan akaun anda.</div>
+  <button onclick="logoutUser()" style="font-size:14px;font-weight:500;color:var(--red);background:none;border:1px solid var(--red);border-radius:8px;padding:10px 24px;cursor:pointer">Keluar</button>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -888,9 +898,22 @@ async function fetchAndSetUser(){
     const u = await r.json();
     if(!u||!u.email){throw new Error('No email in response');}
     currentUser = u;
-    currentRole = getRole(u.email);
     lsSet('ezy_user',u);
     registerUser(u);
+    // Check if pending — load from Sheet first
+    await syncAllStaffFromSheet();
+    const allUsers = getRegisteredUsers();
+    const thisUser = allUsers.find(x=>x.email===u.email);
+    const sheetRole = thisUser ? thisUser.role : null;
+    if(sheetRole==='pending'){
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('mainApp').style.display='none';
+      document.getElementById('deniedScreen').style.display='none';
+      const ps=document.getElementById('pendingScreen');
+      if(ps){ps.style.display='flex';document.getElementById('pendingEmail').textContent=u.email;}
+      return;
+    }
+    currentRole = sheetRole || getRole(u.email);
     showMainApp();
   }catch(e){
     console.error('fetchAndSetUser error:',e);
@@ -906,13 +929,16 @@ async function fetchAndSetUser(){
 function registerUser(u){
   const list = getRegisteredUsers();
   const existing = list.find(x=>x.email===u.email);
+  const role = getRole(u.email);
   if(!existing){
-    list.push({email:u.email,name:u.name,picture:u.picture,role:getRole(u.email),registeredAt:new Date().toISOString()});
+    // New user — super_admin & accountant get role directly, staff gets 'pending'
+    const assignedRole = (role==='super_admin'||role==='accountant') ? role : 'pending';
+    list.push({email:u.email,name:u.name,picture:u.picture,role:assignedRole,registeredAt:new Date().toISOString()});
     setRegisteredUsers(list);
-    // Sync to Sheet Staff tab (background)
-    setTimeout(()=>syncStaffToSheet({email:u.email,name:u.name,role:getRole(u.email),picture:u.picture||''}),2000);
-    // Init staff profile if new staff
-    if(getRole(u.email)==='staff'){
+    // Sync to Sheet Staff tab (background) with pending role
+    setTimeout(()=>syncStaffToSheet({email:u.email,name:u.name,role:assignedRole,picture:u.picture||''}),2000);
+    // Init staff profile only if approved
+    if(assignedRole==='staff'){
       const profiles=getStaffProfiles();
       if(!profiles[u.email]){
         profiles[u.email]={role:'staff',branches:BRANCHES};
@@ -953,6 +979,7 @@ function logoutUser(){
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('mainApp').style.display='none';
   document.getElementById('deniedScreen').style.display='none';
+  const _ps=document.getElementById('pendingScreen');if(_ps)_ps.style.display='none';
 }
 
 function showMainApp(){
@@ -2587,6 +2614,64 @@ function updateLatestTx(receipts){
 // =====================
 // STAFF SCREEN (ADMIN)
 // =====================
+async function approveStaff(email){
+  const users=getRegisteredUsers();
+  const u=users.find(x=>x.email===email);
+  if(!u){showToast('Staff tidak dijumpai ⚠️');return;}
+  u.role='staff';
+  setRegisteredUsers(users);
+  // Update Sheet — find row and update role column (D)
+  const tok=getValidToken()||accessToken||currentToken;
+  if(tok){
+    try{
+      const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:G`,{headers:{Authorization:'Bearer '+tok}});
+      const d=await r.json();
+      if(d.values){
+        const rowIdx=d.values.findIndex(row=>row[4]===email);
+        if(rowIdx>=0){
+          const sheetRow=rowIdx+2;
+          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!D${sheetRow}?valueInputOption=RAW`,{
+            method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+            body:JSON.stringify({values:[['staff']]})
+          });
+        }
+      }
+    }catch(e){console.warn('Approve staff sheet update:',e);}
+  }
+  // Init staff profile
+  const profiles=getStaffProfiles();
+  if(!profiles[email]){profiles[email]={role:'staff',branches:BRANCHES};setStaffProfiles(profiles);}
+  showToast(u.name+' diluluskan ✅');
+  renderStaffScreen();
+}
+
+async function rejectStaff(email){
+  if(!confirm('Buang '+email+' dari sistem?')) return;
+  const users=getRegisteredUsers();
+  const filtered=users.filter(x=>x.email!==email);
+  setRegisteredUsers(filtered);
+  // Remove from Sheet
+  const tok=getValidToken()||accessToken||currentToken;
+  if(tok){
+    try{
+      const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:G`,{headers:{Authorization:'Bearer '+tok}});
+      const d=await r.json();
+      if(d.values){
+        const rowIdx=d.values.findIndex(row=>row[4]===email);
+        if(rowIdx>=0){
+          const sheetRow=rowIdx+2;
+          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+            method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+            body:JSON.stringify({requests:[{deleteDimension:{range:{sheetId:0,dimension:'ROWS',startIndex:sheetRow-1,endIndex:sheetRow}}}]})
+          });
+        }
+      }
+    }catch(e){console.warn('Reject staff sheet remove:',e);}
+  }
+  showToast('Staff dibuang ✅');
+  renderStaffScreen();
+}
+
 function setStaffRole(email, role){
   const profiles = getStaffProfiles();
   if(!profiles[email]) profiles[email]={};
@@ -2609,7 +2694,8 @@ function renderStaffScreen(){
     const users=getRegisteredUsers();
     const receipts=getReceipts();
     // Show ALL users except super_admin
-    const allStaff=users.filter(u=>getRole(u.email)!=='super_admin');
+    const pendingStaff=users.filter(u=>u.role==='pending');
+    const allStaff=users.filter(u=>u.role!=='pending'&&getRole(u.email)!=='super_admin');
     const activeStaff=allStaff.filter(u=>receipts.some(r=>r.uploadedEmail===u.email));
     const mostActive=allStaff.map(u=>({
       ...u,
@@ -2624,6 +2710,19 @@ function renderStaffScreen(){
       <div class="kpi-card"><div class="kpi-label">Total Resit</div><div class="kpi-value">${totalResitStaff}</div></div>
     </div>
     <button class="btn btn-primary" style="width:100%;margin:12px 0" onclick="showAddStaffModal()">+ Tambah Staff</button>
+    ${pendingStaff.length?`<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#854d0e;margin-bottom:8px">⏳ MENUNGGU KELULUSAN (${pendingStaff.length})</div>
+      ${pendingStaff.map(u=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #fde04740">
+        <div>
+          <div style="font-size:13px;font-weight:600">${u.name||u.email}</div>
+          <div style="font-size:11px;color:var(--mid)">${u.email}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-primary" style="background:#16a34a;border-color:#16a34a" onclick="approveStaff('${u.email}')">✓ Lulus</button>
+          <button class="btn btn-sm btn-outline" style="color:var(--red);border-color:var(--red)" onclick="rejectStaff('${u.email}')">✕ Tolak</button>
+        </div>
+      </div>`).join('')}
+    </div>`:''}
     <div id="staffContent2" style="margin-top:4px"></div>`;
     el.innerHTML=html;
 
