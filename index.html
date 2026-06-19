@@ -31,6 +31,7 @@ body{font-family:'Inter',sans-serif;background:#f9fafb;color:var(--dark);min-hei
 .user-badge span{font-size:12px;font-weight:500;color:var(--dark);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .btn-keluar{font-size:12px;font-weight:500;color:var(--red);background:none;border:1px solid var(--red);border-radius:8px;padding:5px 10px;cursor:pointer}
 .btn-keluar:hover{background:#fee2e2}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 /* TAB BAR */
 .tab-bar{display:flex;border-bottom:1px solid var(--border);background:#fff}
 .tab-item{flex:1;padding:12px 8px;text-align:center;font-size:13px;font-weight:500;color:var(--mid);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
@@ -203,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.32-1806/1400</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.36-1906/1000</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -223,6 +224,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
       <span class="header-title"><span style="color:#F5A02A">ezy</span><span style="color:#1a2f6b">resit</span></span>
     </div>
     <div class="header-right">
+      <button id="btnRefresh" onclick="refreshAllData()" title="Refresh Data" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;line-height:1">🔄</button>
       <span class="settings-gear" onclick="openSettings()" title="Settings">⚙</span>
       <div class="user-badge" onclick="openProfile()">
         <img id="headerUserPic" src="" alt="">
@@ -2055,8 +2057,9 @@ function renderSuppliersList(){
   const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
   const totalHutang=totalBeli-totalBayar;
   const suppliersWithDebt=suppliers.filter(s=>{
-    const beli=receipts.filter(r=>r.vendor===s.name&&r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
-    const bayar=payments.filter(p=>p.supplier===s.name).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+    const sn=s.name.toLowerCase();
+    const beli=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    const bayar=payments.filter(p=>p.supplier&&p.supplier.toLowerCase()===sn).reduce((a,p)=>a+parseFloat(p.amount||0),0);
     return (beli-bayar)>0.01;
   });
   const kpiHtml=`<div class="kpi-grid" style="margin-bottom:12px">
@@ -2066,8 +2069,9 @@ function renderSuppliersList(){
     <div class="kpi-card"><div class="kpi-label">Baki Hutang</div><div class="kpi-value" style="font-size:14px;color:${totalHutang>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(totalHutang))}</div></div>
   </div>`;
   const listHtml=suppliers.map(s=>{
-    const sRec=receipts.filter(r=>r.vendor===s.name&&r.status==='Approved');
-    const sPay=payments.filter(p=>p.supplier===s.name);
+    const sn=s.name.toLowerCase();
+    const sRec=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&r.status==='Approved');
+    const sPay=payments.filter(p=>p.supplier&&p.supplier.toLowerCase()===sn);
     const sBeli=sRec.reduce((a,r)=>a+parseFloat(r.amount||0),0);
     const sBayar=sPay.reduce((a,p)=>a+parseFloat(p.amount||0),0);
     const baki=sBeli-sBayar;
@@ -2084,8 +2088,9 @@ function renderSuppliersList(){
 }
 
 function showSupplierHistory(supplierName){
-  const receipts=getReceipts().filter(r=>r.vendor===supplierName&&r.status==='Approved').sort((a,b)=>b.date.localeCompare(a.date));
-  const payments=lsGetPayments().filter(p=>p.supplier===supplierName).sort((a,b)=>b.date.localeCompare(a.date));
+  const sn=supplierName.toLowerCase();
+  const receipts=getReceipts().filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&r.status==='Approved').sort((a,b)=>b.date.localeCompare(a.date));
+  const payments=lsGetPayments().filter(p=>p.supplier&&p.supplier.toLowerCase()===sn).sort((a,b)=>b.date.localeCompare(a.date));
   const totalBeli=receipts.reduce((a,r)=>a+parseFloat(r.amount||0),0);
   const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
   const baki=totalBeli-totalBayar;
@@ -2114,7 +2119,7 @@ function showSupplierHistory(supplierName){
       <div>
         <div style="font-size:12px;font-weight:600">${fmtDate(r.date)}</div>
         <div style="font-size:11px;color:var(--mid)">${r.branch||'-'} · ${r.category||'-'}</div>
-        <div style="font-size:11px;color:var(--mid)">${(()=>{try{const it=Array.isArray(r.items)?r.items:(typeof r.items==='string'&&r.items?JSON.parse(r.items):[]);return it.length?it.map(i=>i.name||i).join(', ').slice(0,40):r.description||'';}catch{return r.description||'';}})()}</div>
+        <div style="font-size:11px;color:var(--mid)">${r.nota||r.description||(typeof r.items==='string'?r.items:'')||''}</div>
       </div>
       <div style="font-weight:700;color:var(--blue)">${formatRM(r.amount)}</div>
     </div>`).join('');
@@ -3200,7 +3205,7 @@ function renderPaymentScreen(){
   </div>
   <div style="margin-bottom:16px;display:flex;gap:8px">
     <button class="btn btn-primary" onclick="showPaymentUploadModal()" style="flex:1">Upload Resit Bayaran</button>
-    <button class="btn btn-outline" onclick="showAddPaymentModal()" style="flex:1">Input Manual</button>
+    <button class="btn btn-outline" onclick="showInputManualModal()" style="flex:1">Input Manual</button>
   </div>
   <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">HUTANG SUPPLIER</div>`;
 
@@ -3242,6 +3247,100 @@ function renderPaymentScreen(){
   }
 
   el.innerHTML=html;
+}
+
+function showInputManualModal(){
+  const suppliers=getSuppliers();
+  const opts=suppliers.map(s=>`<option value="${s.name}">${s.name}</option>`).join('');
+  const today=new Date().toISOString().split('T')[0];
+  showModal('Input Manual',`
+    <div style="font-size:11px;color:var(--mid);margin-bottom:12px">Masukkan resit & payment sekaligus</div>
+    <div class="form-group">
+      <label class="form-label">Supplier</label>
+      <select id="manSupplier" class="form-input">${opts}</select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tarikh Resit</label>
+      <input type="date" id="manDate" class="form-input" value="${today}">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Jumlah Resit (RM)</label>
+      <input type="number" id="manAmount" class="form-input" placeholder="0.00" step="0.01">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Rujukan / BIL</label>
+      <input type="text" id="manNota" class="form-input" placeholder="contoh: BIL 11/6">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Status Resit</label>
+      <select id="manStatus" class="form-input" onchange="manTogglePayment(this.value)">
+        <option value="Approved">Approved (belum bayar)</option>
+        <option value="Paid">Paid (dah bayar)</option>
+        <option value="Pending">Pending</option>
+      </select>
+    </div>
+    <div id="manPaymentSection">
+      <div style="border-top:1px solid var(--border);margin:12px 0;padding-top:12px;font-size:12px;font-weight:600;color:var(--mid)">MAKLUMAT BAYARAN</div>
+      <div class="form-group">
+        <label class="form-label">Tarikh Bayaran</label>
+        <input type="date" id="manPayDate" class="form-input" value="${today}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Kaedah Bayaran</label>
+        <select id="manPayMethod" class="form-input">
+          <option>TT / Bank Transfer</option>
+          <option>Tunai</option>
+          <option>Cek</option>
+          <option>DuitNow</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="saveInputManual()">Simpan</button>
+  `);
+  manTogglePayment('Approved');
+}
+
+function manTogglePayment(status){
+  const sec=document.getElementById('manPaymentSection');
+  if(sec) sec.style.display=(status==='Paid')?'block':'none';
+}
+
+async function saveInputManual(){
+  const supplier=document.getElementById('manSupplier').value;
+  const date=document.getElementById('manDate').value;
+  const amount=parseFloat(document.getElementById('manAmount').value)||0;
+  const nota=document.getElementById('manNota').value.trim();
+  const status=document.getElementById('manStatus').value;
+  if(!supplier||!date||!amount){showToast('Sila lengkapkan maklumat ⚠️');return;}
+
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok){showToast('Token expired. Sila refresh page ⚠️');return;}
+
+  showToast('Menyimpan...');
+
+  const sid=SHEET_ID;
+  const h={'Authorization':'Bearer '+tok,'Content-Type':'application/json'};
+
+  // 1. Save resit to Sheet
+  const resitRow=[[date,supplier,'',amount,'101','COGS','','keyrooll@gmail.com','keyrooll@gmail.com',status,status==='Pending'?'':'keyrooll@gmail.com','',nota]];
+  try{
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/resit!A:M:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{method:'POST',headers:h,body:JSON.stringify({values:resitRow})});
+  }catch(e){showToast('Gagal simpan resit ⚠️');return;}
+
+  // 2. If Paid, save payment too
+  if(status==='Paid'){
+    const payDate=document.getElementById('manPayDate').value||date;
+    const payMethod=document.getElementById('manPayMethod').value;
+    const payId='PMT-MAN-'+Date.now();
+    const payRow=[[payId,payDate,supplier,amount,payMethod,nota,'keyrooll@gmail.com','manual']];
+    try{
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Payments!A:H:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{method:'POST',headers:h,body:JSON.stringify({values:payRow})});
+    }catch(e){showToast('Resit ok, payment gagal ⚠️');return;}
+  }
+
+  hideModal();
+  showToast('Berjaya disimpan ✅');
+  setTimeout(()=>refreshAllData(),1500);
 }
 
 function showAddPaymentModal(presetSupplier){
@@ -3302,11 +3401,12 @@ function normalizeWa(num){
 function markReceiptsPaid(supplierName){
   // Recalculate: total paid for supplier vs total Approved receipts
   // Mark oldest Approved receipts as Paid until payments are exhausted
+  const sn=supplierName.toLowerCase();
   const allPayments=lsGetPayments();
-  const totalPaid=allPayments.filter(p=>p.supplier===supplierName).reduce((a,p)=>a+parseFloat(p.amount||0),0);
+  const totalPaid=allPayments.filter(p=>p.supplier&&p.supplier.toLowerCase()===sn).reduce((a,p)=>a+parseFloat(p.amount||0),0);
   const receipts=getReceipts();
   // Get all receipts for this supplier sorted oldest first
-  const supplierReceipts=receipts.filter(r=>r.vendor===supplierName&&(r.status==='Approved'||r.status==='Paid')).sort((a,b)=>a.date.localeCompare(b.date));
+  const supplierReceipts=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&(r.status==='Approved'||r.status==='Paid')).sort((a,b)=>a.date.localeCompare(b.date));
   let remaining=totalPaid;
   supplierReceipts.forEach(r=>{
     if(remaining>=parseFloat(r.amount||0)){
@@ -3620,6 +3720,30 @@ async function loadAllFromSheets(){
     syncAllStaffFromSheet()
   ]);
   showToast('Data dikemaskini ✓');
+}
+
+async function refreshAllData(){
+  const btn=document.getElementById('btnRefresh');
+  if(btn){btn.style.animation='spin 1s linear infinite';btn.style.display='inline-block';}
+  try{
+    await loadAllFromSheets();
+    // Re-render current screen
+    const screens=['upload','payment','resit','dashboard','staff'];
+    screens.forEach(s=>{
+      const el=document.querySelector('.screen.active');
+      if(el&&el.id===s+'Screen'){
+        if(s==='payment') renderPaymentScreen();
+        else if(s==='resit') renderResitContent(activeResitTab||'pending');
+        else if(s==='dashboard') renderDashboard();
+        else if(s==='staff') renderStaffList();
+      }
+    });
+    // Also render whichever is active
+    renderPaymentScreen();
+    renderResitContent(activeResitTab||'pending');
+    if(typeof renderDashboard==='function') renderDashboard();
+  }catch(e){showToast('Gagal refresh ⚠️');}
+  finally{if(btn){btn.style.animation='';}}
 }
 
 function showSupplierPaymentDetail(supplierName){
