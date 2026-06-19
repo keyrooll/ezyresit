@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.36-1906/1000</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.37-1906/1100</div>
 </div>
 
 <!-- DENIED SCREEN -->
@@ -3658,7 +3658,7 @@ async function loadPaymentsFromSheet(){
     if(!d.values||!d.values.length){localStorage.setItem('payments',JSON.stringify([]));return;}
     const payments=d.values.map(row=>({
       id:row[0]||'pmt_'+Date.now(),
-      date:row[1]||'',supplier:row[2]||'',amount:parseFloat(row[3])||0,
+      date:row[1]||'',supplier:row[2]||'',amount:parseFloat((row[3]||'').toString().replace(/,/g,''))||0,
       method:row[4]||'',note:row[5]||'',recordedBy:row[6]||'',
       type:row[7]||'manual'
     })).filter(p=>p.supplier&&p.amount);
