@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.44-2006/1600</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.46-2006/1800</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -841,6 +841,11 @@ function setUserProfile(email,data){lsSet('ezy_user_profile_'+email,data)}
 function getRole(email){
   if(email===SUPER_ADMIN) return 'super_admin';
   if(ACCOUNTANTS.includes(email)) return 'accountant';
+  // Check Sheet-sourced role first (source of truth)
+  const users=getRegisteredUsers();
+  const u=users.find(x=>x.email===email);
+  if(u&&u.role&&u.role!=='pending') return u.role;
+  // Fallback to local profiles
   const profiles=getStaffProfiles();
   if(profiles[email]&&profiles[email].role) return profiles[email].role;
   return 'staff';
@@ -2193,12 +2198,32 @@ function showSupplierHistory(supplierName){
       <div style="font-weight:700;color:var(--green)">${formatRM(p.amount)}</div>
     </div>`).join('');
 
+  const waBtn=sup.waGroup
+    ?`<button class="btn btn-outline" style="color:#25D366;border-color:#25D366" onclick="openSupplierWa('${supplierName.replace(/'/g,"\\'")}')">📱 WA Group</button>`
+    :`<button class="btn btn-outline" onclick="showWaEditModal('${supplierName.replace(/'/g,"\\'")}')">WhatsApp</button>`;
+
   html+=`<div style="display:flex;gap:8px;margin-top:16px">
     <button class="btn btn-primary" style="flex:1" onclick="hideModal();showAddPaymentModal('${supplierName.replace(/'/g,"\\'")}')">+ Bayaran Baru</button>
-    <button class="btn btn-outline" onclick="showWaEditModal('${supplierName.replace(/'/g,"\\'")}')">WhatsApp</button>
+    ${waBtn}
   </div>`;
 
   showModal('', html);
+}
+
+function openSupplierWa(supplierName){
+  const sup=getSuppliers().find(s=>s.name.toLowerCase()===supplierName.toLowerCase())||{};
+  if(sup.waGroup){
+    const {msg}=buildSupplierPaymentStatement(supplierName);
+    // Copy message to clipboard then open group
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(msg).then(()=>{
+        showToast('Mesej disalin ✅ — tampal dalam group WA');
+        setTimeout(()=>window.open(sup.waGroup,'_blank'),800);
+      }).catch(()=>window.open(sup.waGroup,'_blank'));
+    } else {
+      window.open(sup.waGroup,'_blank');
+    }
+  }
 }
 
 function showEditSupplierModal(supplierName){
@@ -2211,6 +2236,7 @@ function showEditSupplierModal(supplierName){
     <div class="form-group"><label class="form-label">No. Akaun Bank</label><input class="form-input" id="editSupBankAcc" value="${sup.bankAcc||''}" placeholder="1234567890"></div>
     <div class="form-group"><label class="form-label">Alamat</label><textarea class="form-input" id="editSupAddress" rows="2" placeholder="Alamat penuh">${sup.address||''}</textarea></div>
     <div class="form-group"><label class="form-label">No. Pendaftaran</label><input class="form-input" id="editSupReg" value="${sup.regNo||''}" placeholder="SSM / No. Reg"></div>
+    <div class="form-group"><label class="form-label">WA Group Link</label><input class="form-input" id="editSupWaGroup" value="${sup.waGroup||''}" placeholder="https://chat.whatsapp.com/..."></div>
     <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="saveEditSupplier('${supplierName.replace(/'/g,"\\'")}')">Simpan</button>
   `);
 }
@@ -2226,6 +2252,7 @@ function saveEditSupplier(originalName){
   suppliers[idx].bankAcc=document.getElementById('editSupBankAcc').value.trim();
   suppliers[idx].address=document.getElementById('editSupAddress').value.trim();
   suppliers[idx].regNo=document.getElementById('editSupReg').value.trim();
+  suppliers[idx].waGroup=document.getElementById('editSupWaGroup').value.trim();
   setSuppliers(suppliers);
   hideModal();
   showToast('Supplier dikemaskini ✅');
@@ -2733,7 +2760,7 @@ async function rejectStaff(email){
   renderStaffScreen();
 }
 
-function setStaffRole(email, role){
+async function setStaffRole(email, role){
   const profiles = getStaffProfiles();
   if(!profiles[email]) profiles[email]={};
   profiles[email].role = role;
@@ -2743,6 +2770,23 @@ function setStaffRole(email, role){
   const u = users.find(x=>x.email===email);
   if(u) u.role = role;
   setRegisteredUsers(users);
+  // Update Sheet
+  const tok=getValidToken()||accessToken||currentToken;
+  if(tok){
+    try{
+      const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A1:E`,{headers:{Authorization:'Bearer '+tok}});
+      const d=await r.json();
+      if(d.values){
+        const rowIdx=d.values.findIndex(row=>row[2]===email);
+        if(rowIdx>=0){
+          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!B${rowIdx+1}?valueInputOption=RAW`,{
+            method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+            body:JSON.stringify({values:[[role]]})
+          });
+        }
+      }
+    }catch(e){console.warn('setStaffRole sheet update:',e);}
+  }
   showToast('Role dikemaskini: '+role+' ✅');
   renderStaffScreen();
 }
