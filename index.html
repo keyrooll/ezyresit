@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.42-2006/1500</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.43-2006/1530</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -800,9 +800,9 @@ async function syncStaffToSheet(u){
   if(!tok) return;
   try{
     // Read all staff rows — format: A=Nama, B=Role, C=Email, D=Gambar, E=JoinedAt
-    const cr=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:E`,{headers:{Authorization:'Bearer '+tok}});
+    const cr=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A1:E`,{headers:{Authorization:'Bearer '+tok}});
     const cd=await cr.json();
-    const allRows=(cd.values||[]);
+    const allRows=(cd.values||[]).filter(r=>r[2]&&r[2].includes('@'));
     // Email is in column C (index 2)
     const exists=allRows.some(r=>r[2]===u.email);
     if(!exists){
@@ -818,13 +818,14 @@ async function syncAllStaffFromSheet(){
   const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
-    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:E`,{headers:{Authorization:'Bearer '+tok}});
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A1:E`,{headers:{Authorization:'Bearer '+tok}});
     const d=await r.json();
     if(d.error) return;
     if(!d.values||!d.values.length){lsSet('ezy_registered_users',[]);return;}
     // Sheet columns: A=Nama, B=Role, C=Email, D=Gambar, E=JoinedAt
+    // Filter only rows with valid email (skip header rows)
     // Sheet is source of truth — replace localStorage
-    const users=d.values.filter(row=>row[2]).map(row=>({
+    const users=d.values.filter(row=>row[2]&&row[2].includes('@')).map(row=>({
       email:row[2],name:row[0]||row[2],role:row[1]||'pending',
       picture:row[3]||'',joinedAt:row[4]||Date.now(),fromSheet:true
     }));
@@ -2626,12 +2627,12 @@ async function approveStaff(email){
   const tok=getValidToken()||accessToken||currentToken;
   if(tok){
     try{
-      const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:E`,{headers:{Authorization:'Bearer '+tok}});
+      const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A1:E`,{headers:{Authorization:'Bearer '+tok}});
       const d=await r.json();
       if(d.values){
         const rowIdx=d.values.findIndex(row=>row[2]===email);
         if(rowIdx>=0){
-          const sheetRow=rowIdx+2;
+          const sheetRow=rowIdx+1;
           await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!B${sheetRow}?valueInputOption=RAW`,{
             method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
             body:JSON.stringify({values:[['staff']]})
@@ -2656,7 +2657,7 @@ async function rejectStaff(email){
   const tok=getValidToken()||accessToken||currentToken;
   if(tok){
     try{
-      const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:E`,{headers:{Authorization:'Bearer '+tok}});
+      const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A1:E`,{headers:{Authorization:'Bearer '+tok}});
       const d=await r.json();
       if(d.values){
         const rowIdx=d.values.findIndex(row=>row[2]===email);
