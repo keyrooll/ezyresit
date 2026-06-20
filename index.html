@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.46-2006/1800</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.47-2006/2100</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -1773,14 +1773,8 @@ async function submitReceipt(){
     status:'Pending',approvedBy:'',driveLink,filename,nota
   };
   receipts.push(entry);
-  // Sheet columns: Tarikh,Vendor,Item,Jumlah,Akaun,Kategori,Cawangan,Staff,Email,Status,ApprovedBy,DriveLink,Nota
-  if(allItemDetails.length){
-    allItemDetails.forEach(it=>{
-      sheetRows.push([date,vendor?vendor.name:'',it.name,it.lineTotal||it.price,it.account,it.category,branch,uploadedBy,u.email,'Pending','','',nota||'']);
-    });
-  } else {
-    sheetRows.push([date,vendor?vendor.name:'','',totalAmount,primaryAccount,primaryCat,branch,uploadedBy,u.email,'Pending','','',nota||'']);
-  }
+  // Sheet resit: ONE row per receipt (total amount only)
+  sheetRows.push([id,date,vendor?vendor.name:'',totalAmount,primaryAccount,primaryCat,branch,uploadedBy,u.email,'Pending','',driveLink,nota||'']);
   setReceipts(receipts);
   // Update supplier tab in Sheet
   if(vendor) setTimeout(()=>updateSupplierTab(vendor.name).catch(()=>{}),3000);
@@ -1794,7 +1788,7 @@ async function submitReceipt(){
   }
 
   // Append to Google Sheets
-  try{await appendToSheets(sheetRows);}catch(e){console.warn('Sheets skip:',e.message||e);}
+  try{await appendToSheets(sheetRows, allItemDetails);}catch(e){console.warn('Sheets skip:',e.message||e);}
   // ItemRegistry sync disabled - create 'ItemRegistry' tab in sheet first
   // try{await syncItemRegistryToSheet();}catch(e){}
 
@@ -2013,28 +2007,45 @@ function getSkuOptions(){
   }));
 }
 
-async function appendToSheets(rows){
+async function appendToSheets(rows, itemDetails=[]){
   const token=accessToken||currentToken;if(!token) return;
-  // Check if sheet is empty, add headers first
+  // Check headers for resit tab
+  // New format: ID,Tarikh,Vendor,Jumlah,Akaun,Kategori,Cawangan,Staff,Email,Status,ApprovedBy,DriveLink,Nota
   const checkUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A1`;
   const check=await fetch(checkUrl,{headers:{Authorization:'Bearer '+token}});
   const checkData=await check.json();
   const isEmpty=!checkData.values||!checkData.values.length;
   if(isEmpty){
-    const headers=[['Tarikh','Vendor','Item','Jumlah','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A1:N1?valueInputOption=USER_ENTERED`,{
-      method:'PUT',
-      headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+    const headers=[['ID','Tarikh','Vendor','Jumlah','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A1:M1?valueInputOption=USER_ENTERED`,{
+      method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify({values:headers})
     });
   }
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A:N:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
-  const r=await fetch(url,{
-    method:'POST',
-    headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
-    body:JSON.stringify({values:rows})
-  });
+  // Append main resit row
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A:M:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const r=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values:rows})});
   if(!r.ok){const e=await r.json();throw new Error(e.error&&e.error.message||r.status);}
+
+  // Append items to resit_items tab if any
+  if(itemDetails.length){
+    const receiptId=rows[0][0]; // ID is first column
+    // Check/create resit_items tab
+    const chk=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1`,{headers:{Authorization:'Bearer '+token}});
+    const chkD=await chk.json();
+    if(!chkD.values||!chkD.values.length){
+      // Create header
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1:G1?valueInputOption=USER_ENTERED`,{
+        method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[['ResitID','Item','Kod','Qty','Harga','LineTotal','Kategori']]})
+      });
+    }
+    const itemRows=itemDetails.map(it=>[receiptId,it.name||'',it.code||'',it.qty||1,it.price||0,it.lineTotal||0,it.category||'']);
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A:G:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{
+      method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({values:itemRows})
+    });
+  }
 }
 
 // =====================
@@ -2173,18 +2184,48 @@ function showSupplierHistory(supplierName){
   <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">SEJARAH BELIAN (${receipts.length})</div>`;
 
   if(!receipts.length) html+='<div style="font-size:12px;color:var(--mid);padding:8px;text-align:center">Tiada rekod belian</div>';
-  else html+=receipts.map(r=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--surface2);border-radius:8px;margin-bottom:6px">
-      <div>
-        <div style="font-size:12px;font-weight:600">${fmtDate(r.date)}</div>
-        <div style="font-size:11px;color:var(--mid)">${r.branch||'-'} · ${r.category||'-'}</div>
-        <div style="font-size:11px;color:var(--mid)">${r.nota||r.description||(typeof r.items==='string'?r.items:'')||''}</div>
+  else html+=receipts.map((r,i)=>{
+    const hasItems=r.itemDetails&&r.itemDetails.length>0;
+    const itemsBlock=hasItems?`
+      <div id="sh-items-${i}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <table style="width:100%;font-size:11px;border-collapse:collapse">
+          <thead><tr style="color:var(--mid)">
+            <th style="text-align:left;padding:3px 4px">Item</th>
+            <th style="text-align:center;padding:3px 4px">Qty</th>
+            <th style="text-align:right;padding:3px 4px">Harga</th>
+            <th style="text-align:right;padding:3px 4px">Jumlah</th>
+          </tr></thead>
+          <tbody>${r.itemDetails.map(it=>`<tr style="border-top:1px solid #f0f0f0">
+            <td style="padding:3px 4px">${it.name||'-'}${it.code?` <span style="color:var(--mid)">(${it.code})</span>`:''}</td>
+            <td style="padding:3px 4px;text-align:center">${it.qty||1}</td>
+            <td style="padding:3px 4px;text-align:right">${formatRM(it.price||0)}</td>
+            <td style="padding:3px 4px;text-align:right;font-weight:600">${formatRM(it.lineTotal||((it.qty||1)*(it.price||0)))}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+        ${r.driveLink?`<div style="margin-top:8px;text-align:center">
+          <a href="${r.driveLink}" target="_blank" style="color:var(--green);font-size:12px;text-decoration:none">📷 Lihat Gambar Resit</a>
+        </div>`:''}
+      </div>`:
+      (r.driveLink?`<div id="sh-items-${i}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);text-align:center">
+        <a href="${r.driveLink}" target="_blank" style="color:var(--green);font-size:12px;text-decoration:none">📷 Lihat Gambar Resit</a>
+      </div>`:'');
+    const clickable=hasItems||r.driveLink;
+    return `<div style="background:var(--surface2);border-radius:8px;margin-bottom:6px;overflow:hidden">
+      <div onclick="${clickable?`toggleShItems(${i})`:'void(0)'}" style="display:flex;justify-content:space-between;align-items:center;padding:10px;cursor:${clickable?'pointer':'default'}">
+        <div>
+          <div style="font-size:12px;font-weight:600">${fmtDate(r.date)}</div>
+          <div style="font-size:11px;color:var(--mid)">${r.branch||'-'} · ${r.category||'-'}</div>
+          ${r.nota?`<div style="font-size:11px;color:var(--mid);font-style:italic">${r.nota}</div>`:''}
+          ${clickable?`<div style="font-size:10px;color:var(--green);margin-top:2px">${hasItems?r.itemDetails.length+' item · ':''}klik untuk butiran ▼</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:var(--dark)">${formatRM(r.amount)}</div>
+          <div style="font-size:10px;color:${r.status==='Paid'?'var(--green)':'var(--amber)'}">${r.status}</div>
+        </div>
       </div>
-      <div style="text-align:right">
-        <div style="font-weight:700;color:var(--dark)">${formatRM(r.amount)}</div>
-        <div style="font-size:10px;color:${r.status==='Paid'?'var(--green)':'var(--amber)'}">${r.status}</div>
-      </div>
-    </div>`).join('');
+      ${itemsBlock}
+    </div>`;
+  }).join('');
 
   html+=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin:12px 0 8px">SEJARAH BAYARAN (${payments.length})</div>`;
 
@@ -2208,6 +2249,12 @@ function showSupplierHistory(supplierName){
   </div>`;
 
   showModal('', html);
+}
+
+function toggleShItems(i){
+  const el=document.getElementById('sh-items-'+i);
+  if(!el) return;
+  el.style.display=el.style.display==='none'?'block':'none';
 }
 
 function openSupplierWa(supplierName){
@@ -2360,23 +2407,54 @@ function renderResitContent(tab){
 function renderReceiptCard(r, tab){
   const canAct=(currentRole==='accountant'||currentRole==='super_admin')&&r.status==='Pending';
   const statusClass=r.status==='Pending'?'status-pending':r.status==='Approved'?'status-approved':r.status==='Paid'?'status-paid':'status-rejected';
+  const hasItems=r.itemDetails&&r.itemDetails.length>0;
+  const itemsHtml=hasItems?`
+    <div id="items-${r.id}" style="display:none;margin-top:10px;border-top:1px solid var(--border);padding-top:8px">
+      <table style="width:100%;font-size:11px;border-collapse:collapse">
+        <thead><tr style="color:var(--mid)">
+          <th style="text-align:left;padding:3px 4px">Item</th>
+          <th style="text-align:left;padding:3px 4px">Kod</th>
+          <th style="text-align:center;padding:3px 4px">Qty</th>
+          <th style="text-align:right;padding:3px 4px">Harga</th>
+          <th style="text-align:right;padding:3px 4px">Jumlah</th>
+        </tr></thead>
+        <tbody>${r.itemDetails.map(it=>`<tr style="border-top:1px solid #f0f0f0">
+          <td style="padding:3px 4px">${it.name||'-'}</td>
+          <td style="padding:3px 4px;color:var(--mid)">${it.code||'-'}</td>
+          <td style="padding:3px 4px;text-align:center">${it.qty||1}</td>
+          <td style="padding:3px 4px;text-align:right">${formatRM(it.price||0)}</td>
+          <td style="padding:3px 4px;text-align:right;font-weight:600">${formatRM(it.lineTotal||((it.qty||1)*(it.price||0)))}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+      ${r.driveLink?`<div style="margin-top:8px;text-align:center"><a href="${r.driveLink}" target="_blank" style="color:var(--green);font-size:11px">📷 Lihat Gambar Resit</a></div>`:''}
+    </div>`:'';
   return `<div class="receipt-card" id="card-${r.id}">
-    <div class="receipt-header">
+    <div class="receipt-header" onclick="toggleReceiptItems('${r.id}')" style="cursor:${hasItems?'pointer':'default'}">
       <div>
         <div class="receipt-vendor">${r.vendor}</div>
         <span class="status-badge ${statusClass}">${r.status}</span>
       </div>
-      <div class="receipt-amount">${formatRM(parseFloat(r.amount||0))}</div>
+      <div style="text-align:right">
+        <div class="receipt-amount">${formatRM(parseFloat(r.amount||0))}</div>
+        ${hasItems?`<div style="font-size:10px;color:var(--mid)">${r.itemDetails.length} item · klik ▼</div>`:''}
+      </div>
     </div>
     <div class="receipt-meta">📅 ${fmtDate(r.date)} · 🏬 ${r.branch}</div>
     <div class="receipt-meta">👤 ${r.uploadedBy} · ${CAT_EMOJI[r.category]||''} ${r.category}</div>
     ${r.nota?`<div class="receipt-meta" style="margin-top:4px;font-style:italic">"${r.nota}"</div>`:''}
-    ${r.driveLink?`<div class="receipt-meta"><a href="${r.driveLink}" target="_blank" style="color:var(--green)">Lihat Gambar</a></div>`:''}
+    ${!hasItems&&r.driveLink?`<div class="receipt-meta"><a href="${r.driveLink}" target="_blank" style="color:var(--green)">📷 Lihat Gambar</a></div>`:''}
+    ${itemsHtml}
     ${canAct?`<div class="receipt-actions">
       <button class="btn btn-success btn-sm" onclick="approveReceipt('${r.id}')">Lulus</button>
       <button class="btn btn-danger btn-sm" onclick="rejectReceipt('${r.id}')">Tolak</button>
     </div>`:''}
   </div>`;
+}
+
+function toggleReceiptItems(id){
+  const el=document.getElementById('items-'+id);
+  if(!el) return;
+  el.style.display=el.style.display==='none'?'block':'none';
 }
 
 async function syncReceiptStatusToSheet(r,status){
@@ -3875,39 +3953,60 @@ async function loadReceiptsFromSheet(){
   const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
-    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A2:N`,{headers:{Authorization:'Bearer '+tok}});
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A2:M`,{headers:{Authorization:'Bearer '+tok}});
     const d=await r.json();
     if(d.error) return;
-    // Sheet is source of truth — always replace localStorage
     if(!d.values||!d.values.length){lsSet('ezy_receipts',[]);return;}
-    // Sheet columns: A=Tarikh,B=Vendor,C=Item,D=Jumlah,E=Akaun,F=Kategori,G=Cawangan,H=Staff,I=Email,J=Status,K=ApprovedBy,L=DriveLink,M=Nota
-    const map={};
-    d.values.forEach(row=>{
-      const date=row[0]||'';
-      const vendor=row[1]||'';
-      const amount=parseFloat((row[3]||'').toString().replace(/,/g,''))||0;
-      const status=row[9]||'Pending';
-      const uploadedBy=row[7]||'';
-      const uploadedEmail=row[8]||'';
-      const branch=row[6]||'';
-      const category=row[5]||'';
-      const approvedBy=row[10]||'';
-      const driveLink=row[11]||'';
-      const nota=row[12]||'';
-      if(!vendor||!date) return;
-      const key=`${date}__${vendor}__${uploadedEmail}`;
-      if(!map[key]){
-        map[key]={
-          id:'r_'+key.replace(/[^a-z0-9]/gi,'_'),
-          date,vendor,branch,category,
-          amount:0,status,uploadedBy,uploadedEmail,
-          approvedBy,driveLink,nota,items:[]
-        };
+
+    // Detect format: new format has ID in col A (starts with 'r'), old format has date in col A
+    const isNewFormat = d.values[0] && d.values[0][0] && d.values[0][0].toString().startsWith('r');
+
+    let receipts=[];
+    if(isNewFormat){
+      // New format: A=ID,B=Tarikh,C=Vendor,D=Jumlah,E=Akaun,F=Kategori,G=Cawangan,H=Staff,I=Email,J=Status,K=ApprovedBy,L=DriveLink,M=Nota
+      receipts=d.values.filter(row=>row[2]&&row[1]).map(row=>({
+        id:row[0]||'r_'+Date.now(),
+        date:row[1]||'',vendor:row[2]||'',
+        amount:parseFloat((row[3]||'').toString().replace(/,/g,''))||0,
+        account:row[4]||'101',category:row[5]||'',branch:row[6]||'',
+        uploadedBy:row[7]||'',uploadedEmail:row[8]||'',
+        status:row[9]||'Pending',approvedBy:row[10]||'',
+        driveLink:row[11]||'',nota:row[12]||'',
+        itemDetails:[] // loaded separately
+      }));
+    } else {
+      // Old format: A=Tarikh,B=Vendor,C=Item,D=Jumlah,E=Akaun,F=Kategori,G=Cawangan,H=Staff,I=Email,J=Status,K=ApprovedBy,L=DriveLink,M=Nota
+      const map={};
+      d.values.forEach(row=>{
+        const date=row[0]||'';const vendor=row[1]||'';
+        const amount=parseFloat((row[3]||'').toString().replace(/,/g,''))||0;
+        const uploadedEmail=row[8]||'';
+        if(!vendor||!date) return;
+        const key=`${date}__${vendor}__${uploadedEmail}`;
+        if(!map[key]){
+          map[key]={id:'r_'+key.replace(/[^a-z0-9]/gi,'_'),date,vendor,branch:row[6]||'',category:row[5]||'',amount:0,status:row[9]||'Pending',uploadedBy:row[7]||'',uploadedEmail,approvedBy:row[10]||'',driveLink:row[11]||'',nota:row[12]||'',itemDetails:[]};
+        }
+        map[key].amount+=amount;
+        if(row[2]) map[key].itemDetails.push({name:row[2],price:amount,category:row[5]||''});
+      });
+      receipts=Object.values(map).filter(r=>r.vendor&&r.amount);
+    }
+
+    // Load items from resit_items tab
+    try{
+      const ri=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A2:G`,{headers:{Authorization:'Bearer '+tok}});
+      const rid=await ri.json();
+      if(rid.values&&rid.values.length){
+        const itemMap={};
+        rid.values.forEach(row=>{
+          const rid2=row[0];if(!rid2) return;
+          if(!itemMap[rid2]) itemMap[rid2]=[];
+          itemMap[rid2].push({name:row[1]||'',code:row[2]||'',qty:parseFloat(row[3])||1,price:parseFloat(row[4])||0,lineTotal:parseFloat(row[5])||0,category:row[6]||''});
+        });
+        receipts.forEach(r=>{if(itemMap[r.id]) r.itemDetails=itemMap[r.id];});
       }
-      map[key].amount+=amount;
-      map[key].items.push({name:row[2]||'',code:row[3]||'',price:amount,account:row[5]||'',category});
-    });
-    const receipts=Object.values(map).filter(r=>r.vendor&&r.amount);
+    }catch(e){console.warn('resit_items load skip:',e);}
+
     lsSet('ezy_receipts',receipts);
     console.log('Loaded',receipts.length,'receipts from Sheets');
   }catch(e){console.warn('Load receipts:',e);}
