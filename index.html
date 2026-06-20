@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.41-2006/1400</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.42-2006/1500</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -885,12 +885,27 @@ async function fetchAndSetUser(){
     if(!u||!u.email){throw new Error('No email in response');}
     currentUser = u;
     lsSet('ezy_user',u);
-    registerUser(u);
-    // Check if pending — load from Sheet first
+
+    // First sync from Sheet to get latest roles
     await syncAllStaffFromSheet();
+
+    // Check role from Sheet (source of truth)
     const allUsers = getRegisteredUsers();
     const thisUser = allUsers.find(x=>x.email===u.email);
-    const sheetRole = thisUser ? thisUser.role : null;
+
+    if(!thisUser){
+      // Brand new user — not in Sheet yet, register as pending
+      registerUser(u);
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('mainApp').style.display='none';
+      document.getElementById('deniedScreen').style.display='none';
+      const ps=document.getElementById('pendingScreen');
+      if(ps){ps.style.display='flex';document.getElementById('pendingEmail').textContent=u.email;}
+      return;
+    }
+
+    const sheetRole = thisUser.role;
+
     if(sheetRole==='pending'){
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('mainApp').style.display='none';
@@ -899,6 +914,7 @@ async function fetchAndSetUser(){
       if(ps){ps.style.display='flex';document.getElementById('pendingEmail').textContent=u.email;}
       return;
     }
+
     currentRole = sheetRole || getRole(u.email);
     showMainApp();
   }catch(e){
