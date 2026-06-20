@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.38-2006/1000</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.40-2006/1300</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -561,7 +561,7 @@ const DRIVE_FOLDER_NAME = 'EzyResit Receipts';
 const DRIVE_ROOT_FOLDER_ID = '1GmJWOikquZb-As-XdJAYgZao_EXQcfY-'; // ezyresit shared folder
 const SKU_SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8'; // same spreadsheet, tab List SKU
 const SUPER_ADMIN = 'keyrooll@gmail.com';
-const ACCOUNTANTS = ['keyroollgambar@gmail.com'];
+const ACCOUNTANTS = [];
 const BRANCHES = ['Batu Caves','Shah Alam','Bangi Cafe','Bangi Durian','Putrajaya','TTDI','Bakery','Central Kitchen'];
 const CATEGORIES = ['COGS','UTILITIES','RENTAL','RENOVATION','MARKETING','TRANSPORTATION','GAS','MANAGEMENT','OTHERS'];
 const CAT_EMOJI = {COGS:'🛒',UTILITIES:'💡',RENTAL:'🏠',RENOVATION:'🔨',MARKETING:'📣',TRANSPORTATION:'🚗',GAS:'🔥',MANAGEMENT:'📋',OTHERS:'📦'};
@@ -796,32 +796,19 @@ function getSupplierPriceAnalysis(){
 function getStaffProfiles(){return lsGet('ezy_staff_profiles',{})}
 function setStaffProfiles(p){lsSet('ezy_staff_profiles',p)}
 async function syncStaffToSheet(u){
-  // Wait for token
-  if(!accessToken) return;
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok) return;
   try{
-    const tabUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A:A`;
-    const cr=await fetch(tabUrl,{headers:{Authorization:'Bearer '+accessToken}});
+    // Read all staff rows to check if email exists
+    const cr=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A2:G`,{headers:{Authorization:'Bearer '+tok}});
     const cd=await cr.json();
-    if(cd.error){
-      // Tab doesn't exist, create it first
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
-        method:'POST',
-        headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
-        body:JSON.stringify({requests:[{addSheet:{properties:{title:'Staff'}}}]})
-      });
-      // Add header
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A1:G1?valueInputOption=RAW`,{
-        method:'PUT',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
-        body:JSON.stringify({values:[['','No','Nama','Role','Email','Gambar','JoinedAt']]})
-      });
-    }
-    // Check if email already exists (email in col E = index 4)
     const allRows=(cd.values||[]);
+    // Email is in column E (index 4)
     const exists=allRows.some(r=>r[4]===u.email);
     if(!exists){
-      const rowNum=allRows.length; // next row number
+      const rowNum=allRows.length+1;
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{
-        method:'POST',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},
+        method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
         body:JSON.stringify({values:[['',rowNum,u.name,u.role,u.email,u.picture||'',new Date().toLocaleString('en-MY')]]})
       });
     }
