@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.49-2106/0905</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.50-2206/0139</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -2092,19 +2092,23 @@ function renderStaffResit(){
 }
 
 function renderSuppliersList(){
-  const suppliers=getSuppliers().sort((a,b)=>b.count-a.count);
   const el=document.getElementById('suppliersList');
   if(!el) return;
-  if(!suppliers.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div><div>Tiada supplier</div></div>';return;}
-  // Build KPI summary
   const receipts=getReceipts();
   const payments=lsGetPayments();
-  const totalBeli=receipts.filter(r=>r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  // Compute live count from receipts (approved+paid) for each supplier
+  const suppliers=getSuppliers().map(s=>{
+    const sn=s.name.toLowerCase();
+    const liveCount=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&(r.status==='Approved'||r.status==='Paid')).length;
+    return {...s, count:liveCount};
+  }).sort((a,b)=>b.count-a.count);
+  if(!suppliers.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div><div>Tiada supplier</div></div>';return;}
+  const totalBeli=receipts.filter(r=>r.status==='Approved'||r.status==='Paid').reduce((a,r)=>a+parseFloat(r.amount||0),0);
   const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
   const totalHutang=totalBeli-totalBayar;
   const suppliersWithDebt=suppliers.filter(s=>{
     const sn=s.name.toLowerCase();
-    const beli=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    const beli=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&(r.status==='Approved'||r.status==='Paid')).reduce((a,r)=>a+parseFloat(r.amount||0),0);
     const bayar=payments.filter(p=>p.supplier&&p.supplier.toLowerCase()===sn).reduce((a,p)=>a+parseFloat(p.amount||0),0);
     return (beli-bayar)>0.01;
   });
@@ -2116,7 +2120,7 @@ function renderSuppliersList(){
   </div>`;
   const listHtml=suppliers.map(s=>{
     const sn=s.name.toLowerCase();
-    const sRec=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&r.status==='Approved');
+    const sRec=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&(r.status==='Approved'||r.status==='Paid'));
     const sPay=payments.filter(p=>p.supplier&&p.supplier.toLowerCase()===sn);
     const sBeli=sRec.reduce((a,r)=>a+parseFloat(r.amount||0),0);
     const sBayar=sPay.reduce((a,p)=>a+parseFloat(p.amount||0),0);
