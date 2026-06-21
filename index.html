@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.47-2006/2100</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.48-2106/0900</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -3958,39 +3958,44 @@ async function loadReceiptsFromSheet(){
     if(d.error) return;
     if(!d.values||!d.values.length){lsSet('ezy_receipts',[]);return;}
 
-    // Detect format: new format has ID in col A (starts with 'r'), old format has date in col A
-    const isNewFormat = d.values[0] && d.values[0][0] && d.values[0][0].toString().startsWith('r');
+    // Mixed format support — detect row-by-row:
+    // OLD row: col A = date (YYYY-MM-DD or DD/MM/YYYY), col B = Vendor, col C = Item
+    // NEW row: col A = ID (long number/string, not a date), col B = date, col C = Vendor
+    function isDateVal(v){return /^\d{4}-\d{2}-\d{2}$/.test(v)||/^\d{2}\/\d{2}\/\d{4}$/.test(v);}
 
-    let receipts=[];
-    if(isNewFormat){
-      // New format: A=ID,B=Tarikh,C=Vendor,D=Jumlah,E=Akaun,F=Kategori,G=Cawangan,H=Staff,I=Email,J=Status,K=ApprovedBy,L=DriveLink,M=Nota
-      receipts=d.values.filter(row=>row[2]&&row[1]).map(row=>({
-        id:row[0]||'r_'+Date.now(),
-        date:row[1]||'',vendor:row[2]||'',
-        amount:parseFloat((row[3]||'').toString().replace(/,/g,''))||0,
-        account:row[4]||'101',category:row[5]||'',branch:row[6]||'',
-        uploadedBy:row[7]||'',uploadedEmail:row[8]||'',
-        status:row[9]||'Pending',approvedBy:row[10]||'',
-        driveLink:row[11]||'',nota:row[12]||'',
-        itemDetails:[] // loaded separately
-      }));
-    } else {
-      // Old format: A=Tarikh,B=Vendor,C=Item,D=Jumlah,E=Akaun,F=Kategori,G=Cawangan,H=Staff,I=Email,J=Status,K=ApprovedBy,L=DriveLink,M=Nota
-      const map={};
-      d.values.forEach(row=>{
-        const date=row[0]||'';const vendor=row[1]||'';
+    const oldMap={};
+    const newRows=[];
+    d.values.forEach(row=>{
+      const a=(row[0]||'').toString().trim();
+      if(!a) return;
+      if(isDateVal(a)){
+        // OLD format row
+        const date=a,vendor=(row[1]||'').trim();
         const amount=parseFloat((row[3]||'').toString().replace(/,/g,''))||0;
-        const uploadedEmail=row[8]||'';
-        if(!vendor||!date) return;
-        const key=`${date}__${vendor}__${uploadedEmail}`;
-        if(!map[key]){
-          map[key]={id:'r_'+key.replace(/[^a-z0-9]/gi,'_'),date,vendor,branch:row[6]||'',category:row[5]||'',amount:0,status:row[9]||'Pending',uploadedBy:row[7]||'',uploadedEmail,approvedBy:row[10]||'',driveLink:row[11]||'',nota:row[12]||'',itemDetails:[]};
+        const uploadedEmail=(row[8]||'').trim();
+        if(!vendor) return;
+        const key=`${date}__${vendor.toLowerCase()}__${uploadedEmail}`;
+        if(!oldMap[key]){
+          oldMap[key]={id:'r_'+key.replace(/[^a-z0-9]/gi,'_'),date,vendor,branch:row[6]||'',category:row[5]||'',amount:0,status:row[9]||'Pending',uploadedBy:row[7]||'',uploadedEmail,approvedBy:row[10]||'',driveLink:row[11]||'',nota:row[12]||'',itemDetails:[]};
         }
-        map[key].amount+=amount;
-        if(row[2]) map[key].itemDetails.push({name:row[2],price:amount,category:row[5]||''});
-      });
-      receipts=Object.values(map).filter(r=>r.vendor&&r.amount);
-    }
+        oldMap[key].amount+=amount;
+        if(row[2]) oldMap[key].itemDetails.push({name:row[2],price:amount,category:row[5]||''});
+      } else {
+        // NEW format row: A=ID, B=Tarikh, C=Vendor, D=Jumlah...
+        const vendor=(row[2]||'').trim(), date=(row[1]||'').trim();
+        if(!vendor||!date) return;
+        newRows.push({
+          id:a,date,vendor,
+          amount:parseFloat((row[3]||'').toString().replace(/,/g,''))||0,
+          account:row[4]||'101',category:row[5]||'',branch:row[6]||'',
+          uploadedBy:row[7]||'',uploadedEmail:row[8]||'',
+          status:row[9]||'Pending',approvedBy:row[10]||'',
+          driveLink:row[11]||'',nota:row[12]||'',
+          itemDetails:[]
+        });
+      }
+    });
+    let receipts=[...Object.values(oldMap).filter(r=>r.vendor&&r.amount),...newRows];
 
     // Load items from resit_items tab
     try{
