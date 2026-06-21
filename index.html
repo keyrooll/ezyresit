@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.48-2106/0900</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.49-2106/0905</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -2310,26 +2310,149 @@ function saveEditSupplier(originalName){
 // ACCOUNTANT DASHBOARD
 // =====================
 function renderAccountantDashboard(){
-  const receipts=getReceipts();
-  const pending=receipts.filter(r=>r.status==='Pending');
-  const approved=receipts.filter(r=>r.status==='Approved');
-  const totalApproved=approved.reduce((a,r)=>a+parseFloat(r.amount||0),0);
   const el=document.getElementById('dashboardContent');
-  let html='';
-  if(pending.length){
-    html+=`<div class="alert-banner alert-amber">${pending.length} resit menunggu kelulusan anda.</div>`;
-  }
-  html+=`<div class="kpi-grid">
-    <div class="kpi-card"><div class="kpi-label">Total Resit</div><div class="kpi-value">${receipts.length}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pending.length}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Approved</div><div class="kpi-value" style="color:var(--green)">${approved.length}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total Approved</div><div class="kpi-value" style="font-size:16px">${formatRM(totalApproved)}</div></div>
-  </div>
-  <div id="itemPriceAnalysis" class="card mb-12" style="margin-top:12px"></div>
-  <div class="card mb-12"><div class="card-title mb-8">Perbandingan Harga Hari Sama</div><div id="sameDateComparison"></div></div>`;
-  el.innerHTML=html;
+  const u=currentUser;
+  const profile=getUserProfile(u.email);
+  const nick=profile.nickname||u.given_name||'Akauntan';
+  const allReceipts=getReceipts();
+  const pending=allReceipts.filter(r=>r.status==='Pending');
+  el.innerHTML=`
+    ${pending.length?`<div class="alert-banner alert-amber" style="margin-bottom:12px">${pending.length} resit menunggu kelulusan anda.</div>`:'<div class="alert-banner alert-green" style="margin-bottom:16px">Selamat datang, ${nick}! EzyResit berjalan lancar.</div>'}
+    <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto">
+      ${['Hari Ini','Minggu','Bulan','Tahun'].map((p,i)=>`
+        <button onclick="setPeriodAcc('${p}',this)" class="btn btn-sm ${i===2?'btn-primary':'btn-secondary'}" id="accperiod-${p}" style="white-space:nowrap">${p}</button>`).join('')}
+    </div>
+    <div class="kpi-grid" id="accKpi"></div>
+    <div class="chart-wrap"><div class="chart-title">Trend Perbelanjaan</div><canvas id="chartTrendAcc" height="200"></canvas></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:8px;overflow:hidden">
+        <div style="font-size:10px;font-weight:600;color:var(--mid);margin-bottom:4px;text-align:center">CAWANGAN</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="position:relative;width:56px;height:56px;flex-shrink:0"><canvas id="chartBranchAcc"></canvas></div>
+          <div id="legendBranchAcc" style="flex:1;font-size:9px;line-height:1.6;overflow:hidden"></div>
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:8px;overflow:hidden">
+        <div style="font-size:10px;font-weight:600;color:var(--mid);margin-bottom:4px;text-align:center">KATEGORI</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="position:relative;width:56px;height:56px;flex-shrink:0"><canvas id="chartCatAcc"></canvas></div>
+          <div id="legendCatAcc" style="flex:1;font-size:9px;line-height:1.6;overflow:hidden"></div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrap"><div class="chart-title">Perbelanjaan Cawangan</div><canvas id="chartBarAcc" height="200"></canvas></div>
+    <div class="card mb-12" id="topSuppliersAcc"></div>
+    <div class="card mb-12" id="itemPriceAnalysis"></div>
+    <div class="card mb-12"><div class="card-title mb-8">Perbandingan Harga Hari Sama</div><div id="sameDateComparison"></div></div>
+    <div class="card"><div class="card-title mb-12">20 Transaksi Terbaru</div><div class="table-wrap" id="latestTxTableAcc"></div></div>
+  `;
+  setPeriodAcc('Bulan', document.getElementById('accperiod-Bulan'));
   renderItemPriceAnalysis();
   renderSameDateComparison('sameDateComparison');
+}
+
+function setPeriodAcc(period, btn){
+  document.querySelectorAll('[id^="accperiod-"]').forEach(b=>{b.className='btn btn-sm btn-secondary';b.style.whiteSpace='nowrap';});
+  if(btn){btn.className='btn btn-sm btn-primary';btn.style.whiteSpace='nowrap';}
+  const now=new Date();
+  let startDate=new Date(0);
+  if(period==='Hari Ini'){startDate=new Date(now.toDateString());}
+  else if(period==='Minggu'){startDate=new Date(now);startDate.setDate(now.getDate()-7);}
+  else if(period==='Bulan'){startDate=new Date(now.getFullYear(),now.getMonth(),1);}
+  else if(period==='Tahun'){startDate=new Date(now.getFullYear(),0,1);}
+  const allReceipts=getReceipts();
+  const receipts=allReceipts.filter(r=>new Date(r.uploadedAt||r.date)>=startDate);
+  // KPI
+  const accKpi=document.getElementById('accKpi');
+  if(accKpi){
+    const pending=receipts.filter(r=>r.status==='Pending');
+    const approved=receipts.filter(r=>r.status==='Approved'||r.status==='Paid');
+    const total=receipts.reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    const totalApproved=approved.reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    accKpi.innerHTML=`
+      <div class="kpi-card"><div class="kpi-label">Jumlah Resit</div><div class="kpi-value">${receipts.length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pending.length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Diluluskan</div><div class="kpi-value" style="color:var(--green)">${approved.length}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Jumlah (RM)</div><div class="kpi-value" style="font-size:14px">${formatRM(total)}</div></div>`;
+  }
+  // Reuse admin chart functions with acc-suffixed canvas IDs
+  updateChartsAcc(receipts);
+  updateTopSuppliersAcc(receipts);
+  updateLatestTxAcc(allReceipts.slice(-20).reverse());
+}
+
+function updateChartsAcc(receipts){
+  const COLORS=['#16a34a','#f59e0b','#3b82f6','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899'];
+  // Trend chart
+  const trendEl=document.getElementById('chartTrendAcc');
+  if(trendEl){
+    if(trendEl._chartInst) trendEl._chartInst.destroy();
+    const byDate={};
+    receipts.forEach(r=>{const d=r.date||'';if(d) byDate[d]=(byDate[d]||0)+parseFloat(r.amount||0);});
+    const labels=Object.keys(byDate).sort();
+    const data=labels.map(d=>byDate[d]);
+    trendEl._chartInst=new Chart(trendEl,{type:'line',data:{labels:labels.map(fmtDate),datasets:[{label:'RM',data,borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.08)',fill:true,tension:0.3,pointRadius:3}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'RM'+v.toLocaleString()}}}}});
+  }
+  // Branch donut
+  const brEl=document.getElementById('chartBranchAcc');
+  if(brEl){
+    if(brEl._chartInst) brEl._chartInst.destroy();
+    const byBranch={};
+    receipts.forEach(r=>{const b=r.branch||'Lain';byBranch[b]=(byBranch[b]||0)+parseFloat(r.amount||0);});
+    const labels=Object.keys(byBranch);
+    brEl._chartInst=new Chart(brEl,{type:'doughnut',data:{labels,datasets:[{data:labels.map(l=>byBranch[l]),backgroundColor:COLORS}]},options:{plugins:{legend:{display:false}},cutout:'65%'}});
+    const leg=document.getElementById('legendBranchAcc');
+    if(leg) leg.innerHTML=labels.map((l,i)=>`<div style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:50%;background:${COLORS[i%COLORS.length]};flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l}</span></div>`).join('');
+  }
+  // Category donut
+  const catEl=document.getElementById('chartCatAcc');
+  if(catEl){
+    if(catEl._chartInst) catEl._chartInst.destroy();
+    const byCat={};
+    receipts.forEach(r=>{const c=r.category||'Lain';byCat[c]=(byCat[c]||0)+parseFloat(r.amount||0);});
+    const labels=Object.keys(byCat);
+    catEl._chartInst=new Chart(catEl,{type:'doughnut',data:{labels,datasets:[{data:labels.map(l=>byCat[l]),backgroundColor:COLORS}]},options:{plugins:{legend:{display:false}},cutout:'65%'}});
+    const leg=document.getElementById('legendCatAcc');
+    if(leg) leg.innerHTML=labels.map((l,i)=>`<div style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:50%;background:${COLORS[i%COLORS.length]};flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l}</span></div>`).join('');
+  }
+  // Bar chart by branch
+  const barEl=document.getElementById('chartBarAcc');
+  if(barEl){
+    if(barEl._chartInst) barEl._chartInst.destroy();
+    const byBranch={};
+    receipts.forEach(r=>{const b=r.branch||'Lain';byBranch[b]=(byBranch[b]||0)+parseFloat(r.amount||0);});
+    const labels=Object.keys(byBranch);
+    barEl._chartInst=new Chart(barEl,{type:'bar',data:{labels,datasets:[{label:'RM',data:labels.map(l=>byBranch[l]),backgroundColor:COLORS}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'RM'+v.toLocaleString()}}}}});
+  }
+}
+
+function updateTopSuppliersAcc(receipts){
+  const el=document.getElementById('topSuppliersAcc');if(!el) return;
+  const bySupplier={};
+  receipts.forEach(r=>{if(r.vendor){bySupplier[r.vendor]=(bySupplier[r.vendor]||0)+parseFloat(r.amount||0);}});
+  const sorted=Object.entries(bySupplier).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  if(!sorted.length){el.innerHTML='';return;}
+  const max=sorted[0][1];
+  el.innerHTML=`<div class="card-title mb-8">🏆 Top Supplier</div>`+sorted.map(([name,total],i)=>`
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span>${i+1}. ${name}</span><strong>${formatRM(total)}</strong>
+      </div>
+      <div style="background:var(--border);border-radius:4px;height:5px">
+        <div style="background:var(--green);width:${Math.round((total/max)*100)}%;height:5px;border-radius:4px"></div>
+      </div>
+    </div>`).join('');
+}
+
+function updateLatestTxAcc(receipts){
+  const el=document.getElementById('latestTxTableAcc');if(!el) return;
+  if(!receipts.length){el.innerHTML='<div style="font-size:13px;color:var(--mid);padding:8px">Tiada transaksi</div>';return;}
+  el.innerHTML=`<table class="data-table"><thead><tr><th>Tarikh</th><th>Vendor</th><th>Cawangan</th><th>RM</th><th>Status</th></tr></thead>
+    <tbody>${receipts.map(r=>`<tr>
+      <td>${fmtDate(r.date)}</td><td>${r.vendor}</td><td>${r.branch||'-'}</td>
+      <td>${formatRM(parseFloat(r.amount||0))}</td>
+      <td><span class="status-badge status-${(r.status||'').toLowerCase()}">${r.status}</span></td>
+    </tr>`).join('')}</tbody></table>`;
 }
 
 // =====================
@@ -2645,7 +2768,7 @@ function renderAdminDashboard(){
     <div class="card mb-12" id="staffActivity"></div>
     <div class="card mb-12" id="itemPriceAnalysis"></div>
     <div class="card mb-12"><div class="card-title mb-8">Perbandingan Harga Hari Sama</div><div id="sameDateComparisonAdmin"></div></div>
-    <div class="card"><div class="card-title mb-12">10 Transaksi Terbaru</div><div class="table-wrap" id="latestTxTable"></div></div>
+    <div class="card"><div class="card-title mb-12">20 Transaksi Terbaru</div><div class="table-wrap" id="latestTxTable"></div></div>
   `;
   setPeriod('Bulan',document.getElementById('period-Bulan'));
   renderSameDateComparison('sameDateComparisonAdmin');
@@ -2666,7 +2789,7 @@ function setPeriod(period, btn){
   updateCharts(receipts);
   updateTopSuppliers(receipts);
   updateStaffActivity(receipts);
-  updateLatestTx(allReceipts.slice(-10).reverse());
+  updateLatestTx(allReceipts.slice(-20).reverse());
   renderItemPriceAnalysis();
 }
 
