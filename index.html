@@ -204,16 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.55-2206/1936</div>
-</div>
-
-<!-- COMPANY PICKER SCREEN -->
-<div id="companyPickerScreen" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px;background:#f9fafb">
-  <img src="logo.png" style="width:80px;height:auto;margin-bottom:16px;border-radius:12px">
-  <div style="font-size:22px;font-weight:800;color:#111827;margin-bottom:6px">Pilih Syarikat</div>
-  <div id="companyPickerUser" style="font-size:13px;color:#6b7280;margin-bottom:28px"></div>
-  <div id="companyPickerList" style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px"></div>
-  <button onclick="logoutUser()" style="margin-top:28px;font-size:13px;color:#6b7280;background:none;border:none;cursor:pointer;text-decoration:underline">Keluar</button>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.56-2206/2133</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -565,59 +556,12 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
 // CONSTANTS
 // =====================
 const CLIENT_ID = '27154479564-ufljm52nmlh4gg7ie54knphff44jvrrq.apps.googleusercontent.com';
+const SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
 const DRIVE_FOLDER_NAME = 'EzyResit Receipts';
 const DRIVE_ROOT_FOLDER_ID = '1GmJWOikquZb-As-XdJAYgZao_EXQcfY-';
+const SKU_SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
 const SUPER_ADMIN = 'keyrooll@gmail.com';
 const ACCOUNTANTS = [];
-const SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
-const SKU_SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
-
-// =====================
-// MULTI-COMPANY CONFIG
-// Edit ini untuk tambah/ubah syarikat. sheetId = Google Sheet ID syarikat.
-// =====================
-const DEFAULT_COMPANIES = [
-  {id:'co1',name:'Syarikat A',color:'#1a7a4a',sheetId:'1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8',branches:['Cawangan 1','Cawangan 2']},
-  {id:'co2',name:'Syarikat B',color:'#3b82f6',sheetId:'SHEET_ID_SYARIKAT_B_SINI',branches:['Cawangan 1']},
-  {id:'co3',name:'Syarikat C',color:'#8b5cf6',sheetId:'SHEET_ID_SYARIKAT_C_SINI',branches:['Cawangan 1']},
-  {id:'co4',name:'Syarikat D',color:'#ef4444',sheetId:'SHEET_ID_SYARIKAT_D_SINI',branches:['Cawangan 1']},
-];
-
-// Keys yang GLOBAL (tidak dinamespackan per-company)
-const GLOBAL_LS_KEYS = new Set(['ezy_token','ezy_token_expiry','ezy_kekal','ezy_user','ezy_openai_key','ezy_companies_config','ezy_user_companies']);
-
-function getCompanies(){
-  const saved=localStorage.getItem('ezy_companies_config');
-  return saved?JSON.parse(saved):DEFAULT_COMPANIES;
-}
-function saveCompanies(list){localStorage.setItem('ezy_companies_config',JSON.stringify(list));}
-
-function getActiveSheetId(){return currentCompany?currentCompany.sheetId:(getCompanies()[0]?.sheetId||'');}
-
-// Prefix localStorage key dengan company ID untuk asingkan data
-function cKey(k){
-  if(GLOBAL_LS_KEYS.has(k)||!currentCompany) return k;
-  return currentCompany.id+'_'+k;
-}
-
-// User-company assignment: {email: ['co1','co2',...]}
-function getUserCompanies(){
-  const saved=localStorage.getItem('ezy_user_companies');
-  return saved?JSON.parse(saved):{};
-}
-function saveUserCompanies(map){localStorage.setItem('ezy_user_companies',JSON.stringify(map));}
-function getUserAllowedCompanies(email){
-  if(email===SUPER_ADMIN) return getCompanies(); // super_admin akses semua
-  const map=getUserCompanies();
-  const ids=map[email]||[];
-  if(!ids.length){
-    // Default: company pertama sahaja
-    const cos=getCompanies();
-    return cos.length?[cos[0]]:[];
-  }
-  return getCompanies().filter(c=>ids.includes(c.id));
-}
-
 const BRANCHES = ['Batu Caves','Shah Alam','Bangi Cafe','Bangi Durian','Putrajaya','TTDI','Bakery','Central Kitchen'];
 const CATEGORIES = ['COGS','UTILITIES','RENTAL','RENOVATION','MARKETING','TRANSPORTATION','GAS','MANAGEMENT','OTHERS'];
 const CAT_EMOJI = {COGS:'🛒',UTILITIES:'💡',RENTAL:'🏠',RENOVATION:'🔨',MARKETING:'📣',TRANSPORTATION:'🚗',GAS:'🔥',MANAGEMENT:'📋',OTHERS:'📦'};
@@ -651,7 +595,6 @@ let currentToken = null;
 let accessToken = null;
 let tokenClient = null;
 let currentRole = null;
-let currentCompany = null;
 let currentStep = 1;
 let uploadedImage = null; // base64
 let selectedVendor = null;
@@ -664,8 +607,8 @@ let charts = {};
 // STORAGE HELPERS
 // =====================
 function getApiKey(){return lsGet('ezy_openai_key','');}
-function lsGet(k, def=null){try{const v=localStorage.getItem(cKey(k));return v?JSON.parse(v):def}catch{return def}}
-function lsSet(k,v){localStorage.setItem(cKey(k),JSON.stringify(v))}
+function lsGet(k, def=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def}}
+function lsSet(k,v){localStorage.setItem(k,JSON.stringify(v))}
 function formatRM(val){
   const n=parseFloat(val)||0;
   const str='RM '+Math.abs(n).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1397,7 +1340,7 @@ async function analyzeWithAI(){
   try{
     const base64=uploadedImage.split(',')[1];
     const body={
-      model:'gpt-4o',max_tokens:600,temperature:0.1,
+      model:'gpt-4o',max_tokens:1500,temperature:0.1,
       messages:[{role:'user',content:[
         {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+base64,detail:'high'}},
         {type:'text',text:'You are a receipt OCR assistant. Analyze this receipt image carefully. Return ONLY valid JSON, no markdown: {"date":"YYYY-MM-DD","vendor":"string","vendor_confidence":"high","amount":0.00,"items":[{"name":"string","qty":1,"price":0.00,"category":"COGS","account_code":"101"}]}. Categories: COGS,UTILITIES,RENTAL,RENOVATION,MARKETING,TRANSPORTATION,GAS,MANAGEMENT,OTHERS. If unclear use OTHERS/101.'}
