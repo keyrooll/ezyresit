@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.50-2206/0139</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.52-2206/1912</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -1361,12 +1361,19 @@ async function analyzeWithAI(){
     const text=d.choices[0].message.content;
     let json;
     try{
-      const cleaned=text.replace(/```json[\n]?|[\n]?```/g,'').trim();
+      // Clean markdown fences, trailing commas before ] or }, control chars
+      let cleaned=text.replace(/```json[\n]?|[\n]?```/g,'').trim();
+      cleaned=cleaned.replace(/,(\s*[\]\}])/g,'$1'); // remove trailing commas
+      cleaned=cleaned.replace(/[ -]/g,' '); // strip control chars
       json=JSON.parse(cleaned);
     }catch(e2){
+      // Try extracting just the JSON object
       const match=text.match(/\{[\s\S]*\}/);
-      if(match) json=JSON.parse(match[0]);
-      else throw new Error('Cannot parse AI: '+text.substring(0,100));
+      if(match){
+        let m=match[0].replace(/,(\s*[\]\}])/g,'$1').replace(/[ -]/g,' ');
+        try{json=JSON.parse(m);}
+        catch(e3){throw new Error('Cannot parse AI response: '+text.substring(0,150));}
+      } else throw new Error('Cannot parse AI: '+text.substring(0,100));
     }
     document.getElementById('aiVendorName').textContent=json.vendor||'-';
     const conf=json.vendor_confidence==='high';
@@ -4124,18 +4131,31 @@ async function loadReceiptsFromSheet(){
     });
     let receipts=[...Object.values(oldMap).filter(r=>r.vendor&&r.amount),...newRows];
 
-    // Load items from resit_items tab
+    // Load items from resit_items tab (auto-create if missing)
     try{
       const ri=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A2:G`,{headers:{Authorization:'Bearer '+tok}});
-      const rid=await ri.json();
-      if(rid.values&&rid.values.length){
-        const itemMap={};
-        rid.values.forEach(row=>{
-          const rid2=row[0];if(!rid2) return;
-          if(!itemMap[rid2]) itemMap[rid2]=[];
-          itemMap[rid2].push({name:row[1]||'',code:row[2]||'',qty:parseFloat(row[3])||1,price:parseFloat(row[4])||0,lineTotal:parseFloat(row[5])||0,category:row[6]||''});
+      if(ri.status===400||ri.status===404){
+        // Tab doesn't exist — create it with header
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+          method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+          body:JSON.stringify({requests:[{addSheet:{properties:{title:'resit_items'}}}]})
         });
-        receipts.forEach(r=>{if(itemMap[r.id]) r.itemDetails=itemMap[r.id];});
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1:G1?valueInputOption=USER_ENTERED`,{
+          method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+          body:JSON.stringify({values:[['ResitID','Item','Kod','Qty','Harga','LineTotal','Kategori']]})
+        });
+        console.log('resit_items tab created');
+      } else {
+        const rid=await ri.json();
+        if(rid.values&&rid.values.length){
+          const itemMap={};
+          rid.values.forEach(row=>{
+            const rid2=row[0];if(!rid2) return;
+            if(!itemMap[rid2]) itemMap[rid2]=[];
+            itemMap[rid2].push({name:row[1]||'',code:row[2]||'',qty:parseFloat(row[3])||1,price:parseFloat(row[4])||0,lineTotal:parseFloat(row[5])||0,category:row[6]||''});
+          });
+          receipts.forEach(r=>{if(itemMap[r.id]) r.itemDetails=itemMap[r.id];});
+        }
       }
     }catch(e){console.warn('resit_items load skip:',e);}
 
