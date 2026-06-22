@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.54-2206/1926</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.55-2206/1936</div>
 </div>
 
 <!-- COMPANY PICKER SCREEN -->
@@ -1417,19 +1417,54 @@ async function analyzeWithAI(){
     }
     const text=d.choices[0].message.content;
     let json;
+    function cleanJson(s){
+      // Remove markdown fences
+      s=s.replace(/```json[\n]?|[\n]?```/g,'').trim();
+      // Remove trailing commas before ] or }
+      s=s.replace(/,(\s*[\]\}])/g,'$1');
+      return s;
+    }
+    function extractFields(s){
+      // Extract fields via regex as fallback for truncated JSON
+      const j={};
+      const d=s.match(/"date"\s*:\s*"([^"]+)"/);if(d) j.date=d[1];
+      const v=s.match(/"vendor"\s*:\s*"([^"]+)"/);if(v) j.vendor=v[1];
+      const vc=s.match(/"vendor_confidence"\s*:\s*"([^"]+)"/);if(vc) j.vendor_confidence=vc[1];
+      const a=s.match(/"amount"\s*:\s*([\d.]+)/);if(a) j.amount=parseFloat(a[1]);
+      // Try to extract partial items array
+      const itemsMatch=s.match(/"items"\s*:\s*\[([\s\S]*)/);
+      if(itemsMatch){
+        try{
+          // Close the truncated JSON and try to parse items
+          let partial='['+itemsMatch[1];
+          // Remove last incomplete item
+          partial=partial.replace(/,?\s*\{[^}]*$/,'').replace(/,\s*$/,'')+']';
+          j.items=JSON.parse(partial);
+        }catch(e){j.items=[];}
+      }
+      return j;
+    }
     try{
-      // Clean markdown fences, trailing commas before ] or }, control chars
-      let cleaned=text.replace(/```json[\n]?|[\n]?```/g,'').trim();
-      cleaned=cleaned.replace(/,(\s*[\]\}])/g,'$1'); // remove trailing commas
-      json=JSON.parse(cleaned);
+      let cleaned=cleanJson(text);
+      try{json=JSON.parse(cleaned);}
+      catch(e2){
+        // Try extracting the JSON block
+        const match=text.match(/\{[\s\S]*\}/);
+        if(match){
+          try{json=JSON.parse(cleanJson(match[0]));}
+          catch(e3){
+            // Truncated JSON — extract fields manually
+            json=extractFields(text);
+            if(!json.vendor&&!json.amount) throw new Error('Cannot parse AI response');
+            showToast('AI response separa — semak item manual ⚠️');
+          }
+        } else {
+          json=extractFields(text);
+          if(!json.vendor&&!json.amount) throw new Error('Cannot parse AI response');
+        }
+      }
     }catch(e2){
-      // Try extracting just the JSON object
-      const match=text.match(/\{[\s\S]*\}/);
-      if(match){
-        let m=match[0].replace(/,(\s*[\]\}])/g,'$1');
-        try{json=JSON.parse(m);}
-        catch(e3){throw new Error('Cannot parse AI response: '+text.substring(0,150));}
-      } else throw new Error('Cannot parse AI: '+text.substring(0,100));
+      throw new Error('Cannot parse AI response: '+text.substring(0,150));
     }
     document.getElementById('aiVendorName').textContent=json.vendor||'-';
     const conf=json.vendor_confidence==='high';
