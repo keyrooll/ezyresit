@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.56-2206/2133</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.57-2306/0001</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -1330,13 +1330,6 @@ async function stepTwoInit(){
 }
 
 async function analyzeWithAI(){
-  const key=lsGet('ezy_openai_key','');
-  if(!key){
-    document.getElementById('aiLoadingRow').style.display='none';
-    document.getElementById('apiKeyInput').value='';
-    openModal('apiKeyModal');
-    return;
-  }
   try{
     const base64=uploadedImage.split(',')[1];
     const body={
@@ -1348,7 +1341,7 @@ async function analyzeWithAI(){
     };
     const r=await fetch('https://ezyresit.keyrooll.workers.dev/',{
       method:'POST',
-      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify(body)
     });
     const d=await r.json();
