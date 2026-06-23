@@ -10,7 +10,7 @@
 <title>EzyResit Receipt System</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer onload="typeof onGISLoaded==='function'&&onGISLoaded()"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.58-2306/1045</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.59-2306/1340</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -1503,7 +1503,7 @@ function renderStaffScreen(){
       const brLabel=staffBr.length===BRANCHES.length?'Semua cawangan':staffBr.slice(0,2).join(', ')+(staffBr.length>2?' +'+(staffBr.length-2):'');
       return `<div class="card mb-8" style="padding:14px">
         <div style="display:flex;align-items:center;gap:12px">
-          ${u.picture?`<img src="${u.picture}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`:`<div style="width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--primary)">${(p.fullname||u.name||u.email).charAt(0).toUpperCase()}</div>`}
+          ${u.picture?`<img src="${u.picture||''}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`:`<div style="width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--primary)">${(p.fullname||u.name||u.email).charAt(0).toUpperCase()}</div>`}
           <div style="flex:1;min-width:0">
             <div style="font-size:14px;font-weight:600">${p.fullname||u.name||u.email}</div>
             <div style="font-size:11px;color:var(--mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
