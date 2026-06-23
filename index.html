@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.59-2306/1340</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.60-2306/2110</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -524,8 +524,16 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
 </div>
 
 
-`).join('');
-  }
+<script>
+function renderStaffResit(){
+  const u=currentUser;if(!u) return;
+  const el=document.getElementById('staffResitContent');if(!el) return;
+  const all=getReceipts();
+  const mine=all.filter(r=>r.uploadedEmail===u.email).slice().reverse();
+  const last10=all.slice().reverse().slice(0,20);
+  let html='';
+  if(!mine.length){html='<div class="empty-state"><div class="empty-icon">🧾</div><div>Tiada resit lagi</div></div>';}
+  else{html+=mine.map(r=>renderReceiptCard(r,'All')).join('');}
   html+=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin:12px 0 8px">10 TRANSAKSI TERBARU (SEMUA STAFF)</div>`;
   if(!last10.length){html+='<div class="empty-state"><div class="empty-icon">📋</div><div>Tiada resit</div></div>';}
   else{
