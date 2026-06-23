@@ -10,7 +10,7 @@
 <title>EzyResit Receipt System</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer onload="typeof onGISLoaded==='function'&&onGISLoaded()"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.61-2306/2128</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.48-2106/0900</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -493,7 +493,13 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
       <input class="form-input" id="profileEmail" disabled>
     </div>
         <div class="form-group" style="border-top:1px solid var(--border);margin-top:8px;padding-top:16px">
-      
+      <label class="form-label">OpenAI API Key</label>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="profileApiKey" type="password" placeholder="sk-proj-..." style="flex:1" autocomplete="off">
+        <button class="btn btn-secondary" style="white-space:nowrap;padding:0 14px" onclick="saveProfileApiKey()">Simpan</button>
+      </div>
+      <div style="font-size:11px;color:var(--mid);margin-top:4px">Kosongkan untuk kekalkan key semasa</div>
+    </div>
     <button class="btn btn-primary btn-block" onclick="saveProfile()">Simpan</button>
     <div id="backupRestoreSection" style="border-top:1px solid var(--border);margin-top:16px;padding-top:16px">
       <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:10px">BACKUP & RESTORE</div>
@@ -517,196 +523,508 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
     <div class="modal-handle"></div>
     <div class="modal-title">Tetapan</div>
     <div class="form-group">
-      
+      <label class="form-label">OpenAI API Key</label>
+      <input class="form-input" id="openaiKeyInput" type="password" placeholder="sk-...">
+      <div style="font-size:11px;color:var(--mid);margin-top:4px">Key disimpan dalam peranti sahaja. Tidak dikongsi.</div>
+    </div>
     <button class="btn btn-primary btn-block" onclick="saveSettings()">Simpan</button>
     <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="closeModal('settingsModal')">Batal</button>
   </div>
 </div>
 
 
+<!-- API Key Setup Modal -->
+<div class="modal-overlay" id="apiKeyModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:32px;margin-bottom:8px">🔑</div>
+      <div class="modal-title" style="margin-bottom:4px">OpenAI API Key</div>
+      <div style="font-size:13px;color:var(--mid)">Masukkan key untuk aktifkan AI detect resit.<br>Disimpan dalam peranti ini sahaja.</div>
+    </div>
+    <div class="form-group">
+      <input class="form-input" id="apiKeyInput" type="password" placeholder="sk-proj-..." autocomplete="off">
+    </div>
+    <div style="font-size:11px;color:var(--mid);margin-bottom:16px">Dapatkan key di <strong>platform.openai.com</strong> → API Keys</div>
+    <button class="btn btn-primary btn-block" onclick="saveApiKey()">Simpan & Teruskan</button>
+    <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="closeModal('apiKeyModal')">Nanti Dulu</button>
+  </div>
+</div>
+
 <script>
 // =====================
 // CONSTANTS
 // =====================
 const CLIENT_ID = '27154479564-ufljm52nmlh4gg7ie54knphff44jvrrq.apps.googleusercontent.com';
+const SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
 const DRIVE_FOLDER_NAME = 'EzyResit Receipts';
-const DRIVE_ROOT_FOLDER_ID = '1GmJWOikquZb-As-XdJAYgZao_EXQcfY-';
+const DRIVE_ROOT_FOLDER_ID = '1GmJWOikquZb-As-XdJAYgZao_EXQcfY-'; // ezyresit shared folder
+const SKU_SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8'; // same spreadsheet, tab List SKU
 const SUPER_ADMIN = 'keyrooll@gmail.com';
 const ACCOUNTANTS = [];
-const SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
-const SKU_SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
-
-const ACCOUNT_CODES=[
-  {code:'101',name:'Cash'},
-  {code:'102',name:'Bank'},
-  {code:'201',name:'Accounts Payable'},
-  {code:'301',name:'Sales'},
-  {code:'401',name:'COGS'},
-  {code:'501',name:'Operating Expenses'},
+const BRANCHES = ['Batu Caves','Shah Alam','Bangi Cafe','Bangi Durian','Putrajaya','TTDI','Bakery','Central Kitchen'];
+const CATEGORIES = ['COGS','UTILITIES','RENTAL','RENOVATION','MARKETING','TRANSPORTATION','GAS','MANAGEMENT','OTHERS'];
+const CAT_EMOJI = {COGS:'🛒',UTILITIES:'💡',RENTAL:'🏠',RENOVATION:'🔨',MARKETING:'📣',TRANSPORTATION:'🚗',GAS:'🔥',MANAGEMENT:'📋',OTHERS:'📦'};
+const ACCOUNT_CODES = [
+  {code:'101',name:'SUPPLIER'},{code:'102',name:'PURCHASE'},{code:'103',name:'REFUND'},
+  {code:'106',name:'SERVICE CHARGES'},{code:'108',name:'OTHER MONEY OUT'},{code:'202',name:'MARKETING'},
+  {code:'301',name:'TRANSPORTATION'},{code:'402',name:'UPKEEP STORE'},{code:'403',name:'RENOVATION'},
+  {code:'501',name:'RENTAL'},{code:'502',name:'WATER'},{code:'503',name:'INTERNET'},
+  {code:'504',name:'TNB'},{code:'505',name:'PHONE'},{code:'506',name:'GAS'},
+  {code:'601',name:'STAFF SALARY'},{code:'602',name:'ALLOWANCE'},{code:'603',name:'KWSP'},
+  {code:'609',name:'STAFF REFRESHMENT'},{code:'701',name:'BANK CHARGES'},{code:'702',name:'GENERAL EXPENSES'}
 ];
-
-const CAT_EMOJI={
-  'COGS':'🛒','UTILITIES':'💡','RENTAL':'🏠','RENOVATION':'🔨',
-  'MARKETING':'📣','TRANSPORTATION':'🚗','GAS':'⛽','MANAGEMENT':'👔',
-  'OTHERS':'📦'
-};
-
-const DEFAULT_COMPANIES=[
-  {id:'co1',name:'EzyDurian',color:'#1a7a4a',sheetId:'1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8',branches:['Batu Caves','Shah Alam','Ampang','Cheras','Kepong','Setapak','Puchong','Damansara']},
+const BRANCH_COLORS = ['#1a7a4a','#2d9e62','#f59e0b','#3b82f6','#8b5cf6','#ef4444','#ec4899','#14b8a6'];
+const CAT_COLORS = {'COGS':'#1a7a4a','UTILITIES':'#f59e0b','RENTAL':'#3b82f6','RENOVATION':'#8b5cf6','MARKETING':'#ec4899','TRANSPORTATION':'#6b7280','GAS':'#ef4444','MANAGEMENT':'#14b8a6','OTHERS':'#d97706'};
+const DEFAULT_SUPPLIERS = [
+  {id:'s1',name:'Mydin',category:'COGS',account:'101',count:5,addedAt:new Date().toISOString()},
+  {id:'s2',name:'Giant',category:'COGS',account:'101',count:3,addedAt:new Date().toISOString()},
+  {id:'s3',name:'TNB',category:'UTILITIES',account:'504',count:8,addedAt:new Date().toISOString()},
+  {id:'s4',name:'Air Selangor',category:'UTILITIES',account:'502',count:4,addedAt:new Date().toISOString()},
+  {id:'s5',name:'Petronas',category:'GAS',account:'506',count:6,addedAt:new Date().toISOString()},
+  {id:'s6',name:'MR DIY',category:'RENOVATION',account:'402',count:2,addedAt:new Date().toISOString()},
+  {id:'s7',name:'Shopee',category:'OTHERS',account:'702',count:3,addedAt:new Date().toISOString()},
+  {id:'s8',name:'Sri Ternak',category:'COGS',account:'101',count:12,addedAt:new Date().toISOString()}
 ];
 
 // =====================
 // STATE
 // =====================
-let currentUser=null;
-let currentRole=null;
-let currentToken=null;
-let accessToken=null;
-let tokenClient=null;
-let gisReady=false;
-let uploadedImage=null;
-let currentVendor=null;
-let activeResitTab='Pending';
-let wizardStep=1;
+let currentUser = null;
+let currentToken = null;
+let accessToken = null;
+let tokenClient = null;
+let currentRole = null;
+let currentStep = 1;
+let uploadedImage = null; // base64
+let selectedVendor = null;
+let wizardItems = [];
+let activeTab = '';
+let activeResitTab = 'Pending';
+let charts = {};
 
 // =====================
 // STORAGE HELPERS
 // =====================
-function lsGet(k,def=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def}}
+function getApiKey(){return lsGet('ezy_openai_key','');}
+function lsGet(k, def=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def}}
 function lsSet(k,v){localStorage.setItem(k,JSON.stringify(v))}
-function formatRM(val){const n=parseFloat(val)||0;return 'RM '+n.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function fmtDate(d){if(!d)return '-';const dt=new Date(d);if(isNaN(dt))return d;return dt.toLocaleDateString('ms-MY',{day:'2-digit',month:'2-digit',year:'2-digit'});}
-function getValidToken(){return accessToken||currentToken||null;}
-function getReceipts(){return lsGet('ezy_receipts',[])}
-function setReceipts(r){lsSet('ezy_receipts',r)}
-function getSuppliers(){let s=lsGet('ezy_suppliers',null);if(!s){s=DEFAULT_COMPANIES[0]?[]:[]}return Array.isArray(s)?s:[];}
-function setSuppliers(s){lsSet('ezy_suppliers',s)}
-function getCompanies(){return lsGet('ezy_companies',DEFAULT_COMPANIES)}
-function getRegisteredUsers(){return lsGet('ezy_registered_users',[])}
-function setRegisteredUsers(u){lsSet('ezy_registered_users',u)}
-function getStaffProfiles(){return lsGet('ezy_staff_profiles',{})}
-function lsGetPayments(){return JSON.parse(localStorage.getItem('payments')||'[]');}
-function lsSetPayments(p){localStorage.setItem('payments',JSON.stringify(p));syncPaymentsToSheet().catch(e=>console.warn('Payment sync failed',e));}
-function getUserProfile(email){return lsGet('ezy_user_profile_'+email,{})}
-function setUserProfile(email,p){lsSet('ezy_user_profile_'+email,p)}
-
-function showToast(msg,duration=3000){
-  let t=document.getElementById('toast');
-  if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center';document.body.appendChild(t);}
-  clearTimeout(t._timer);t.textContent=msg;t.style.opacity='1';
+function formatRM(val){
+  const n=parseFloat(val)||0;
+  const str='RM '+Math.abs(n).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return n<0?`<span style="color:var(--red)">${str}</span>`:str;
+}
+function fmtDate(d){
+  if(!d) return '-';
+  // Accepts YYYY-MM-DD or DD/MM/YY or DD/MM/YYYY
+  const s=String(d).trim();
+  if(s.includes('-')){const p=s.split('-');if(p.length===3)return p[2].slice(-2)+'/'+p[1]+'/'+p[0].slice(2);}
+  if(s.includes('/')){const p=s.split('/');if(p.length===3)return p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2].slice(-2);}
+  return s;
+}
+function showModal(title,bodyHtml){
+  let m=document.getElementById('genericModal');
+  if(!m){
+    m=document.createElement('div');
+    m.id='genericModal';
+    m.className='modal-overlay';
+    m.innerHTML=`<div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div id="genericModalTitle" style="font-size:16px;font-weight:700"></div>
+        <button onclick="hideModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--mid)">×</button>
+      </div>
+      <div id="genericModalBody"></div>
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click',function(e){if(e.target===m)hideModal();});
+  }
+  document.getElementById('genericModalTitle').textContent=title;
+  document.getElementById('genericModalBody').innerHTML=bodyHtml;
+  m.classList.add('open');
+}
+function hideModal(){
+  const m=document.getElementById('genericModal');
+  if(m) m.classList.remove('open');
+}
+function showToast(msg,duration=2500){
+  let t=document.getElementById('toastMsg');
+  if(!t){
+    t=document.createElement('div');
+    t.id='toastMsg';
+    t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:300px;text-align:center';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.opacity='1';
+  clearTimeout(t._timer);
   t._timer=setTimeout(()=>{t.style.opacity='0';},duration);
 }
+
+function getReceipts(){return lsGet('ezy_receipts',[])}
+function setReceipts(r){lsSet('ezy_receipts',r)}
+function getSuppliers(){
+  let s=lsGet('ezy_suppliers',null);
+  if(!s){s=DEFAULT_SUPPLIERS;lsSet('ezy_suppliers',s)}
+  // Filter out corrupt entries (no name, or name is pure number)
+  return s.filter(x=>x.name&&x.name.trim()&&!/^\d+$/.test(x.name.trim()));
+}
+function setSuppliers(s){lsSet('ezy_suppliers',s);syncSuppliersToSheet().catch(e=>console.warn('Supplier sync failed',e));}
+// =====================
+// ITEM REGISTRY
+// =====================
+function getItemRegistry(){return lsGet('ezy_item_registry',{})}
+function setItemRegistry(r){lsSet('ezy_item_registry',r)}
+
+function getOrCreateItemCode(name){
+  const reg=getItemRegistry();
+  const key=name.toLowerCase().trim();
+  // Find existing
+  for(const code in reg){
+    if(reg[code].names.some(n=>n.toLowerCase()===key)) return code;
+  }
+  // Create new code
+  const count=Object.keys(reg).length+1;
+  const code='ITM-'+String(count).padStart(3,'0');
+  reg[code]={names:[name.trim()],createdAt:new Date().toISOString()};
+  setItemRegistry(reg);
+  return code;
+}
+
+function getPriceHistory(itemCode,vendorName){
+  const receipts=getReceipts();
+  const prices=[];
+  receipts.forEach(r=>{
+    if(r.itemDetails){
+      r.itemDetails.forEach(it=>{
+        if(it.code===itemCode&&(!vendorName||r.vendor===vendorName)){
+          prices.push({price:parseFloat(it.price)||0,date:r.date,vendor:r.vendor});
+        }
+      });
+    }
+  });
+  return prices;
+}
+
+function getPriceComparison(itemCode,currentPrice,vendorName){
+  const history=getPriceHistory(itemCode,vendorName);
+  if(!history.length) return null;
+  const avg=history.reduce((s,h)=>s+h.price,0)/history.length;
+  const min=Math.min(...history.map(h=>h.price));
+  const max=Math.max(...history.map(h=>h.price));
+  const diff=((currentPrice-avg)/avg)*100;
+  let status,color,emoji;
+  if(diff>10){status='Tinggi';color='#dc2626';emoji='🔴';}
+  else if(diff<-10){status='Rendah';color='#16a34a';emoji='🟢';}
+  else{status='Normal';color='#d97706';emoji='🟡';}
+  return{avg,min,max,diff,status,color,emoji,count:history.length};
+}
+
+function getSameDateComparison(){
+  // Group items by date+itemCode across suppliers
+  const receipts=getReceipts().filter(r=>r.status==='Approved'&&r.itemDetails&&r.itemDetails.length);
+  const byDateItem={};// key: date+itemCode
+  receipts.forEach(r=>{
+    r.itemDetails.forEach(item=>{
+      if(!item.code||!item.price) return;
+      const key=r.date+'|'+item.code;
+      if(!byDateItem[key]) byDateItem[key]={date:r.date,itemCode:item.code,itemName:item.name,suppliers:[]};
+      byDateItem[key].suppliers.push({supplier:r.vendor,price:parseFloat(item.price),unit:item.unit||''});
+    });
+  });
+  // Return only entries with 2+ suppliers (interesting comparison)
+  return Object.values(byDateItem).filter(e=>e.suppliers.length>=2).sort((a,b)=>b.date.localeCompare(a.date));
+}
+
+function renderSameDateComparison(containerId){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  const data=getSameDateComparison();
+  if(!data.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><div>Belum ada data perbandingan</div></div>';
+    return;
+  }
+  let html='';
+  data.slice(0,10).forEach(d=>{
+    const prices=d.suppliers.map(s=>s.price);
+    const minP=Math.min(...prices),maxP=Math.max(...prices);
+    const diff=maxP-minP;
+    const diffPct=minP>0?((diff/minP)*100).toFixed(1):0;
+    html+=`<div class="card mb-8" style="padding:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-size:13px;font-weight:600">${d.itemName}</div>
+          <div style="font-size:11px;color:var(--mid)">${fmtDate(d.date)} · ${d.itemCode}</div>
+        </div>
+        <div style="font-size:11px;background:${diffPct>10?'#fee2e2':'#fef9c3'};color:${diffPct>10?'#b91c1c':'#854d0e'};padding:2px 8px;border-radius:20px">Beza ${diffPct}%</div>
+      </div>
+      ${d.suppliers.sort((a,b)=>a.price-b.price).map((s,i)=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:${i===0?'#f0fdf4':i===d.suppliers.length-1?'#fef2f2':'var(--surface2)'};border-radius:8px;margin-bottom:4px;font-size:12px">
+          <div>${i===0?'🟢':i===d.suppliers.length-1?'🔴':'🟡'} ${s.supplier}</div>
+          <div style="font-weight:600">${formatRM(s.price)}${s.unit?' / '+s.unit:''}</div>
+        </div>`).join('')}
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+function getSupplierPriceAnalysis(){
+  const receipts=getReceipts();
+  const analysis={};// {itemCode: {itemName, vendors:{vendorName:{prices:[],avg}}}}
+  receipts.forEach(r=>{
+    if(!r.itemDetails) return;
+    r.itemDetails.forEach(it=>{
+      if(!it.code||!it.price||!r.vendor) return;
+      if(!analysis[it.code]) analysis[it.code]={name:it.name,vendors:{}};
+      if(!analysis[it.code].vendors[r.vendor]) analysis[it.code].vendors[r.vendor]={prices:[],total:0,count:0};
+      analysis[it.code].vendors[r.vendor].prices.push(parseFloat(it.price));
+      analysis[it.code].vendors[r.vendor].total+=parseFloat(it.price);
+      analysis[it.code].vendors[r.vendor].count++;
+    });
+  });
+  // Compute averages
+  Object.values(analysis).forEach(item=>{
+    Object.values(item.vendors).forEach(v=>{
+      v.avg=v.total/v.count;
+      v.min=Math.min(...v.prices);
+      v.max=Math.max(...v.prices);
+    });
+  });
+  return analysis;
+}
+
+function getStaffProfiles(){return lsGet('ezy_staff_profiles',{})}
+function setStaffProfiles(p){lsSet('ezy_staff_profiles',p)}
+async function syncStaffToSheet(u){
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok) return;
+  try{
+    // Read all staff rows — format: A=Nama, B=Role, C=Email, D=Gambar, E=JoinedAt
+    const cr=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A1:E`,{headers:{Authorization:'Bearer '+tok}});
+    const cd=await cr.json();
+    const allRows=(cd.values||[]).filter(r=>r[2]&&r[2].includes('@'));
+    // Email is in column C (index 2)
+    const exists=allRows.some(r=>r[2]===u.email);
+    if(!exists){
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A:E:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{
+        method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[[u.name,u.role,u.email,u.picture||'',new Date().toLocaleString('en-MY')]]})
+      });
+    }
+  }catch(e){console.warn('Staff sheet sync:',e);}
+}
+
+async function syncAllStaffFromSheet(){
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Staff!A1:E`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(d.error) return;
+    if(!d.values||!d.values.length){lsSet('ezy_registered_users',[]);return;}
+    // Sheet columns: A=Nama, B=Role, C=Email, D=Gambar, E=JoinedAt
+    // Filter only rows with valid email (skip header rows)
+    // Sheet is source of truth — replace localStorage
+    const users=d.values.filter(row=>row[2]&&row[2].includes('@')).map(row=>({
+      email:row[2],name:row[0]||row[2],role:row[1]||'pending',
+      picture:row[3]||'',joinedAt:row[4]||Date.now(),fromSheet:true
+    }));
+    lsSet('ezy_registered_users',users);
+  }catch(e){console.warn('Staff from sheet:',e);}
+}
+
+function getRegisteredUsers(){return lsGet('ezy_registered_users',[])}
+function setRegisteredUsers(u){lsSet('ezy_registered_users',u)}
+function getUserProfile(email){return lsGet('ezy_user_profile_'+email,{})}
+function setUserProfile(email,data){lsSet('ezy_user_profile_'+email,data)}
 
 function getRole(email){
   if(email===SUPER_ADMIN) return 'super_admin';
   if(ACCOUNTANTS.includes(email)) return 'accountant';
+  // Check Sheet-sourced role first (source of truth)
   const users=getRegisteredUsers();
   const u=users.find(x=>x.email===email);
   if(u&&u.role&&u.role!=='pending') return u.role;
+  // Fallback to local profiles
+  const profiles=getStaffProfiles();
+  if(profiles[email]&&profiles[email].role) return profiles[email].role;
   return 'staff';
 }
-
-function registerUser(u){
-  const users=getRegisteredUsers();
-  const existing=users.find(x=>x.email===u.email);
-  if(!existing){
-    const assignedRole=(u.email===SUPER_ADMIN)?'super_admin':ACCOUNTANTS.includes(u.email)?'accountant':'pending';
-    users.push({email:u.email,name:u.name,role:assignedRole,picture:u.picture||'',joinedAt:Date.now()});
-    setRegisteredUsers(users);
-  }
+function getStaffBranches(email){
+  const profiles=getStaffProfiles();
+  if(profiles[email]&&profiles[email].branches) return profiles[email].branches;
+  return BRANCHES; // default all
 }
 
 // =====================
-// GIS / AUTH INIT
+// AUTH
 // =====================
 function initGIS(){
-  tokenClient=google.accounts.oauth2.initTokenClient({
-    client_id:CLIENT_ID,
-    scope:'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
-    callback:handleTokenResponse,
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive',
+    callback: handleTokenResponse,
   });
-  gisReady=true;
-  // Auto-login if token saved
-  const saved=localStorage.getItem('ezy_token');
-  const savedExp=localStorage.getItem('ezy_token_exp');
-  if(saved&&savedExp&&Date.now()<parseInt(savedExp)){
-    accessToken=saved;currentToken=saved;
-    fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+saved}})
-      .then(r=>r.json()).then(info=>{if(info.email) fetchAndSetUser({...info,name:info.name||info.email,picture:info.picture||''});})
-      .catch(()=>{});
-  }
 }
 
-function onGISLoaded(){
-  if(window.google&&window.google.accounts) initGIS();
-}
-
-function doLogin(){
-  if(!gisReady||!tokenClient){
-    setTimeout(()=>{if(gisReady&&tokenClient)tokenClient.requestAccessToken({prompt:'select_account'});else alert('Google belum bersedia. Cuba semula.');},800);
-    return;
-  }
-  tokenClient.requestAccessToken({prompt:'select_account'});
-}
+// doLogin() defined in INIT section below
 
 async function handleTokenResponse(resp){
   if(resp.error){console.error(resp);return;}
-  accessToken=resp.access_token;currentToken=resp.access_token;
-  const exp=Date.now()+(resp.expires_in||3600)*1000;
-  localStorage.setItem('ezy_token',accessToken);
-  localStorage.setItem('ezy_token_exp',exp.toString());
-  const info=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
-  await fetchAndSetUser({...info,name:info.name||info.email,picture:info.picture||''});
-}
-
-async function fetchAndSetUser(u){
-  currentUser=u;
-  await syncAllStaffFromSheet().catch(()=>{});
-  const allUsers=getRegisteredUsers();
-  const thisUser=allUsers.find(x=>x.email===u.email);
-  if(!thisUser){
-    registerUser(u);
-    await syncStaffToSheet(u).catch(()=>{});
-    document.getElementById('pendingEmail').textContent=u.email;
-    showScreen('pendingScreen');return;
+  currentToken = resp.access_token;
+  accessToken = resp.access_token;
+  const expiry = Date.now() + (resp.expires_in||3599)*1000;
+  const kekal = document.getElementById('kekalCheck').checked;
+  if(kekal){
+    lsSet('ezy_token',currentToken);
+    lsSet('ezy_token_expiry',expiry);
+    lsSet('ezy_kekal',true);
   }
-  const sheetRole=thisUser.role;
-  if(sheetRole==='pending'){
-    document.getElementById('pendingEmail').textContent=u.email;
-    showScreen('pendingScreen');return;
+  await fetchAndSetUser();
+}
+
+async function fetchAndSetUser(){
+  try{
+    const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo',{headers:{Authorization:'Bearer '+currentToken}});
+    if(!r.ok){throw new Error('HTTP '+r.status);}
+    const u = await r.json();
+    if(!u||!u.email){throw new Error('No email in response');}
+    currentUser = u;
+    lsSet('ezy_user',u);
+
+    // First sync from Sheet to get latest roles
+    await syncAllStaffFromSheet();
+
+    // Check role from Sheet (source of truth)
+    const allUsers = getRegisteredUsers();
+    const thisUser = allUsers.find(x=>x.email===u.email);
+
+    if(!thisUser){
+      // Brand new user — not in Sheet yet, register as pending
+      registerUser(u);
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('mainApp').style.display='none';
+      document.getElementById('deniedScreen').style.display='none';
+      const ps=document.getElementById('pendingScreen');
+      if(ps){ps.style.display='flex';document.getElementById('pendingEmail').textContent=u.email;}
+      return;
+    }
+
+    const sheetRole = thisUser.role;
+
+    if(sheetRole==='pending'){
+      document.getElementById('loginScreen').style.display='none';
+      document.getElementById('mainApp').style.display='none';
+      document.getElementById('deniedScreen').style.display='none';
+      const ps=document.getElementById('pendingScreen');
+      if(ps){ps.style.display='flex';document.getElementById('pendingEmail').textContent=u.email;}
+      return;
+    }
+
+    currentRole = sheetRole || getRole(u.email);
+    showMainApp();
+  }catch(e){
+    console.error('fetchAndSetUser error:',e);
+    // Retry with fresh token
+    currentToken=null;
+    showToast('Sila log masuk semula');
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('mainApp').style.display='none';
+    document.getElementById('deniedScreen').style.display='none';
   }
-  currentRole=sheetRole||getRole(u.email);
-  showMainApp();
 }
 
-function showScreen(id){
-  ['loginScreen','pendingScreen','deniedScreen','mainApp'].forEach(s=>{
-    const el=document.getElementById(s);if(el) el.style.display='none';
-  });
-  const el=document.getElementById(id);if(el) el.style.display='flex';
+function registerUser(u){
+  const list = getRegisteredUsers();
+  const existing = list.find(x=>x.email===u.email);
+  const role = getRole(u.email);
+  if(!existing){
+    // New user — super_admin & accountant get role directly, staff gets 'pending'
+    const assignedRole = (role==='super_admin'||role==='accountant') ? role : 'pending';
+    list.push({email:u.email,name:u.name,picture:u.picture,role:assignedRole,registeredAt:new Date().toISOString()});
+    setRegisteredUsers(list);
+    // Sync to Sheet Staff tab (background) with pending role
+    setTimeout(()=>syncStaffToSheet({email:u.email,name:u.name,role:assignedRole,picture:u.picture||''}),2000);
+    // Init staff profile only if approved
+    if(assignedRole==='staff'){
+      const profiles=getStaffProfiles();
+      if(!profiles[u.email]){
+        profiles[u.email]={role:'staff',branches:BRANCHES};
+        setStaffProfiles(profiles);
+      }
+    }
+  }
 }
 
-function showMainApp(){
-  showScreen('mainApp');
-  document.getElementById('mainApp').style.flexDirection='column';
-  loadAllFromSheets();
-  setupRoleUI();
+function autoLogin(){
+  const kekal = lsGet('ezy_kekal',false);
+  if(!kekal) return;
+  const token = lsGet('ezy_token',null);
+  const expiry = lsGet('ezy_token_expiry',0);
+  const user = lsGet('ezy_user',null);
+  if(token && expiry > Date.now() && user){
+    currentToken = token;
+    accessToken = token;
+    currentUser = user;
+    currentRole = getRole(user.email);
+    showMainApp();
+  }
+}
+
+// Returns a valid token or null. Does NOT auto-refresh (avoid popup blocked errors).
+function getValidToken(){
+  const expiry = lsGet('ezy_token_expiry', 0);
+  const stillValid = expiry > Date.now() + 60000; // 1 min buffer
+  if(stillValid && currentToken) return currentToken;
+  return null; // token expired, caller should skip
 }
 
 function logoutUser(){
-  accessToken=null;currentToken=null;currentUser=null;currentRole=null;
-  localStorage.removeItem('ezy_token');localStorage.removeItem('ezy_token_exp');
-  showScreen('loginScreen');
+  currentToken=null;currentUser=null;currentRole=null;
+  localStorage.removeItem('ezy_token');localStorage.removeItem('ezy_token_expiry');
+  localStorage.removeItem('ezy_kekal');localStorage.removeItem('ezy_user');
+  try{if(currentToken&&window.google) google.accounts.oauth2.revoke(currentToken,()=>{});}catch(e){}
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('deniedScreen').style.display='none';
+  const _ps=document.getElementById('pendingScreen');if(_ps)_ps.style.display='none';
 }
 
-function setupRoleUI(){
-  const role=currentRole;
-  const tabBar=document.getElementById('tabBar');
-  if(!tabBar) return;
+function showMainApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('deniedScreen').style.display='none';
+  document.getElementById('mainApp').style.display='flex';
+  setupAppForRole();
+  checkApiKeyOnLogin();
+  setTimeout(()=>ensureCategoriesSheet().catch(()=>{}),3000);
+  setTimeout(()=>loadSkuList().catch(()=>{}),2000);
+  // setTimeout(()=>loadItemRegistryFromSheet().catch(()=>{}),1000);
+  // Load fresh data from Sheets so all devices stay in sync
+  setTimeout(async()=>{
+    try{
+      await loadAllFromSheets();
+      setupAppForRole();
+    }catch(e){console.warn('Sheets sync failed',e);}
+  },1200);
+}
+
+// =====================
+// APP SETUP BY ROLE
+// =====================
+function setupAppForRole(){
+  updateHeaderUser();
+  const role = currentRole;
+  const tabBar = document.getElementById('tabBar');
+  const bottomNav = document.getElementById('bottomNav');
+  tabBar.style.display='none';
+  bottomNav.style.display='none';
+
   if(role==='staff'){
-    tabBar.style.display='none';
-    document.getElementById('bottomNav').style.display='flex';
-    setupStaffView();
+    bottomNav.style.display='flex';
+    document.getElementById('screensContainer').style.paddingBottom='70px';
+    switchNav('upload');
+    initWizard();
+    renderSuppliersList();
   } else if(role==='accountant'){
     tabBar.style.display='flex';
     setupTabs([
@@ -716,7 +1034,8 @@ function setupRoleUI(){
       {id:'suppliers',label:'Supplier',fn:renderSuppliersList},
       {id:'payment',label:'Bayaran',fn:renderPaymentScreen}
     ]);
-  } else {
+    switchTab('dashboard');
+  } else if(role==='super_admin'){
     tabBar.style.display='flex';
     setupTabs([
       {id:'dashboard',label:'Dashboard',fn:renderAdminDashboard},
@@ -725,81 +1044,1038 @@ function setupRoleUI(){
       {id:'supplier-admin',label:'Supplier',fn:renderSupplierAdmin},
       {id:'payment',label:'Bayaran',fn:renderPaymentScreen}
     ]);
+    switchTab('dashboard');
   }
+}
+
+function updateHeaderUser(){
+  const u = currentUser;
+  if(!u) return;
+  const profile = getUserProfile(u.email);
+  const pic = profile.picture || u.picture || '';
+  const nick = profile.nickname || u.given_name || u.name || u.email.split('@')[0];
+  document.getElementById('headerUserPic').src = pic;
+  document.getElementById('headerUserName').textContent = nick;
 }
 
 function setupTabs(tabs){
-  const tabBar=document.getElementById('tabBar');
-  tabBar.innerHTML=tabs.map((t,i)=>`<div onclick="switchTab('${t.id}',${JSON.stringify(tabs).replace(/"/g,"'")})" id="tab-${t.id}" class="tab-item ${i===0?'active':''}">${t.label}</div>`).join('');
-  tabs[0].fn();
-  document.getElementById('screensContainer').querySelectorAll('.screen').forEach(s=>s.style.display='none');
-  const first=document.getElementById('screen-'+tabs[0].id);if(first) first.style.display='block';
+  const bar = document.getElementById('tabBar');
+  bar.innerHTML='';
+  tabs.forEach(t=>{
+    const el = document.createElement('div');
+    el.className='tab-item';
+    el.id='tab-'+t.id;
+    el.textContent=t.label;
+    el.onclick=()=>switchTab(t.id, t.fn);
+    bar.appendChild(el);
+  });
+  // Store tab fns
+  window._tabs = tabs;
 }
 
-function switchTab(id,tabs){
-  document.querySelectorAll('.tab-item').forEach(t=>{t.classList.remove('active');});
-  const el=document.getElementById('tab-'+id);if(el) el.classList.add('active');
-  document.getElementById('screensContainer').querySelectorAll('.screen').forEach(s=>s.style.display='none');
-  const screen=document.getElementById('screen-'+id);if(screen) screen.style.display='block';
-  const tab=tabs.find(t=>t.id===id);if(tab) tab.fn();
+function switchTab(id, fn){
+  activeTab=id;
+  document.querySelectorAll('.tab-item').forEach(el=>el.classList.remove('active'));
+  const tabEl = document.getElementById('tab-'+id);
+  if(tabEl) tabEl.classList.add('active');
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const screen = document.getElementById('screen-'+id);
+  if(screen) screen.classList.add('active');
+  // Always re-render fresh data
+  const tabFn = fn || (window._tabs&&window._tabs.find(t=>t.id===id)||{}).fn;
+  if(tabFn) tabFn();
 }
 
 function switchNav(id){
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const el=document.getElementById('nav-'+id);if(el) el.classList.add('active');
-  document.getElementById('screensContainer').querySelectorAll('.screen').forEach(s=>s.style.display='none');
-  const screen=document.getElementById('screen-'+id);if(screen) screen.style.display='block';
-  if(id==='upload') initWizard();
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const navEl = document.getElementById('nav-'+id);
+  if(navEl) navEl.classList.add('active');
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const screen = document.getElementById('screen-'+id);
+  if(screen) screen.classList.add('active');
   if(id==='resit-staff') renderStaffResit();
+  if(id==='suppliers') renderSuppliersList();
 }
 
-function setupStaffView(){
-  const sc=document.getElementById('screensContainer');
-  sc.querySelectorAll('.screen').forEach(s=>s.style.display='none');
-  const uploadScreen=document.getElementById('screen-upload');if(uploadScreen) uploadScreen.style.display='block';
+// =====================
+// PROFILE
+// =====================
+function openProfile(){
+  const u = currentUser;
+  if(!u) return;
+  const profile = getUserProfile(u.email);
+  document.getElementById('profileFullname').value=profile.fullname||u.name||'';
+  document.getElementById('profileNickname').value=profile.nickname||u.given_name||'';
+  document.getElementById('profilePhone').value=profile.phone||'';
+  document.getElementById('profileEmail').value=u.email;
+  document.getElementById('profilePicPreview').src=profile.picture||u.picture||'';
+  // Only super_admin can see backup & restore
+  const role=currentRole||'staff';
+  const backupSection=document.getElementById('backupRestoreSection');
+  if(backupSection) backupSection.style.display=(role==='super_admin')?'':'none';
+  openModal('profileModal');
+}
+
+function handleProfilePic(e){
+  const f=e.target.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    document.getElementById('profilePicPreview').src=ev.target.result;
+  };
+  reader.readAsDataURL(f);
+}
+
+function saveProfile(){
+  const u=currentUser;if(!u)return;
+  const profile=getUserProfile(u.email);
+  profile.fullname=document.getElementById('profileFullname').value;
+  profile.nickname=document.getElementById('profileNickname').value;
+  profile.phone=document.getElementById('profilePhone').value;
+  const pic=document.getElementById('profilePicPreview').src;
+  if(pic&&!pic.startsWith('https://lh3')) profile.picture=pic;
+  setUserProfile(u.email,profile);
+  updateHeaderUser();
+  closeModal('profileModal');
+}
+
+// =====================
+// SETTINGS
+// =====================
+function openSettings(){
+  const key=lsGet('ezy_openai_key','');
+  document.getElementById('openaiKeyInput').value=key||'';
+  openModal('settingsModal');
+}
+function saveSettings(){
+  const key=document.getElementById('openaiKeyInput').value.trim();
+  lsSet('ezy_openai_key',key);
+  closeModal('settingsModal');
+  showToast('Tetapan disimpan!');
+}
+function saveApiKey(){
+  const key=document.getElementById('apiKeyInput').value.trim();
+  if(!key){showToast('Sila masukkan API key');return;}
+  lsSet('ezy_openai_key',key);
+  closeModal('apiKeyModal');
+  showToast('API Key disimpan ✓');
+}
+function saveProfileApiKey(){
+  const key=document.getElementById('profileApiKey').value.trim();
+  if(!key){showToast('Key tidak berubah');return;}
+  lsSet('ezy_openai_key',key);
+  showToast('API Key dikemaskini ✓');
+  document.getElementById('profileApiKey').value='';
+}
+function clearAllData(){
+  if(!confirm('AMARAN: Semua data akan dipadam. Tindakan ini tidak boleh dibuat alik. Teruskan?')) return;
+  const keep=['ezy_openai_key','ezy_registered_users','ezy_staff_profiles'];
+  const toRemove=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(!keep.includes(k)) toRemove.push(k);
+  }
+  toRemove.forEach(k=>localStorage.removeItem(k));
+  showToast('Semua data telah dikosongkan ✓');
+  setTimeout(()=>location.reload(),1200);
+}
+function exportBackup(){
+  const keys=['ezy_receipts','ezy_suppliers','ezy_registered_users','ezy_staff_profiles','ezy_openai_key','payments','ezy_sheet_id'];
+  const data={version:'ezyresit-backup-v1',exportedAt:new Date().toISOString()};
+  keys.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)data[k]=JSON.parse(v);});
+  // also grab per-user profiles and waDraft keys
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k.startsWith('ezy_user_profile_')||k.startsWith('waDraft_')){
+      try{data[k]=JSON.parse(localStorage.getItem(k));}catch{data[k]=localStorage.getItem(k);}
+    }
+  }
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='ezyresit-backup-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(url);
+  showToast('Backup berjaya dieksport ✓');
+}
+function importBackup(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!data.version||!data.version.startsWith('ezyresit-backup')){
+        showToast('Fail backup tidak sah ⚠️');return;
+      }
+      if(!confirm('Import akan GANTIKAN semua data semasa. Teruskan?'))return;
+      const skip=['version','exportedAt'];
+      Object.keys(data).forEach(k=>{
+        if(skip.includes(k))return;
+        localStorage.setItem(k,JSON.stringify(data[k]));
+      });
+      showToast('Data berjaya dipulihkan ✓');
+      setTimeout(()=>location.reload(),1200);
+    }catch{showToast('Ralat membaca fail backup ⚠️');}
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+function checkApiKeyOnLogin(){
+  const key=lsGet('ezy_openai_key','');
+  if(!key){
+    setTimeout(()=>{
+      document.getElementById('apiKeyInput').value='';
+      openModal('apiKeyModal');
+    },600);
+  }
+}
+
+// =====================
+// MODAL HELPERS
+// =====================
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+
+// =====================
+// WIZARD
+// =====================
+function initWizard(){
+  renderWizardSteps(1);
+  document.getElementById('receiptDate').value=new Date().toISOString().split('T')[0];
+  populateBranchSelector();
+  populateAccountSelects();
+  wizardItems=[];
+  addItemRow();
+}
+
+function renderWizardSteps(active){
+  const steps=[{n:1,label:'Gambar'},{n:2,label:'Vendor'},{n:3,label:'Details'},{n:4,label:'Semak'}];
+  const el=document.getElementById('wizardSteps');
+  el.innerHTML=steps.map(s=>`
+    <div class="wizard-step">
+      <div class="step-circle ${s.n<active?'done':s.n===active?'active':''}">${s.n<active?'✓':s.n}</div>
+      <span class="step-label">${s.label}</span>
+    </div>`).join('');
+}
+
+function goStep(n){
+  if(n===3 && !selectedVendor){alert('Sila pilih supplier terlebih dahulu.');return;}
+  currentStep=n;
+  renderWizardSteps(n);
+  ['wStep1','wStep2','wStep3','wStep4','wSuccess'].forEach(id=>{
+    document.getElementById(id).style.display='none';
+  });
+  if(n===1) document.getElementById('wStep1').style.display='';
+  else if(n===2){document.getElementById('wStep2').style.display='';stepTwoInit();}
+  else if(n===3){
+    document.getElementById('wStep3').style.display='';
+    const renderItems=()=>{
+      const tbody=document.getElementById('itemsBody');
+      if(tbody&&wizardItems.length){
+        tbody.innerHTML='';
+        const items=wizardItems.filter(it=>!it._deleted);
+        wizardItems=[];
+        items.forEach(it=>addItemRow(it));
+      }
+    };
+    // Always re-render with latest skuList
+    if(!skuList.length){
+      loadSkuList().then(renderItems).catch(renderItems);
+    } else {
+      renderItems();
+    }
+  }
+  else if(n===4){document.getElementById('wStep4').style.display='';renderReview();}
+}
+
+function openCamera(){document.getElementById('cameraInput').click()}
+function openGallery(){document.getElementById('galleryInput').click()}
+
+function handleFileSelect(e){
+  const f=e.target.files[0];if(!f)return;
+  compressImage(f,base64=>{
+    uploadedImage=base64;
+    const img=document.getElementById('imagePreview');
+    img.src=base64;img.style.display='block';
+    document.getElementById('btnStep1Next').disabled=false;
+    setTimeout(()=>goStep(2), 400);
+  });
+}
+
+function compressImage(file,cb){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height,max=1200;
+      if(w>max||h>max){const r=Math.min(max/w,max/h);w=Math.round(w*r);h=Math.round(h*r);}
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      cb(canvas.toDataURL('image/jpeg',0.85));
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function stepTwoInit(){
+  renderVendorList('');
+  document.getElementById('aiLoadingRow').style.display='flex';
+  document.getElementById('aiResult').style.display='none';
+  if(uploadedImage){
+    await analyzeWithAI();
+  } else {
+    document.getElementById('aiLoadingRow').style.display='none';
+  }
+}
+
+async function analyzeWithAI(){
+  const key=lsGet('ezy_openai_key','');
+  if(!key){
+    document.getElementById('aiLoadingRow').style.display='none';
+    document.getElementById('apiKeyInput').value='';
+    openModal('apiKeyModal');
+    return;
+  }
+  try{
+    const base64=uploadedImage.split(',')[1];
+    const body={
+      model:'gpt-4o',max_tokens:600,temperature:0.1,
+      messages:[{role:'user',content:[
+        {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+base64,detail:'high'}},
+        {type:'text',text:'You are a receipt OCR assistant. Analyze this receipt image carefully. Return ONLY valid JSON, no markdown: {"date":"YYYY-MM-DD","vendor":"string","vendor_confidence":"high","amount":0.00,"items":[{"name":"string","qty":1,"price":0.00,"category":"COGS","account_code":"101"}]}. Categories: COGS,UTILITIES,RENTAL,RENOVATION,MARKETING,TRANSPORTATION,GAS,MANAGEMENT,OTHERS. If unclear use OTHERS/101.'}
+      ]}]
+    };
+    const r=await fetch('https://ezyresit.keyrooll.workers.dev/',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+    const d=await r.json();
+    if(!d.choices||!d.choices[0]){
+      console.error('OpenAI error:',JSON.stringify(d));
+      showToast('AI error: '+(d.error&&d.error.message?d.error.message:'Unknown error'));
+      document.getElementById('aiLoadingRow').style.display='none';
+      return;
+    }
+    const text=d.choices[0].message.content;
+    let json;
+    try{
+      const cleaned=text.replace(/```json[\n]?|[\n]?```/g,'').trim();
+      json=JSON.parse(cleaned);
+    }catch(e2){
+      const match=text.match(/\{[\s\S]*\}/);
+      if(match) json=JSON.parse(match[0]);
+      else throw new Error('Cannot parse AI: '+text.substring(0,100));
+    }
+    document.getElementById('aiVendorName').textContent=json.vendor||'-';
+    const conf=json.vendor_confidence==='high';
+    document.getElementById('aiConfidence').innerHTML=conf?'<span class="confidence-high">Tinggi</span>':'<span class="confidence-low">Rendah</span>';
+    document.getElementById('aiAmount').textContent=formatRM(json.amount||0);
+    document.getElementById('aiResult').style.display='block';
+    // Pre-fill
+    if(json.date) document.getElementById('receiptDate').value=json.date;
+    if(json.amount) document.getElementById('receiptAmount').value=json.amount;
+    // Pre-select vendor if match, else show AI new supplier banner
+    if(json.vendor){
+      const s=getSuppliers().find(x=>x.name.toLowerCase().includes(json.vendor.toLowerCase())||json.vendor.toLowerCase().includes(x.name.toLowerCase()));
+      if(s){
+        selectVendor(s);
+      } else {
+        // Show AI banner + auto-open new supplier form with name prefilled
+        document.getElementById('aiNewSupplierName').textContent=json.vendor;
+        document.getElementById('aiNewSupplierBanner').style.display='block';
+        document.getElementById('newVendorName').value=json.vendor;
+        document.getElementById('newVendorForm').style.display='block';
+        document.getElementById('btnAddVendor').style.display='none';
+        renderVendorList('');
+      }
+    }
+    // Pre-fill items
+    if(json.items&&json.items.length){
+      wizardItems=[];
+      document.getElementById('itemsBody').innerHTML='';
+      json.items.forEach(it=>addItemRow(it));
+    }
+    document.getElementById('vendorSearch').value=json.vendor||'';
+    filterVendors(json.vendor||'');
+  }catch(e){console.error(e);}
+  document.getElementById('aiLoadingRow').style.display='none';
+}
+
+function renderVendorList(filter=''){
+  const suppliers=getSuppliers().sort((a,b)=>b.count-a.count);
+  const filtered=filter?suppliers.filter(s=>s.name.toLowerCase().includes(filter.toLowerCase())):suppliers;
+  const el=document.getElementById('vendorList');
+  if(!filtered.length){el.innerHTML='<div style="padding:12px;text-align:center;font-size:13px;color:var(--mid)">Tiada supplier</div>';return;}
+  el.innerHTML=filtered.map(s=>`
+    <div onclick="selectVendor(${JSON.stringify(s).replace(/"/g,'&quot;')})" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center" class="vendor-item">
+      <div>
+        <div style="font-size:13px;font-weight:500">${s.name}</div>
+        <div style="font-size:11px;color:var(--mid)">${s.category} · ${s.account}</div>
+      </div>
+      <span style="font-size:12px;color:var(--mid)">${s.count}x</span>
+    </div>`).join('');
+}
+
+function filterVendors(v){renderVendorList(v);}
+
+function selectVendor(s){
+  selectedVendor=s;
+  document.getElementById('selectedVendorBox').style.display='block';
+  document.getElementById('selVendorName').textContent=s.name;
+  // Populate account options
+  const accEl=document.getElementById('selVendorAcc');
+  if(accEl){
+    accEl.innerHTML='<option value="">Akaun</option>'+ACCOUNT_CODES.map(a=>`<option value="${a.code}" ${s.account==a.code?'selected':''}>${a.code}-${a.name}</option>`).join('');
+  }
+  // Set category
+  const catEl=document.getElementById('selVendorCat');
+  if(catEl) catEl.value=s.category||'';
+  document.getElementById('vendorList').innerHTML='';
+  document.getElementById('newVendorForm').style.display='none';
+  document.getElementById('btnStep2Next').disabled=false;
+}
+
+function updateSelectedVendorField(field,val){
+  if(!selectedVendor) return;
+  selectedVendor[field]=val;
+  // Also update in suppliers list
+  const suppliers=getSuppliers();
+  const s=suppliers.find(x=>x.id===selectedVendor.id);
+  if(s){ s[field]=val; setSuppliers(suppliers); }
+}
+
+function clearVendor(){
+  selectedVendor=null;
+  document.getElementById('selectedVendorBox').style.display='none';
+  document.getElementById('btnStep2Next').disabled=true;
+  renderVendorList('');
+}
+
+function toggleNewVendorForm(){
+  const f=document.getElementById('newVendorForm');
+  f.style.display=f.style.display==='none'?'block':'none';
+  if(f.style.display==='block') populateAccountSelects();
+}
+
+function saveNewVendor(){
+  const name=document.getElementById('newVendorName').value.trim();
+  if(!name){showToast('Sila masukkan nama supplier');return;}
+  const pic=document.getElementById('newVendorPic').value.trim();
+  const phone=document.getElementById('newVendorPhone').value.trim();
+  const s={id:'s'+Date.now(),name,pic:pic||'',phone:phone||'',category:'OTHERS',account:'101',count:0,addedAt:new Date().toISOString()};
+  const suppliers=getSuppliers();suppliers.push(s);setSuppliers(suppliers);
+  createSupplierTab(s.name).catch(()=>{});
+  selectVendor(s);
+  document.getElementById('newVendorForm').style.display='none';
+  document.getElementById('newVendorName').value='';
+  document.getElementById('newVendorPic').value='';
+  document.getElementById('newVendorPhone').value='';
+  document.getElementById('aiNewSupplierBanner').style.display='none';
+}
+function confirmAiNewSupplier(){
+  // Save using form fields (name, pic, phone already filled)
+  const name=(document.getElementById('newVendorName').value||document.getElementById('aiNewSupplierName').textContent).trim();
+  if(!name) return;
+  const pic=document.getElementById('newVendorPic').value.trim();
+  const phone=document.getElementById('newVendorPhone').value.trim();
+  const s={id:'s'+Date.now(),name,pic,phone,category:'OTHERS',account:'101',count:0,addedAt:new Date().toISOString()};
+  const suppliers=getSuppliers();suppliers.push(s);setSuppliers(suppliers);
+  createSupplierTab(s.name).catch(()=>{});
+  selectVendor(s);
+  document.getElementById('aiNewSupplierBanner').style.display='none';
+  document.getElementById('newVendorForm').style.display='none';
+  document.getElementById('btnAddVendor').style.display='';
+  document.getElementById('newVendorPic').value='';
+  document.getElementById('newVendorPhone').value='';
+  showToast('Supplier "'+name+'" disimpan ✓');
+}
+function dismissAiNewSupplier(){
+  document.getElementById('aiNewSupplierBanner').style.display='none';
+  renderVendorList('');
+}
+
+function populateAccountSelects(){
+  const opts=ACCOUNT_CODES.map(a=>`<option value="${a.code}">${a.code} - ${a.name}</option>`).join('');
+  ['newVendorAcc'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML='<option value="">-- Pilih Account --</option>'+opts;
+  });
+}
+
+function populateBranchSelector(){
+  const email=currentUser?currentUser.email:'';
+  const branches=getStaffBranches(email);
+  const sel=document.getElementById('receiptBranch');
+  if(branches.length===1){
+    document.getElementById('branchGroup').style.display='none';
+    sel.innerHTML=`<option value="${branches[0]}">${branches[0]}</option>`;
+  } else {
+    document.getElementById('branchGroup').style.display='block';
+    sel.innerHTML=branches.map(b=>`<option value="${b}">${b}</option>`).join('');
+  }
+}
+
+function addItemRow(prefill=null){
+  const tbody=document.getElementById('itemsBody');
+  const idx=wizardItems.length;
+  // Only prefill category if it exists in skuList; otherwise leave blank for staff to pick
+  const prefillCat = prefill ? (prefill.category||'') : '';
+  const validCat = skuList.length ? (skuList.find(s=>s.category===prefillCat) ? prefillCat : '') : prefillCat;
+  const initQty = prefill?prefill.qty||1:1;
+  const initPrice = prefill?(parseFloat(prefill.price)||0):0;
+  const item={name:prefill?prefill.name||'':'',price:initPrice,qty:initQty,category:validCat,account:prefill?prefill.account_code||'101':''};
+  wizardItems.push(item);
+  // Use SKU list if loaded, fallback to CATEGORIES
+  const skuOpts = skuList.length
+    ? skuList.map(s=>`<option value="${s.category}" ${item.category==s.category?'selected':''}>${s.category} — ${s.jenis} ${s.grade}</option>`).join('')
+    : CATEGORIES.map(c=>`<option value="${c}" ${item.category==c?'selected':''}>${c}</option>`).join('');
+  const tr=document.createElement('tr');
+  tr.id='item-row-'+idx;
+  const initTotal=(initPrice*initQty).toFixed(2);
+  tr.innerHTML=`
+    <td><input value="${item.name}" oninput="updateItem(${idx},'name',this.value)" placeholder="Nama item" style="min-width:80px"></td>
+    <td style="text-align:center"><input type="number" step="0.01" value="${initPrice||''}" oninput="updateItem(${idx},'price',parseFloat(this.value)||0);calcRowTotal(${idx});updateSplit()" placeholder="0.00" style="width:52px;text-align:center;-moz-appearance:textfield" class="no-spinner"></td>
+    <td style="text-align:center"><input type="number" step="0.01" min="0.01" value="${initQty}" oninput="updateItem(${idx},'qty',parseFloat(this.value)||1);calcRowTotal(${idx});updateSplit()" style="width:42px;text-align:center;-moz-appearance:textfield" class="no-spinner"></td>
+    <td>
+      <select id="cat-sel-${idx}" onchange="updateItem(${idx},'category',this.value);updateSplit();showSuggestionHint(${idx},this.value)" style="min-width:130px;font-size:11px">
+        <option value="">Pilih SKU</option>${skuOpts}
+        <option value="__new__">+ Cadangan Baru</option>
+      </select>
+      <div id="cat-hint-${idx}" style="font-size:10px;color:var(--mid);margin-top:2px"></div>
+      <input id="cat-new-${idx}" style="display:none;margin-top:4px;font-size:11px;width:120px" placeholder="Kod baru..." onblur="saveCatSuggestion(${idx},this.value)">
+    </td>
+    <td style="text-align:center;font-weight:600" id="row-total-${idx}">${initTotal}</td>
+    <td><button class="btn btn-sm btn-danger" onclick="removeItemRow(${idx})">Buang</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function updateItem(idx,field,val){if(wizardItems[idx]) wizardItems[idx][field]=val;}
+
+function calcRowTotal(idx){
+  const it=wizardItems[idx];
+  if(!it) return;
+  const total=((parseFloat(it.price)||0)*(parseFloat(it.qty)||1)).toFixed(2);
+  const el=document.getElementById('row-total-'+idx);
+  if(el) el.textContent=total;
+}
+
+function showSuggestionHint(idx, catVal){
+  const hint=document.getElementById('cat-hint-'+idx);
+  const newInput=document.getElementById('cat-new-'+idx);
+  if(!hint||!newInput) return;
+  if(catVal==='__new__'){
+    newInput.style.display='block';
+    newInput.focus();
+    hint.textContent='';
+    updateItem(idx,'category','');
+    return;
+  }
+  newInput.style.display='none';
+  const sku=skuList.find(s=>s.category===catVal);
+  if(sku&&sku.suggestion) hint.textContent='💡 '+sku.suggestion;
+  else hint.textContent='';
+}
+
+function saveCatSuggestion(idx, val){
+  if(!val.trim()) return;
+  const catSel=document.getElementById('cat-sel-'+idx);
+  // Add new option to this dropdown
+  const opt=document.createElement('option');
+  opt.value=val.trim(); opt.textContent=val.trim()+' (baru)'; opt.selected=true;
+  catSel.insertBefore(opt, catSel.lastElementChild);
+  catSel.value=val.trim();
+  updateItem(idx,'category',val.trim());
+  // Save to Sheet col F as suggestion (no existing category match — append as new row suggestion)
+  saveSuggestionToSheet('__new__:'+val.trim(), val.trim());
+  document.getElementById('cat-new-'+idx).style.display='none';
+}
+function autoFillCode(idx){
+  const name=wizardItems[idx]&&wizardItems[idx].name;
+  if(!name) return;
+  const code=getOrCreateItemCode(name);
+  wizardItems[idx].code=code;
+  const el=document.getElementById('item-code-'+idx);
+  if(el) el.value=code;
+}
+
+function removeItemRow(idx){
+  const tr=document.getElementById('item-row-'+idx);
+  if(tr) tr.remove();
+  if(wizardItems[idx]) wizardItems[idx]._deleted=true;
+  updateSplit();
+}
+
+function updateSplit(){
+  const rows=wizardItems.filter(i=>!i._deleted&&i.category&&i.price);
+  const byCat={};
+  rows.forEach(i=>{
+    if(!byCat[i.category]) byCat[i.category]=0;
+    byCat[i.category]+=(parseFloat(i.price)||0)*(parseFloat(i.qty)||1);
+  });
+  const el=document.getElementById('splitRows');
+  if(!el) return;
+  const total=Object.values(byCat).reduce((a,b)=>a+b,0);
+  const receiptTotal=parseFloat(document.getElementById('receiptAmount')?.value)||0;
+  let html='';
+  Object.entries(byCat).forEach(([cat,amt])=>{
+    html+=`<div class="split-row"><span>${CAT_EMOJI[cat]||''} ${cat}</span><span>${formatRM(amt)}</span></div>`;
+  });
+  html+=`<div class="split-row"><span>Jumlah Item</span><span>${formatRM(total)}</span></div>`;
+  if(receiptTotal){
+    const diff=Math.abs(receiptTotal-total);
+    const color=diff>0.01?'var(--red)':'var(--green)';
+    html+=`<div class="split-row" style="font-weight:600"><span>Jumlah Resit</span><span style="color:${color}">${formatRM(receiptTotal)}</span></div>`;
+    if(diff>0.01) html+=`<div style="font-size:11px;color:var(--red);padding:4px 0">⚠️ Perbezaan: ${formatRM(diff)}. Jumlah resit akan digunakan.</div>`;
+  }
+  el.innerHTML=html;
+}
+
+function renderReview(){
+  const items=wizardItems.filter(i=>!i._deleted);
+  const vendor=selectedVendor;
+  const date=document.getElementById('receiptDate').value;
+  const receiptAmount=parseFloat(document.getElementById('receiptAmount').value)||0;
+  const nota=document.getElementById('receiptNota').value;
+  const branch=document.getElementById('receiptBranch').value;
+
+  // Calculate total from items (qty × price)
+  const calcTotal=items.reduce((s,i)=>{
+    const qty=parseFloat(i.qty)||1;
+    const price=parseFloat(i.price)||0;
+    return s+(qty*price);
+  },0);
+  const diff=Math.abs(receiptAmount-calcTotal);
+  const match=diff<=0.01;
+
+  let html=`
+    <div class="review-row"><span class="review-label">Vendor</span><span class="review-value">${vendor?vendor.name:'-'}</span></div>
+    <div class="review-row"><span class="review-label">Tarikh</span><span class="review-value">${date}</span></div>
+    <div class="review-row"><span class="review-label">Cawangan</span><span class="review-value">${branch}</span></div>
+    <div class="review-row"><span class="review-label">Nota</span><span class="review-value">${nota||'-'}</span></div>
+    <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--mid)">ITEM (${items.length})</div>
+    <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:12px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--surface2)">
+          <th style="padding:6px 8px;text-align:left">Item</th>
+          <th style="padding:6px 8px;text-align:center">SKU</th>
+          <th style="padding:6px 4px;text-align:center">QTY</th>
+          <th style="padding:6px 4px;text-align:right">Harga</th>
+          <th style="padding:6px 8px;text-align:right">Total</th>
+        </tr></thead>
+        <tbody>`;
+  items.forEach((i,n)=>{
+    const qty=parseFloat(i.qty)||1;
+    const price=parseFloat(i.price)||0;
+    const total=qty*price;
+    const skuEntry=skuList.find(s=>s.category===i.category);
+    const skuLabel=skuEntry?`${i.category}`:(i.category||'-');
+    html+=`<tr style="border-top:1px solid var(--border)${n%2?' background:#fafafa':''}">
+      <td style="padding:6px 8px">${i.name||'Item'}</td>
+      <td style="padding:6px 8px;text-align:center;font-size:11px;color:var(--mid)">${skuLabel}</td>
+      <td style="padding:6px 4px;text-align:center">${qty}</td>
+      <td style="padding:6px 4px;text-align:right">RM ${price.toFixed(2)}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">RM ${total.toFixed(2)}</td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div>`;
+
+  // Price verification section
+  html+=`<div style="border-radius:8px;padding:12px;background:${match?'#f0fdf4':'#fff7f7'};border:1px solid ${match?'var(--green)':'var(--red)'}">
+    <div style="font-size:12px;font-weight:700;color:var(--mid);margin-bottom:8px">SEMAKAN HARGA</div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+      <span>Kiraan sebenar (QTY × Harga)</span>
+      <span style="font-weight:700">RM ${calcTotal.toFixed(2)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
+      <span>Jumlah di resit</span>
+      <span style="font-weight:700">RM ${receiptAmount.toFixed(2)}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;border-top:1px solid ${match?'var(--green)':'var(--red)'}">
+      <span style="font-size:13px;font-weight:700;color:${match?'var(--green)':'var(--red)'}">${match?'✓ Jumlah Sepadan':'⚠️ Tidak Sepadan'}</span>
+      ${!match?`<span style="font-size:12px;color:var(--red)">Perbezaan: RM ${diff.toFixed(2)}</span>`:''}
+    </div>
+  </div>`;
+
+  document.getElementById('reviewContent').innerHTML=html;
+}
+
+async function submitReceipt(){
+  const btn=document.getElementById('btnSubmit');
+  btn.disabled=true;btn.textContent='Menghantar...';
+  const vendor=selectedVendor;
+  const date=document.getElementById('receiptDate').value;
+  const amount=parseFloat(document.getElementById('receiptAmount').value)||0;
+  const nota=document.getElementById('receiptNota').value;
+  const branch=document.getElementById('receiptBranch').value;
+  const items=wizardItems.filter(i=>!i._deleted&&!i._empty);
+  const u=currentUser;
+  const profile=getUserProfile(u.email);
+  const uploadedBy=profile.fullname||u.name;
+
+  // Upload to Google Drive
+  let driveLink='',filename='';
+  try{
+    const result=await uploadToDrive(uploadedImage,vendor?vendor.name:'Receipt',date,amount);
+    driveLink=result.link||'';filename=result.filename||'';
+  }catch(e){
+    console.warn('Drive upload skipped:',e.message||e);
+  }
+
+  // Group by category - items as breakdown, receipt amount as total
+  const byCat={};
+  const validItems=items.filter(i=>i.name||(parseFloat(i.price)>0));
+  validItems.forEach(i=>{
+    const cat=i.category||'OTHERS';
+    if(!byCat[cat]) byCat[cat]={items:[],total:0,account:i.account||'101'};
+    byCat[cat].items.push(i);
+    byCat[cat].total+=(parseFloat(i.price)||0)*(parseFloat(i.qty)||1);
+  });
+  if(!Object.keys(byCat).length){
+    // No items - use receipt amount with vendor category
+    const cat=vendor?vendor.category:'OTHERS';
+    byCat[cat]={items:[],total:amount,account:vendor?vendor.account:'101'};
+  } else {
+    // Use receipt amount as the actual total, scale items proportionally
+    const itemsTotal=Object.values(byCat).reduce((s,d)=>s+d.total,0);
+    const finalAmount=amount>0?amount:itemsTotal;
+    if(finalAmount>0&&itemsTotal>0&&Math.abs(finalAmount-itemsTotal)>0.01){
+      // Scale each category proportionally to match receipt total
+      const scale=finalAmount/itemsTotal;
+      Object.keys(byCat).forEach(cat=>{ byCat[cat].total=Math.round(byCat[cat].total*scale*100)/100; });
+    } else if(finalAmount>0&&itemsTotal===0){
+      Object.keys(byCat).forEach(cat=>{ byCat[cat].total=finalAmount/Object.keys(byCat).length; });
+    }
+  }
+
+  const receipts=getReceipts();
+  const sheetRows=[];
+  // Build single receipt with all items — amount = sum of all line totals (or receipt amount if provided)
+  const allItemDetails=[];
+  Object.entries(byCat).forEach(([cat,data])=>{
+    data.items.forEach(i=>{
+      const code=i.code||getOrCreateItemCode(i.name||'Item');
+      const lineTotal=(parseFloat(i.price)||0)*(parseFloat(i.qty)||1);
+      allItemDetails.push({code,name:i.name||'Item',qty:parseFloat(i.qty)||1,price:parseFloat(i.price)||0,lineTotal,category:i.category||cat,account:i.account||data.account});
+    });
+  });
+  const totalAmount=Object.values(byCat).reduce((s,d)=>s+d.total,0);
+  const primaryCat=Object.keys(byCat)[0]||'OTHERS';
+  const primaryAccount=Object.values(byCat)[0]?.account||'101';
+  const id='r'+Date.now()+Math.random().toString(36).substr(2,5);
+  const entry={
+    id,date,vendor:vendor?vendor.name:'',amount:totalAmount,
+    items:allItemDetails.map(i=>i.name).join(', ')||'',
+    itemDetails:allItemDetails,
+    category:primaryCat,account:primaryAccount,branch,
+    uploadedBy,uploadedEmail:u.email,uploadedAt:new Date().toISOString(),
+    status:'Pending',approvedBy:'',driveLink,filename,nota
+  };
+  receipts.push(entry);
+  // Sheet resit: ONE row per receipt (total amount only)
+  sheetRows.push([id,date,vendor?vendor.name:'',totalAmount,primaryAccount,primaryCat,branch,uploadedBy,u.email,'Pending','',driveLink,nota||'']);
+  setReceipts(receipts);
+  // Update supplier tab in Sheet
+  if(vendor) setTimeout(()=>updateSupplierTab(vendor.name).catch(()=>{}),3000);
+
+  // Increment supplier count
+  if(vendor){
+    const suppliers=getSuppliers();
+    const s=suppliers.find(x=>x.id===vendor.id);
+    if(s) s.count++;
+    setSuppliers(suppliers);
+  }
+
+  // Append to Google Sheets
+  try{await appendToSheets(sheetRows, allItemDetails);}catch(e){console.warn('Sheets skip:',e.message||e);}
+  // ItemRegistry sync disabled - create 'ItemRegistry' tab in sheet first
+  // try{await syncItemRegistryToSheet();}catch(e){}
+
+  btn.disabled=false;btn.textContent='Hantar';
+  ['wStep1','wStep2','wStep3','wStep4'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('wSuccess').style.display='block';
+  // Show last 5 receipts in success screen
+  const recentEl=document.getElementById('staffRecentTx');
+  if(recentEl){
+    const last5=getReceipts().slice().reverse().slice(0,5);
+    if(last5.length){
+      recentEl.innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">5 TRANSAKSI TERBARU</div>`+
+      last5.map(r=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <div><div style="font-weight:500">${r.vendor||'-'}</div><div style="color:var(--mid)">${fmtDate(r.date)}</div></div>
+        <div style="text-align:right"><div style="font-weight:600;color:var(--green)">${formatRM(parseFloat(r.amount||0))}</div>
+        <span class="status-badge status-${(r.status||'').toLowerCase()}" style="font-size:10px">${r.status}</span></div>
+      </div>`).join('');
+    }
+  }
+}
+
+function resetWizard(){
+  uploadedImage=null;selectedVendor=null;wizardItems=[];currentStep=1;
+  document.getElementById('imagePreview').style.display='none';
+  document.getElementById('btnStep1Next').disabled=true;
+  document.getElementById('itemsBody').innerHTML='';
+  document.getElementById('receiptAmount').value='';
+  document.getElementById('receiptNota').value='';
+  document.getElementById('wSuccess').style.display='none';
+  goStep(1);
   initWizard();
 }
 
-async function loadAllFromSheets(){
-  await Promise.allSettled([
-    loadSuppliersFromSheet(),
-    loadReceiptsFromSheet(),
-    loadPaymentsFromSheet(),
-    syncAllStaffFromSheet(),
-  ]);
+// =====================
+// GOOGLE DRIVE UPLOAD
+// =====================
+async function uploadToDrive(base64,vendorName,date,amount){
+  const token=currentToken;
+  if(!token) throw new Error('No token');
+  // Filename uses receipt date; folder uses TODAY's date (upload date)
+  const d=new Date(date); // receipt date for filename
+  const today=new Date(); // upload date for folder
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yy=String(d.getFullYear()).slice(-2);
+  const cleanVendor=vendorName.replace(/[^a-zA-Z0-9]/g,'').slice(0,20);
+  const cleanAmount='RM'+((parseFloat(amount)||0).toFixed(2));
+  const filename=`${dd}${mm}${yy}-${cleanVendor}-${cleanAmount}`;
+  const blob=base64ToBlob(base64,'image/jpeg');
+  // Subfolder: YYYY-MM based on TODAY (upload month), not receipt date
+  const todayMM=String(today.getMonth()+1).padStart(2,'0');
+  const monthFolder=`${today.getFullYear()}-${todayMM}`;
+  const folderId=await getOrCreateSubfolder(token, DRIVE_ROOT_FOLDER_ID, monthFolder);
+  const metadata={name:filename+'.jpg',parents:[folderId]};
+  const form=new FormData();
+  form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));
+  form.append('file',blob);
+  const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',{
+    method:'POST',headers:{Authorization:'Bearer '+token},body:form
+  });
+  const driveRes=await r.json();
+  if(driveRes.error) throw new Error(driveRes.error.message);
+  return {link:driveRes.webViewLink||'',filename:filename+'.jpg'};
 }
 
-async function refreshAllData(){
-  const btn=document.getElementById('refreshBtn');
-  if(btn){const orig=btn.innerHTML;btn.innerHTML='⏳';btn.disabled=true;
-    await loadAllFromSheets();
-    btn.innerHTML=orig;btn.disabled=false;
-    showToast('Data dikemaskini ✅');
+// Get or create a single subfolder inside a known parent folder ID
+async function getOrCreateSubfolder(token, parentId, folderName){
+  const q=`name='${folderName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  const r=await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`,{headers:{Authorization:'Bearer '+token}});
+  const d=await r.json();
+  if(d.files&&d.files.length) return d.files[0].id;
+  const cr=await fetch('https://www.googleapis.com/drive/v3/files',{
+    method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({name:folderName,mimeType:'application/vnd.google-apps.folder',parents:[parentId]})
+  });
+  const cd=await cr.json();
+  if(cd.error) throw new Error('Cannot create folder: '+cd.error.message);
+  return cd.id;
+}
+
+// Legacy multi-level folder creator (kept for backward compat)
+async function getOrCreateFolder(token, path){
+  const parts=path.split('/');
+  let parentId='root';
+  for(const part of parts){
+    parentId=await getOrCreateSubfolder(token,parentId,part);
   }
-  if(currentRole==='super_admin'||currentRole==='admin') renderAdminDashboard();
-  else if(currentRole==='accountant') renderAccountantDashboard();
+  return parentId;
 }
 
-// Modal helpers
-function showModal(title,body){
-  const m=document.getElementById('globalModal');
-  if(!m) return;
-  document.getElementById('globalModalTitle').textContent=title;
-  document.getElementById('globalModalBody').innerHTML=body;
-  m.style.display='flex';
+function base64ToBlob(base64,type){
+  const b=atob(base64.split(',')[1]);
+  const arr=new Uint8Array(b.length);
+  for(let i=0;i<b.length;i++) arr[i]=b.charCodeAt(i);
+  return new Blob([arr],{type});
 }
-function hideModal(){const m=document.getElementById('globalModal');if(m) m.style.display='none';}
 
 // =====================
+// GOOGLE SHEETS
+// =====================
+async function syncItemRegistryToSheet(){
+  const token=currentToken;if(!token) return;
+  const reg=getItemRegistry();
+  const rows=Object.entries(reg).map(([code,item])=>[code,item.names.join(', '),item.createdAt||'']);
+  if(!rows.length) return;
+  // Check/create header for Sheet2
+  const checkUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/ItemRegistry!A1`;
+  try{
+    const check=await fetch(checkUrl,{headers:{Authorization:'Bearer '+token}});
+    const cd=await check.json();
+    if(!cd.values||!cd.values.length){
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/ItemRegistry!A1:C1?valueInputOption=USER_ENTERED`,{
+        method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[['Item Code','Nama Item','Tarikh Cipta']]})
+      });
+    }
+    // Clear and rewrite all item codes
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/ItemRegistry!A2:C1000?valueInputOption=USER_ENTERED`,{
+      method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({values:rows})
+    });
+  }catch(e){console.warn('ItemRegistry sync skip:',e.message);}
+}
+
+async function loadItemRegistryFromSheet(){
+  const token=currentToken;if(!token) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/ItemRegistry!A2:B1000`,{headers:{Authorization:'Bearer '+token}});
+    const d=await r.json();
+    if(!d.values||!d.values.length) return;
+    const reg=getItemRegistry();
+    d.values.forEach(row=>{
+      if(!row[0]||!row[1]) return;
+      const code=row[0].trim();
+      const names=row[1].split(',').map(n=>n.trim()).filter(Boolean);
+      if(!reg[code]) reg[code]={names,createdAt:new Date().toISOString()};
+      else reg[code].names=[...new Set([...reg[code].names,...names])];
+    });
+    setItemRegistry(reg);
+  }catch(e){console.warn('ItemRegistry load skip:',e.message);}
+}
+
+async function ensureCategoriesSheet(){
+  if(!accessToken && !currentToken) return;
+  const tok=accessToken||currentToken;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Categories!A1`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(d.error){
+      // Create tab
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
+        method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({requests:[{addSheet:{properties:{title:'Categories'}}}]})
+      });
+      // Default categories
+      const cats=[['Kod','Kategori'],['MKNN','Makanan'],['MNMN','Minuman'],['BKLN','Bukan Makanan'],['PRLGN','Peralatan'],['PKJN','Pembungkusan'],['BRNG','Barangan Am']];
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Categories!A1:B${cats.length}?valueInputOption=RAW`,{
+        method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+        body:JSON.stringify({values:cats})
+      });
+    }
+  }catch(e){console.warn('Categories sheet:',e);}
+}
+
+// ===================== SKU CATEGORIES =====================
+let skuList = []; // [{no,jenis,grade,category,suggestion}]
+
+async function loadSkuList(){
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SKU_SHEET_ID}/values/List%20SKU!B2:F100`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(d.error||!d.values) return;
+    skuList=d.values.map(row=>({
+      no:row[0]||'',
+      jenis:(row[1]||'').trim(),
+      grade:(row[2]||'').trim(),
+      category:(row[3]||'').trim(),
+      suggestion:(row[4]||'').trim()
+    })).filter(s=>s.category);
+    console.log('Loaded',skuList.length,'SKU entries');
+  }catch(e){console.warn('Load SKU:',e);}
+}
+
+async function saveSuggestionToSheet(category, suggestion){
+  const tok=accessToken||currentToken;
+  if(!tok||!suggestion.trim()) return;
+  try{
+    // Find row with matching category (col E = index 3 in B:F, so actual col F = index 4)
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SKU_SHEET_ID}/values/List%20SKU!B2:F100`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(!d.values) return;
+    const rowIdx=d.values.findIndex(row=>(row[3]||'').trim()===category.trim());
+    if(rowIdx===-1) return;
+    const sheetRow=rowIdx+2; // +2 for header and 1-based
+    // Append to existing suggestion (col F = column 6)
+    const existing=(d.values[rowIdx][4]||'').trim();
+    const newVal=existing?existing+', '+suggestion.trim():suggestion.trim();
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SKU_SHEET_ID}/values/List%20SKU!F${sheetRow}?valueInputOption=RAW`,{
+      method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[newVal]]})
+    });
+    // Update local cache
+    const local=skuList.find(s=>s.category===category.trim());
+    if(local) local.suggestion=newVal;
+    showToast('Cadangan disimpan ✓');
+  }catch(e){console.warn('Save suggestion:',e);}
+}
+
+function getSkuOptions(){
+  // Returns array of {value, label} for dropdown
+  return skuList.map(s=>({
+    value:s.category,
+    label:`${s.category} — ${s.jenis} ${s.grade}`.trim()
+  }));
+}
+
+async function appendToSheets(rows, itemDetails=[]){
+  const token=accessToken||currentToken;if(!token) return;
+  // Check headers for resit tab
+  // New format: ID,Tarikh,Vendor,Jumlah,Akaun,Kategori,Cawangan,Staff,Email,Status,ApprovedBy,DriveLink,Nota
+  const checkUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A1`;
+  const check=await fetch(checkUrl,{headers:{Authorization:'Bearer '+token}});
+  const checkData=await check.json();
+  const isEmpty=!checkData.values||!checkData.values.length;
+  if(isEmpty){
+    const headers=[['ID','Tarikh','Vendor','Jumlah','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A1:M1?valueInputOption=USER_ENTERED`,{
+      method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({values:headers})
+    });
+  }
+  // Append main resit row
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A:M:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+  const r=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values:rows})});
+  if(!r.ok){const e=await r.json();throw new Error(e.error&&e.error.message||r.status);}
+
+  // Append items to resit_items tab if any
+  if(itemDetails.length){
+    const receiptId=rows[0][0]; // ID is first column
+    // Check/create resit_items tab
+    const chk=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1`,{headers:{Authorization:'Bearer '+token}});
+    const chkD=await chk.json();
+    if(!chkD.values||!chkD.values.length){
+      // Create header
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1:G1?valueInputOption=USER_ENTERED`,{
+        method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[['ResitID','Item','Kod','Qty','Harga','LineTotal','Kategori']]})
+      });
+    }
+    const itemRows=itemDetails.map(it=>[receiptId,it.name||'',it.code||'',it.qty||1,it.price||0,it.lineTotal||0,it.category||'']);
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A:G:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{
+      method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({values:itemRows})
+    });
+  }
+}
+
+// =====================
+// SUPPLIERS LIST (read-only)
+// =====================
 function renderStaffResit(){
-  const u=currentUser;if(!u) return;
-  const el=document.getElementById('staffResitContent');if(!el) return;
+  const el=document.getElementById('staffResitContent');
+  if(!el) return;
+  const u=currentUser;
   const all=getReceipts();
+  // Show own receipts + last 10 all staff
   const mine=all.filter(r=>r.uploadedEmail===u.email).slice().reverse();
-  const last10=all.slice().reverse().slice(0,20);
+  const last10=all.slice().reverse().slice(0,10);
   let html='';
-  if(!mine.length){html='<div class="empty-state"><div class="empty-icon">🧾</div><div>Tiada resit lagi</div></div>';}
-  else{html+=mine.map(r=>renderReceiptCard(r,'All')).join('');}
+  if(mine.length){
+    html+=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">RESIT SAYA (${mine.length})</div>`;
+    html+=mine.slice(0,5).map(r=>`
+      <div class="card mb-8" style="padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;font-weight:600">${r.vendor||'-'}</div>
+            <div style="font-size:11px;color:var(--mid)">${fmtDate(r.date)} · ${r.branch||'-'}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:13px;font-weight:600;color:var(--green)">${formatRM(parseFloat(r.amount||0))}</div>
+            <span class="status-badge status-${(r.status||'').toLowerCase()}">${r.status}</span>
+          </div>
+        </div>
+      </div>`).join('');
+  }
   html+=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin:12px 0 8px">10 TRANSAKSI TERBARU (SEMUA STAFF)</div>`;
   if(!last10.length){html+='<div class="empty-state"><div class="empty-icon">📋</div><div>Tiada resit</div></div>';}
   else{
@@ -816,23 +2092,19 @@ function renderStaffResit(){
 }
 
 function renderSuppliersList(){
+  const suppliers=getSuppliers().sort((a,b)=>b.count-a.count);
   const el=document.getElementById('suppliersList');
   if(!el) return;
+  if(!suppliers.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div><div>Tiada supplier</div></div>';return;}
+  // Build KPI summary
   const receipts=getReceipts();
   const payments=lsGetPayments();
-  // Compute live count from receipts (approved+paid) for each supplier
-  const suppliers=getSuppliers().map(s=>{
-    const sn=s.name.toLowerCase();
-    const liveCount=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&(r.status==='Approved'||r.status==='Paid')).length;
-    return {...s, count:liveCount};
-  }).sort((a,b)=>b.count-a.count);
-  if(!suppliers.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">📦</div><div>Tiada supplier</div></div>';return;}
-  const totalBeli=receipts.filter(r=>r.status==='Approved'||r.status==='Paid').reduce((a,r)=>a+parseFloat(r.amount||0),0);
+  const totalBeli=receipts.filter(r=>r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
   const totalBayar=payments.reduce((a,p)=>a+parseFloat(p.amount||0),0);
   const totalHutang=totalBeli-totalBayar;
   const suppliersWithDebt=suppliers.filter(s=>{
     const sn=s.name.toLowerCase();
-    const beli=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&(r.status==='Approved'||r.status==='Paid')).reduce((a,r)=>a+parseFloat(r.amount||0),0);
+    const beli=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&r.status==='Approved').reduce((a,r)=>a+parseFloat(r.amount||0),0);
     const bayar=payments.filter(p=>p.supplier&&p.supplier.toLowerCase()===sn).reduce((a,p)=>a+parseFloat(p.amount||0),0);
     return (beli-bayar)>0.01;
   });
@@ -844,7 +2116,7 @@ function renderSuppliersList(){
   </div>`;
   const listHtml=suppliers.map(s=>{
     const sn=s.name.toLowerCase();
-    const sRec=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&(r.status==='Approved'||r.status==='Paid'));
+    const sRec=receipts.filter(r=>r.vendor&&r.vendor.toLowerCase()===sn&&r.status==='Approved');
     const sPay=payments.filter(p=>p.supplier&&p.supplier.toLowerCase()===sn);
     const sBeli=sRec.reduce((a,r)=>a+parseFloat(r.amount||0),0);
     const sBayar=sPay.reduce((a,p)=>a+parseFloat(p.amount||0),0);
@@ -1038,149 +2310,26 @@ function saveEditSupplier(originalName){
 // ACCOUNTANT DASHBOARD
 // =====================
 function renderAccountantDashboard(){
+  const receipts=getReceipts();
+  const pending=receipts.filter(r=>r.status==='Pending');
+  const approved=receipts.filter(r=>r.status==='Approved');
+  const totalApproved=approved.reduce((a,r)=>a+parseFloat(r.amount||0),0);
   const el=document.getElementById('dashboardContent');
-  const u=currentUser;
-  const profile=getUserProfile(u.email);
-  const nick=profile.nickname||u.given_name||'Akauntan';
-  const allReceipts=getReceipts();
-  const pending=allReceipts.filter(r=>r.status==='Pending');
-  el.innerHTML=`
-    ${pending.length?`<div class="alert-banner alert-amber" style="margin-bottom:12px">${pending.length} resit menunggu kelulusan anda.</div>`:'<div class="alert-banner alert-green" style="margin-bottom:16px">Selamat datang, ${nick}! EzyResit berjalan lancar.</div>'}
-    <div style="display:flex;gap:8px;margin-bottom:16px;overflow-x:auto">
-      ${['Hari Ini','Minggu','Bulan','Tahun'].map((p,i)=>`
-        <button onclick="setPeriodAcc('${p}',this)" class="btn btn-sm ${i===2?'btn-primary':'btn-secondary'}" id="accperiod-${p}" style="white-space:nowrap">${p}</button>`).join('')}
-    </div>
-    <div class="kpi-grid" id="accKpi"></div>
-    <div class="chart-wrap"><div class="chart-title">Trend Perbelanjaan</div><canvas id="chartTrendAcc" height="200"></canvas></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:8px;overflow:hidden">
-        <div style="font-size:10px;font-weight:600;color:var(--mid);margin-bottom:4px;text-align:center">CAWANGAN</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="position:relative;width:56px;height:56px;flex-shrink:0"><canvas id="chartBranchAcc"></canvas></div>
-          <div id="legendBranchAcc" style="flex:1;font-size:9px;line-height:1.6;overflow:hidden"></div>
-        </div>
-      </div>
-      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:8px;overflow:hidden">
-        <div style="font-size:10px;font-weight:600;color:var(--mid);margin-bottom:4px;text-align:center">KATEGORI</div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <div style="position:relative;width:56px;height:56px;flex-shrink:0"><canvas id="chartCatAcc"></canvas></div>
-          <div id="legendCatAcc" style="flex:1;font-size:9px;line-height:1.6;overflow:hidden"></div>
-        </div>
-      </div>
-    </div>
-    <div class="chart-wrap"><div class="chart-title">Perbelanjaan Cawangan</div><canvas id="chartBarAcc" height="200"></canvas></div>
-    <div class="card mb-12" id="topSuppliersAcc"></div>
-    <div class="card mb-12" id="itemPriceAnalysis"></div>
-    <div class="card mb-12"><div class="card-title mb-8">Perbandingan Harga Hari Sama</div><div id="sameDateComparison"></div></div>
-    <div class="card"><div class="card-title mb-12">20 Transaksi Terbaru</div><div class="table-wrap" id="latestTxTableAcc"></div></div>
-  `;
-  setPeriodAcc('Bulan', document.getElementById('accperiod-Bulan'));
+  let html='';
+  if(pending.length){
+    html+=`<div class="alert-banner alert-amber">${pending.length} resit menunggu kelulusan anda.</div>`;
+  }
+  html+=`<div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Total Resit</div><div class="kpi-value">${receipts.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pending.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Approved</div><div class="kpi-value" style="color:var(--green)">${approved.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Approved</div><div class="kpi-value" style="font-size:16px">${formatRM(totalApproved)}</div></div>
+  </div>
+  <div id="itemPriceAnalysis" class="card mb-12" style="margin-top:12px"></div>
+  <div class="card mb-12"><div class="card-title mb-8">Perbandingan Harga Hari Sama</div><div id="sameDateComparison"></div></div>`;
+  el.innerHTML=html;
   renderItemPriceAnalysis();
   renderSameDateComparison('sameDateComparison');
-}
-
-function setPeriodAcc(period, btn){
-  document.querySelectorAll('[id^="accperiod-"]').forEach(b=>{b.className='btn btn-sm btn-secondary';b.style.whiteSpace='nowrap';});
-  if(btn){btn.className='btn btn-sm btn-primary';btn.style.whiteSpace='nowrap';}
-  const now=new Date();
-  let startDate=new Date(0);
-  if(period==='Hari Ini'){startDate=new Date(now.toDateString());}
-  else if(period==='Minggu'){startDate=new Date(now);startDate.setDate(now.getDate()-7);}
-  else if(period==='Bulan'){startDate=new Date(now.getFullYear(),now.getMonth(),1);}
-  else if(period==='Tahun'){startDate=new Date(now.getFullYear(),0,1);}
-  const allReceipts=getReceipts();
-  const receipts=allReceipts.filter(r=>new Date(r.uploadedAt||r.date)>=startDate);
-  // KPI
-  const accKpi=document.getElementById('accKpi');
-  if(accKpi){
-    const pending=receipts.filter(r=>r.status==='Pending');
-    const approved=receipts.filter(r=>r.status==='Approved'||r.status==='Paid');
-    const total=receipts.reduce((a,r)=>a+parseFloat(r.amount||0),0);
-    const totalApproved=approved.reduce((a,r)=>a+parseFloat(r.amount||0),0);
-    accKpi.innerHTML=`
-      <div class="kpi-card"><div class="kpi-label">Jumlah Resit</div><div class="kpi-value">${receipts.length}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pending.length}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Diluluskan</div><div class="kpi-value" style="color:var(--green)">${approved.length}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Jumlah (RM)</div><div class="kpi-value" style="font-size:14px">${formatRM(total)}</div></div>`;
-  }
-  // Reuse admin chart functions with acc-suffixed canvas IDs
-  updateChartsAcc(receipts);
-  updateTopSuppliersAcc(receipts);
-  updateLatestTxAcc(allReceipts.slice(-20).reverse());
-}
-
-function updateChartsAcc(receipts){
-  const COLORS=['#16a34a','#f59e0b','#3b82f6','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899'];
-  // Trend chart
-  const trendEl=document.getElementById('chartTrendAcc');
-  if(trendEl){
-    if(trendEl._chartInst) trendEl._chartInst.destroy();
-    const byDate={};
-    receipts.forEach(r=>{const d=r.date||'';if(d) byDate[d]=(byDate[d]||0)+parseFloat(r.amount||0);});
-    const labels=Object.keys(byDate).sort();
-    const data=labels.map(d=>byDate[d]);
-    trendEl._chartInst=new Chart(trendEl,{type:'line',data:{labels:labels.map(fmtDate),datasets:[{label:'RM',data,borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.08)',fill:true,tension:0.3,pointRadius:3}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'RM'+v.toLocaleString()}}}}});
-  }
-  // Branch donut
-  const brEl=document.getElementById('chartBranchAcc');
-  if(brEl){
-    if(brEl._chartInst) brEl._chartInst.destroy();
-    const byBranch={};
-    receipts.forEach(r=>{const b=r.branch||'Lain';byBranch[b]=(byBranch[b]||0)+parseFloat(r.amount||0);});
-    const labels=Object.keys(byBranch);
-    brEl._chartInst=new Chart(brEl,{type:'doughnut',data:{labels,datasets:[{data:labels.map(l=>byBranch[l]),backgroundColor:COLORS}]},options:{plugins:{legend:{display:false}},cutout:'65%'}});
-    const leg=document.getElementById('legendBranchAcc');
-    if(leg) leg.innerHTML=labels.map((l,i)=>`<div style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:50%;background:${COLORS[i%COLORS.length]};flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l}</span></div>`).join('');
-  }
-  // Category donut
-  const catEl=document.getElementById('chartCatAcc');
-  if(catEl){
-    if(catEl._chartInst) catEl._chartInst.destroy();
-    const byCat={};
-    receipts.forEach(r=>{const c=r.category||'Lain';byCat[c]=(byCat[c]||0)+parseFloat(r.amount||0);});
-    const labels=Object.keys(byCat);
-    catEl._chartInst=new Chart(catEl,{type:'doughnut',data:{labels,datasets:[{data:labels.map(l=>byCat[l]),backgroundColor:COLORS}]},options:{plugins:{legend:{display:false}},cutout:'65%'}});
-    const leg=document.getElementById('legendCatAcc');
-    if(leg) leg.innerHTML=labels.map((l,i)=>`<div style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:50%;background:${COLORS[i%COLORS.length]};flex-shrink:0"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${l}</span></div>`).join('');
-  }
-  // Bar chart by branch
-  const barEl=document.getElementById('chartBarAcc');
-  if(barEl){
-    if(barEl._chartInst) barEl._chartInst.destroy();
-    const byBranch={};
-    receipts.forEach(r=>{const b=r.branch||'Lain';byBranch[b]=(byBranch[b]||0)+parseFloat(r.amount||0);});
-    const labels=Object.keys(byBranch);
-    barEl._chartInst=new Chart(barEl,{type:'bar',data:{labels,datasets:[{label:'RM',data:labels.map(l=>byBranch[l]),backgroundColor:COLORS}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>'RM'+v.toLocaleString()}}}}});
-  }
-}
-
-function updateTopSuppliersAcc(receipts){
-  const el=document.getElementById('topSuppliersAcc');if(!el) return;
-  const bySupplier={};
-  receipts.forEach(r=>{if(r.vendor){bySupplier[r.vendor]=(bySupplier[r.vendor]||0)+parseFloat(r.amount||0);}});
-  const sorted=Object.entries(bySupplier).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  if(!sorted.length){el.innerHTML='';return;}
-  const max=sorted[0][1];
-  el.innerHTML=`<div class="card-title mb-8">🏆 Top Supplier</div>`+sorted.map(([name,total],i)=>`
-    <div style="margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-        <span>${i+1}. ${name}</span><strong>${formatRM(total)}</strong>
-      </div>
-      <div style="background:var(--border);border-radius:4px;height:5px">
-        <div style="background:var(--green);width:${Math.round((total/max)*100)}%;height:5px;border-radius:4px"></div>
-      </div>
-    </div>`).join('');
-}
-
-function updateLatestTxAcc(receipts){
-  const el=document.getElementById('latestTxTableAcc');if(!el) return;
-  if(!receipts.length){el.innerHTML='<div style="font-size:13px;color:var(--mid);padding:8px">Tiada transaksi</div>';return;}
-  el.innerHTML=`<table class="data-table"><thead><tr><th>Tarikh</th><th>Vendor</th><th>Cawangan</th><th>RM</th><th>Status</th></tr></thead>
-    <tbody>${receipts.map(r=>`<tr>
-      <td>${fmtDate(r.date)}</td><td>${r.vendor}</td><td>${r.branch||'-'}</td>
-      <td>${formatRM(parseFloat(r.amount||0))}</td>
-      <td><span class="status-badge status-${(r.status||'').toLowerCase()}">${r.status}</span></td>
-    </tr>`).join('')}</tbody></table>`;
 }
 
 // =====================
@@ -1496,7 +2645,7 @@ function renderAdminDashboard(){
     <div class="card mb-12" id="staffActivity"></div>
     <div class="card mb-12" id="itemPriceAnalysis"></div>
     <div class="card mb-12"><div class="card-title mb-8">Perbandingan Harga Hari Sama</div><div id="sameDateComparisonAdmin"></div></div>
-    <div class="card"><div class="card-title mb-12">20 Transaksi Terbaru</div><div class="table-wrap" id="latestTxTable"></div></div>
+    <div class="card"><div class="card-title mb-12">10 Transaksi Terbaru</div><div class="table-wrap" id="latestTxTable"></div></div>
   `;
   setPeriod('Bulan',document.getElementById('period-Bulan'));
   renderSameDateComparison('sameDateComparisonAdmin');
@@ -1517,7 +2666,7 @@ function setPeriod(period, btn){
   updateCharts(receipts);
   updateTopSuppliers(receipts);
   updateStaffActivity(receipts);
-  updateLatestTx(allReceipts.slice(-20).reverse());
+  updateLatestTx(allReceipts.slice(-10).reverse());
   renderItemPriceAnalysis();
 }
 
@@ -1777,7 +2926,7 @@ function renderStaffScreen(){
       const brLabel=staffBr.length===BRANCHES.length?'Semua cawangan':staffBr.slice(0,2).join(', ')+(staffBr.length>2?' +'+(staffBr.length-2):'');
       return `<div class="card mb-8" style="padding:14px">
         <div style="display:flex;align-items:center;gap:12px">
-          ${u.picture?`<img src="${u.picture||''}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`:`<div style="width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--primary)">${(p.fullname||u.name||u.email).charAt(0).toUpperCase()}</div>`}
+          ${u.picture?`<img src="${u.picture}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`:`<div style="width:40px;height:40px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:var(--primary)">${(p.fullname||u.name||u.email).charAt(0).toUpperCase()}</div>`}
           <div style="flex:1;min-width:0">
             <div style="font-size:14px;font-weight:600">${p.fullname||u.name||u.email}</div>
             <div style="font-size:11px;color:var(--mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.email}</div>
@@ -1991,6 +3140,8 @@ function pmtFileSelected(input){
 }
 
 async function pmtScanReceipt(){
+  const apiKey = getApiKey();
+  if(!apiKey){ showToast('Set API Key dulu dalam Profile ⚠️'); return; }
   const btn = document.getElementById('pmtScanBtn');
   btn.disabled = true; btn.textContent = 'Mengimbas...';
 
@@ -2846,31 +3997,18 @@ async function loadReceiptsFromSheet(){
     });
     let receipts=[...Object.values(oldMap).filter(r=>r.vendor&&r.amount),...newRows];
 
-    // Load items from resit_items tab (auto-create if missing)
+    // Load items from resit_items tab
     try{
       const ri=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A2:G`,{headers:{Authorization:'Bearer '+tok}});
-      if(ri.status===400||ri.status===404){
-        // Tab doesn't exist — create it with header
-        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{
-          method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
-          body:JSON.stringify({requests:[{addSheet:{properties:{title:'resit_items'}}}]})
+      const rid=await ri.json();
+      if(rid.values&&rid.values.length){
+        const itemMap={};
+        rid.values.forEach(row=>{
+          const rid2=row[0];if(!rid2) return;
+          if(!itemMap[rid2]) itemMap[rid2]=[];
+          itemMap[rid2].push({name:row[1]||'',code:row[2]||'',qty:parseFloat(row[3])||1,price:parseFloat(row[4])||0,lineTotal:parseFloat(row[5])||0,category:row[6]||''});
         });
-        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1:G1?valueInputOption=USER_ENTERED`,{
-          method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
-          body:JSON.stringify({values:[['ResitID','Item','Kod','Qty','Harga','LineTotal','Kategori']]})
-        });
-        console.log('resit_items tab created');
-      } else {
-        const rid=await ri.json();
-        if(rid.values&&rid.values.length){
-          const itemMap={};
-          rid.values.forEach(row=>{
-            const rid2=row[0];if(!rid2) return;
-            if(!itemMap[rid2]) itemMap[rid2]=[];
-            itemMap[rid2].push({name:row[1]||'',code:row[2]||'',qty:parseFloat(row[3])||1,price:parseFloat(row[4])||0,lineTotal:parseFloat(row[5])||0,category:row[6]||''});
-          });
-          receipts.forEach(r=>{if(itemMap[r.id]) r.itemDetails=itemMap[r.id];});
-        }
+        receipts.forEach(r=>{if(itemMap[r.id]) r.itemDetails=itemMap[r.id];});
       }
     }catch(e){console.warn('resit_items load skip:',e);}
 
@@ -3268,12 +4406,41 @@ function deleteSupplier(id){
 }
 
 // =====================
-// WINDOW LOAD
+// INIT
 // =====================
+let gisReady = false;
+
+function onGISLoaded(){
+  gisReady = true;
+  initGIS();
+  // Try auto-login now that GIS is ready
+  autoLogin();
+}
+
+function doLogin(){
+  if(!gisReady || !tokenClient){
+    // GIS belum siap — cuba semula selepas 800ms
+    setTimeout(()=>{
+      if(gisReady && tokenClient){
+        tokenClient.requestAccessToken({prompt:'select_account'});
+      } else {
+        alert('Google belum bersedia. Sila tunggu sebentar dan cuba semula.');
+      }
+    },800);
+    return;
+  }
+  tokenClient.requestAccessToken({prompt:'select_account'});
+}
+
 window.addEventListener('load',()=>{
+  // Populate account codes selects on load
   const accOpts='<option value="">-- Pilih Account --</option>'+ACCOUNT_CODES.map(a=>`<option value="${a.code}">${a.code} - ${a.name}</option>`).join('');
   ['newVendorAcc'].forEach(id=>{const el=document.getElementById(id);if(el) el.innerHTML=accOpts;});
-  if(window.google&&window.google.accounts&&!gisReady) onGISLoaded();
+
+  // Fallback: jika GIS sudah load sebelum 'load' event (cache)
+  if(window.google && window.google.accounts && !gisReady){
+    onGISLoaded();
+  }
 });
 </script>
 </body>
