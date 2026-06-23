@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.60-2306/2110</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.61-2306/2128</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -525,6 +525,272 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
 
 
 <script>
+// =====================
+// CONSTANTS
+// =====================
+const CLIENT_ID = '27154479564-ufljm52nmlh4gg7ie54knphff44jvrrq.apps.googleusercontent.com';
+const DRIVE_FOLDER_NAME = 'EzyResit Receipts';
+const DRIVE_ROOT_FOLDER_ID = '1GmJWOikquZb-As-XdJAYgZao_EXQcfY-';
+const SUPER_ADMIN = 'keyrooll@gmail.com';
+const ACCOUNTANTS = [];
+const SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
+const SKU_SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
+
+const ACCOUNT_CODES=[
+  {code:'101',name:'Cash'},
+  {code:'102',name:'Bank'},
+  {code:'201',name:'Accounts Payable'},
+  {code:'301',name:'Sales'},
+  {code:'401',name:'COGS'},
+  {code:'501',name:'Operating Expenses'},
+];
+
+const CAT_EMOJI={
+  'COGS':'🛒','UTILITIES':'💡','RENTAL':'🏠','RENOVATION':'🔨',
+  'MARKETING':'📣','TRANSPORTATION':'🚗','GAS':'⛽','MANAGEMENT':'👔',
+  'OTHERS':'📦'
+};
+
+const DEFAULT_COMPANIES=[
+  {id:'co1',name:'EzyDurian',color:'#1a7a4a',sheetId:'1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8',branches:['Batu Caves','Shah Alam','Ampang','Cheras','Kepong','Setapak','Puchong','Damansara']},
+];
+
+// =====================
+// STATE
+// =====================
+let currentUser=null;
+let currentRole=null;
+let currentToken=null;
+let accessToken=null;
+let tokenClient=null;
+let gisReady=false;
+let uploadedImage=null;
+let currentVendor=null;
+let activeResitTab='Pending';
+let wizardStep=1;
+
+// =====================
+// STORAGE HELPERS
+// =====================
+function lsGet(k,def=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def}}
+function lsSet(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function formatRM(val){const n=parseFloat(val)||0;return 'RM '+n.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtDate(d){if(!d)return '-';const dt=new Date(d);if(isNaN(dt))return d;return dt.toLocaleDateString('ms-MY',{day:'2-digit',month:'2-digit',year:'2-digit'});}
+function getValidToken(){return accessToken||currentToken||null;}
+function getReceipts(){return lsGet('ezy_receipts',[])}
+function setReceipts(r){lsSet('ezy_receipts',r)}
+function getSuppliers(){let s=lsGet('ezy_suppliers',null);if(!s){s=DEFAULT_COMPANIES[0]?[]:[]}return Array.isArray(s)?s:[];}
+function setSuppliers(s){lsSet('ezy_suppliers',s)}
+function getCompanies(){return lsGet('ezy_companies',DEFAULT_COMPANIES)}
+function getRegisteredUsers(){return lsGet('ezy_registered_users',[])}
+function setRegisteredUsers(u){lsSet('ezy_registered_users',u)}
+function getStaffProfiles(){return lsGet('ezy_staff_profiles',{})}
+function lsGetPayments(){return JSON.parse(localStorage.getItem('payments')||'[]');}
+function lsSetPayments(p){localStorage.setItem('payments',JSON.stringify(p));syncPaymentsToSheet().catch(e=>console.warn('Payment sync failed',e));}
+function getUserProfile(email){return lsGet('ezy_user_profile_'+email,{})}
+function setUserProfile(email,p){lsSet('ezy_user_profile_'+email,p)}
+
+function showToast(msg,duration=3000){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center';document.body.appendChild(t);}
+  clearTimeout(t._timer);t.textContent=msg;t.style.opacity='1';
+  t._timer=setTimeout(()=>{t.style.opacity='0';},duration);
+}
+
+function getRole(email){
+  if(email===SUPER_ADMIN) return 'super_admin';
+  if(ACCOUNTANTS.includes(email)) return 'accountant';
+  const users=getRegisteredUsers();
+  const u=users.find(x=>x.email===email);
+  if(u&&u.role&&u.role!=='pending') return u.role;
+  return 'staff';
+}
+
+function registerUser(u){
+  const users=getRegisteredUsers();
+  const existing=users.find(x=>x.email===u.email);
+  if(!existing){
+    const assignedRole=(u.email===SUPER_ADMIN)?'super_admin':ACCOUNTANTS.includes(u.email)?'accountant':'pending';
+    users.push({email:u.email,name:u.name,role:assignedRole,picture:u.picture||'',joinedAt:Date.now()});
+    setRegisteredUsers(users);
+  }
+}
+
+// =====================
+// GIS / AUTH INIT
+// =====================
+function initGIS(){
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID,
+    scope:'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+    callback:handleTokenResponse,
+  });
+  gisReady=true;
+  // Auto-login if token saved
+  const saved=localStorage.getItem('ezy_token');
+  const savedExp=localStorage.getItem('ezy_token_exp');
+  if(saved&&savedExp&&Date.now()<parseInt(savedExp)){
+    accessToken=saved;currentToken=saved;
+    fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+saved}})
+      .then(r=>r.json()).then(info=>{if(info.email) fetchAndSetUser({...info,name:info.name||info.email,picture:info.picture||''});})
+      .catch(()=>{});
+  }
+}
+
+function onGISLoaded(){
+  if(window.google&&window.google.accounts) initGIS();
+}
+
+function doLogin(){
+  if(!gisReady||!tokenClient){
+    setTimeout(()=>{if(gisReady&&tokenClient)tokenClient.requestAccessToken({prompt:'select_account'});else alert('Google belum bersedia. Cuba semula.');},800);
+    return;
+  }
+  tokenClient.requestAccessToken({prompt:'select_account'});
+}
+
+async function handleTokenResponse(resp){
+  if(resp.error){console.error(resp);return;}
+  accessToken=resp.access_token;currentToken=resp.access_token;
+  const exp=Date.now()+(resp.expires_in||3600)*1000;
+  localStorage.setItem('ezy_token',accessToken);
+  localStorage.setItem('ezy_token_exp',exp.toString());
+  const info=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+accessToken}}).then(r=>r.json());
+  await fetchAndSetUser({...info,name:info.name||info.email,picture:info.picture||''});
+}
+
+async function fetchAndSetUser(u){
+  currentUser=u;
+  await syncAllStaffFromSheet().catch(()=>{});
+  const allUsers=getRegisteredUsers();
+  const thisUser=allUsers.find(x=>x.email===u.email);
+  if(!thisUser){
+    registerUser(u);
+    await syncStaffToSheet(u).catch(()=>{});
+    document.getElementById('pendingEmail').textContent=u.email;
+    showScreen('pendingScreen');return;
+  }
+  const sheetRole=thisUser.role;
+  if(sheetRole==='pending'){
+    document.getElementById('pendingEmail').textContent=u.email;
+    showScreen('pendingScreen');return;
+  }
+  currentRole=sheetRole||getRole(u.email);
+  showMainApp();
+}
+
+function showScreen(id){
+  ['loginScreen','pendingScreen','deniedScreen','mainApp'].forEach(s=>{
+    const el=document.getElementById(s);if(el) el.style.display='none';
+  });
+  const el=document.getElementById(id);if(el) el.style.display='flex';
+}
+
+function showMainApp(){
+  showScreen('mainApp');
+  document.getElementById('mainApp').style.flexDirection='column';
+  loadAllFromSheets();
+  setupRoleUI();
+}
+
+function logoutUser(){
+  accessToken=null;currentToken=null;currentUser=null;currentRole=null;
+  localStorage.removeItem('ezy_token');localStorage.removeItem('ezy_token_exp');
+  showScreen('loginScreen');
+}
+
+function setupRoleUI(){
+  const role=currentRole;
+  const tabBar=document.getElementById('tabBar');
+  if(!tabBar) return;
+  if(role==='staff'){
+    tabBar.style.display='none';
+    document.getElementById('bottomNav').style.display='flex';
+    setupStaffView();
+  } else if(role==='accountant'){
+    tabBar.style.display='flex';
+    setupTabs([
+      {id:'dashboard',label:'Dashboard',fn:renderAccountantDashboard},
+      {id:'resit',label:'Resit',fn:()=>renderResit(['Pending','Approved'])},
+      {id:'upload',label:'Upload',fn:()=>initWizard()},
+      {id:'suppliers',label:'Supplier',fn:renderSuppliersList},
+      {id:'payment',label:'Bayaran',fn:renderPaymentScreen}
+    ]);
+  } else {
+    tabBar.style.display='flex';
+    setupTabs([
+      {id:'dashboard',label:'Dashboard',fn:renderAdminDashboard},
+      {id:'resit',label:'Resit',fn:()=>renderResit(['Pending','All'])},
+      {id:'staff',label:'Staff',fn:renderStaffScreen},
+      {id:'supplier-admin',label:'Supplier',fn:renderSupplierAdmin},
+      {id:'payment',label:'Bayaran',fn:renderPaymentScreen}
+    ]);
+  }
+}
+
+function setupTabs(tabs){
+  const tabBar=document.getElementById('tabBar');
+  tabBar.innerHTML=tabs.map((t,i)=>`<div onclick="switchTab('${t.id}',${JSON.stringify(tabs).replace(/"/g,"'")})" id="tab-${t.id}" class="tab-item ${i===0?'active':''}">${t.label}</div>`).join('');
+  tabs[0].fn();
+  document.getElementById('screensContainer').querySelectorAll('.screen').forEach(s=>s.style.display='none');
+  const first=document.getElementById('screen-'+tabs[0].id);if(first) first.style.display='block';
+}
+
+function switchTab(id,tabs){
+  document.querySelectorAll('.tab-item').forEach(t=>{t.classList.remove('active');});
+  const el=document.getElementById('tab-'+id);if(el) el.classList.add('active');
+  document.getElementById('screensContainer').querySelectorAll('.screen').forEach(s=>s.style.display='none');
+  const screen=document.getElementById('screen-'+id);if(screen) screen.style.display='block';
+  const tab=tabs.find(t=>t.id===id);if(tab) tab.fn();
+}
+
+function switchNav(id){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const el=document.getElementById('nav-'+id);if(el) el.classList.add('active');
+  document.getElementById('screensContainer').querySelectorAll('.screen').forEach(s=>s.style.display='none');
+  const screen=document.getElementById('screen-'+id);if(screen) screen.style.display='block';
+  if(id==='upload') initWizard();
+  if(id==='resit-staff') renderStaffResit();
+}
+
+function setupStaffView(){
+  const sc=document.getElementById('screensContainer');
+  sc.querySelectorAll('.screen').forEach(s=>s.style.display='none');
+  const uploadScreen=document.getElementById('screen-upload');if(uploadScreen) uploadScreen.style.display='block';
+  initWizard();
+}
+
+async function loadAllFromSheets(){
+  await Promise.allSettled([
+    loadSuppliersFromSheet(),
+    loadReceiptsFromSheet(),
+    loadPaymentsFromSheet(),
+    syncAllStaffFromSheet(),
+  ]);
+}
+
+async function refreshAllData(){
+  const btn=document.getElementById('refreshBtn');
+  if(btn){const orig=btn.innerHTML;btn.innerHTML='⏳';btn.disabled=true;
+    await loadAllFromSheets();
+    btn.innerHTML=orig;btn.disabled=false;
+    showToast('Data dikemaskini ✅');
+  }
+  if(currentRole==='super_admin'||currentRole==='admin') renderAdminDashboard();
+  else if(currentRole==='accountant') renderAccountantDashboard();
+}
+
+// Modal helpers
+function showModal(title,body){
+  const m=document.getElementById('globalModal');
+  if(!m) return;
+  document.getElementById('globalModalTitle').textContent=title;
+  document.getElementById('globalModalBody').innerHTML=body;
+  m.style.display='flex';
+}
+function hideModal(){const m=document.getElementById('globalModal');if(m) m.style.display='none';}
+
+// =====================
 function renderStaffResit(){
   const u=currentUser;if(!u) return;
   const el=document.getElementById('staffResitContent');if(!el) return;
@@ -3002,41 +3268,12 @@ function deleteSupplier(id){
 }
 
 // =====================
-// INIT
+// WINDOW LOAD
 // =====================
-let gisReady = false;
-
-function onGISLoaded(){
-  gisReady = true;
-  initGIS();
-  // Try auto-login now that GIS is ready
-  autoLogin();
-}
-
-function doLogin(){
-  if(!gisReady || !tokenClient){
-    // GIS belum siap — cuba semula selepas 800ms
-    setTimeout(()=>{
-      if(gisReady && tokenClient){
-        tokenClient.requestAccessToken({prompt:'select_account'});
-      } else {
-        alert('Google belum bersedia. Sila tunggu sebentar dan cuba semula.');
-      }
-    },800);
-    return;
-  }
-  tokenClient.requestAccessToken({prompt:'select_account'});
-}
-
 window.addEventListener('load',()=>{
-  // Populate account codes selects on load
   const accOpts='<option value="">-- Pilih Account --</option>'+ACCOUNT_CODES.map(a=>`<option value="${a.code}">${a.code} - ${a.name}</option>`).join('');
   ['newVendorAcc'].forEach(id=>{const el=document.getElementById(id);if(el) el.innerHTML=accOpts;});
-
-  // Fallback: jika GIS sudah load sebelum 'load' event (cache)
-  if(window.google && window.google.accounts && !gisReady){
-    onGISLoaded();
-  }
+  if(window.google&&window.google.accounts&&!gisReady) onGISLoaded();
 });
 </script>
 </body>
