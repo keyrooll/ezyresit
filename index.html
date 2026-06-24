@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.49-2306/2153</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.50-2406/2153</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -493,9 +493,9 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
       <input class="form-input" id="profileEmail" disabled>
     </div>
         <div class="form-group" style="border-top:1px solid var(--border);margin-top:8px;padding-top:16px">
-      <label class="form-label">OpenAI API Key</label>
+      <label class="form-label">OpenRouter API Key</label>
       <div style="display:flex;gap:8px">
-        <input class="form-input" id="profileApiKey" type="password" placeholder="sk-proj-..." style="flex:1" autocomplete="off">
+        <input class="form-input" id="profileApiKey" type="password" placeholder="sk-or-v1-..." style="flex:1" autocomplete="off">
         <button class="btn btn-secondary" style="white-space:nowrap;padding:0 14px" onclick="saveProfileApiKey()">Simpan</button>
       </div>
       <div style="font-size:11px;color:var(--mid);margin-top:4px">Kosongkan untuk kekalkan key semasa</div>
@@ -517,14 +517,14 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   </div>
 </div>
 
-<!-- Settings Modal (OpenAI Key) -->
+<!-- Settings Modal (OpenRouter Key) -->
 <div class="modal-overlay" id="settingsModal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title">Tetapan</div>
     <div class="form-group">
-      <label class="form-label">OpenAI API Key</label>
-      <input class="form-input" id="openaiKeyInput" type="password" placeholder="sk-...">
+      <label class="form-label">OpenRouter API Key</label>
+      <input class="form-input" id="openaiKeyInput" type="password" placeholder="sk-or-v1-...">
       <div style="font-size:11px;color:var(--mid);margin-top:4px">Key disimpan dalam peranti sahaja. Tidak dikongsi.</div>
     </div>
     <button class="btn btn-primary btn-block" onclick="saveSettings()">Simpan</button>
@@ -539,13 +539,13 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
     <div class="modal-handle"></div>
     <div style="text-align:center;margin-bottom:16px">
       <div style="font-size:32px;margin-bottom:8px">🔑</div>
-      <div class="modal-title" style="margin-bottom:4px">OpenAI API Key</div>
+      <div class="modal-title" style="margin-bottom:4px">OpenRouter API Key</div>
       <div style="font-size:13px;color:var(--mid)">Masukkan key untuk aktifkan AI detect resit.<br>Disimpan dalam peranti ini sahaja.</div>
     </div>
     <div class="form-group">
-      <input class="form-input" id="apiKeyInput" type="password" placeholder="sk-proj-..." autocomplete="off">
+      <input class="form-input" id="apiKeyInput" type="password" placeholder="sk-or-v1-..." autocomplete="off">
     </div>
-    <div style="font-size:11px;color:var(--mid);margin-bottom:16px">Dapatkan key di <strong>platform.openai.com</strong> → API Keys</div>
+    <div style="font-size:11px;color:var(--mid);margin-bottom:16px">Dapatkan key di <strong>openrouter.ai</strong> → Keys</div>
     <button class="btn btn-primary btn-block" onclick="saveApiKey()">Simpan & Teruskan</button>
     <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="closeModal('apiKeyModal')">Nanti Dulu</button>
   </div>
@@ -606,7 +606,7 @@ let charts = {};
 // =====================
 // STORAGE HELPERS
 // =====================
-function getApiKey(){return lsGet('ezy_openai_key','');}
+function getApiKey(){return lsGet('ezy_openrouter_key','');}
 function lsGet(k, def=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def}}
 function lsSet(k,v){localStorage.setItem(k,JSON.stringify(v))}
 function formatRM(val){
@@ -646,6 +646,37 @@ function showModal(title,bodyHtml){
 function hideModal(){
   const m=document.getElementById('genericModal');
   if(m) m.classList.remove('open');
+}
+
+function showReceiptImageModal(url){
+  if(!url) return;
+  // Convert Google Drive view link to direct embed link
+  let embedUrl=url;
+  const match=url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if(match) embedUrl=`https://drive.google.com/file/d/${match[1]}/preview`;
+  let m=document.getElementById('receiptImageModal');
+  if(!m){
+    m=document.createElement('div');
+    m.id='receiptImageModal';
+    m.className='modal-overlay';
+    m.style.cssText='z-index:9999';
+    m.innerHTML=`<div class="modal-sheet" style="max-height:90vh;display:flex;flex-direction:column">
+      <div class="modal-handle"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:15px;font-weight:700">📷 Gambar Resit</div>
+        <button onclick="document.getElementById('receiptImageModal').classList.remove('open')" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--mid)">×</button>
+      </div>
+      <div style="flex:1;overflow:auto;text-align:center">
+        <iframe id="receiptImageFrame" src="" style="width:100%;height:70vh;border:none;border-radius:8px"></iframe>
+      </div>
+      <a id="receiptImageLink" href="" target="_blank" style="display:block;text-align:center;margin-top:10px;font-size:12px;color:var(--mid)">Buka dalam tab baru</a>
+    </div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('open');});
+  }
+  document.getElementById('receiptImageFrame').src=embedUrl;
+  document.getElementById('receiptImageLink').href=url;
+  m.classList.add('open');
 }
 function showToast(msg,duration=2500){
   let t=document.getElementById('toastMsg');
@@ -726,9 +757,10 @@ function getSameDateComparison(){
   const byDateItem={};// key: date+itemCode
   receipts.forEach(r=>{
     r.itemDetails.forEach(item=>{
-      if(!item.code||!item.price) return;
-      const key=r.date+'|'+item.code;
-      if(!byDateItem[key]) byDateItem[key]={date:r.date,itemCode:item.code,itemName:item.name,suppliers:[]};
+      const itemKey=(item.code||item.name||'').trim();
+      if(!itemKey||!item.price) return;
+      const key=r.date+'|'+itemKey;
+      if(!byDateItem[key]) byDateItem[key]={date:r.date,itemCode:itemKey,itemName:item.name||itemKey,suppliers:[]};
       byDateItem[key].suppliers.push({supplier:r.vendor,price:parseFloat(item.price),unit:item.unit||''});
     });
   });
@@ -770,16 +802,17 @@ function renderSameDateComparison(containerId){
 
 function getSupplierPriceAnalysis(){
   const receipts=getReceipts();
-  const analysis={};// {itemCode: {itemName, vendors:{vendorName:{prices:[],avg}}}}
+  const analysis={};// {itemKey: {itemName, vendors:{vendorName:{prices:[],avg}}}}
   receipts.forEach(r=>{
     if(!r.itemDetails) return;
     r.itemDetails.forEach(it=>{
-      if(!it.code||!it.price||!r.vendor) return;
-      if(!analysis[it.code]) analysis[it.code]={name:it.name,vendors:{}};
-      if(!analysis[it.code].vendors[r.vendor]) analysis[it.code].vendors[r.vendor]={prices:[],total:0,count:0};
-      analysis[it.code].vendors[r.vendor].prices.push(parseFloat(it.price));
-      analysis[it.code].vendors[r.vendor].total+=parseFloat(it.price);
-      analysis[it.code].vendors[r.vendor].count++;
+      const key=(it.code||it.name||'').trim();
+      if(!key||!it.price||!r.vendor) return;
+      if(!analysis[key]) analysis[key]={name:it.name||key,vendors:{}};
+      if(!analysis[key].vendors[r.vendor]) analysis[key].vendors[r.vendor]={prices:[],total:0,count:0};
+      analysis[key].vendors[r.vendor].prices.push(parseFloat(it.price));
+      analysis[key].vendors[r.vendor].total+=parseFloat(it.price);
+      analysis[key].vendors[r.vendor].count++;
     });
   });
   // Compute averages
@@ -1142,33 +1175,33 @@ function saveProfile(){
 // SETTINGS
 // =====================
 function openSettings(){
-  const key=lsGet('ezy_openai_key','');
+  const key=lsGet('ezy_openrouter_key','');
   document.getElementById('openaiKeyInput').value=key||'';
   openModal('settingsModal');
 }
 function saveSettings(){
   const key=document.getElementById('openaiKeyInput').value.trim();
-  lsSet('ezy_openai_key',key);
+  lsSet('ezy_openrouter_key',key);
   closeModal('settingsModal');
   showToast('Tetapan disimpan!');
 }
 function saveApiKey(){
   const key=document.getElementById('apiKeyInput').value.trim();
   if(!key){showToast('Sila masukkan API key');return;}
-  lsSet('ezy_openai_key',key);
+  lsSet('ezy_openrouter_key',key);
   closeModal('apiKeyModal');
   showToast('API Key disimpan ✓');
 }
 function saveProfileApiKey(){
   const key=document.getElementById('profileApiKey').value.trim();
   if(!key){showToast('Key tidak berubah');return;}
-  lsSet('ezy_openai_key',key);
+  lsSet('ezy_openrouter_key',key);
   showToast('API Key dikemaskini ✓');
   document.getElementById('profileApiKey').value='';
 }
 function clearAllData(){
   if(!confirm('AMARAN: Semua data akan dipadam. Tindakan ini tidak boleh dibuat alik. Teruskan?')) return;
-  const keep=['ezy_openai_key','ezy_registered_users','ezy_staff_profiles'];
+  const keep=['ezy_openrouter_key','ezy_registered_users','ezy_staff_profiles'];
   const toRemove=[];
   for(let i=0;i<localStorage.length;i++){
     const k=localStorage.key(i);
@@ -1179,7 +1212,7 @@ function clearAllData(){
   setTimeout(()=>location.reload(),1200);
 }
 function exportBackup(){
-  const keys=['ezy_receipts','ezy_suppliers','ezy_registered_users','ezy_staff_profiles','ezy_openai_key','payments','ezy_sheet_id'];
+  const keys=['ezy_receipts','ezy_suppliers','ezy_registered_users','ezy_staff_profiles','ezy_openrouter_key','payments','ezy_sheet_id'];
   const data={version:'ezyresit-backup-v1',exportedAt:new Date().toISOString()};
   keys.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)data[k]=JSON.parse(v);});
   // also grab per-user profiles and waDraft keys
@@ -1219,7 +1252,7 @@ function importBackup(e){
   e.target.value='';
 }
 function checkApiKeyOnLogin(){
-  const key=lsGet('ezy_openai_key','');
+  const key=lsGet('ezy_openrouter_key','');
   if(!key){
     setTimeout(()=>{
       document.getElementById('apiKeyInput').value='';
@@ -1330,7 +1363,7 @@ async function stepTwoInit(){
 }
 
 async function analyzeWithAI(){
-  const key=lsGet('ezy_openai_key','');
+  const key=lsGet('ezy_openrouter_key','');
   if(!key){
     document.getElementById('aiLoadingRow').style.display='none';
     document.getElementById('apiKeyInput').value='';
@@ -1340,20 +1373,25 @@ async function analyzeWithAI(){
   try{
     const base64=uploadedImage.split(',')[1];
     const body={
-      model:'gpt-4o',max_tokens:600,temperature:0.1,
+      model:'openai/gpt-4o',max_tokens:600,temperature:0.1,
       messages:[{role:'user',content:[
         {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+base64,detail:'high'}},
         {type:'text',text:'You are a receipt OCR assistant. Analyze this receipt image carefully. Return ONLY valid JSON, no markdown: {"date":"YYYY-MM-DD","vendor":"string","vendor_confidence":"high","amount":0.00,"items":[{"name":"string","qty":1,"price":0.00,"category":"COGS","account_code":"101"}]}. Categories: COGS,UTILITIES,RENTAL,RENOVATION,MARKETING,TRANSPORTATION,GAS,MANAGEMENT,OTHERS. If unclear use OTHERS/101.'}
       ]}]
     };
-    const r=await fetch('https://ezyresit.keyrooll.workers.dev/',{
+    const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{
       method:'POST',
-      headers:{'Authorization':'Bearer '+key,'Content-Type':'application/json'},
+      headers:{
+        'Authorization':'Bearer '+key,
+        'Content-Type':'application/json',
+        'HTTP-Referer':'https://ezyresit.keyrooll.workers.dev/',
+        'X-Title':'EzyResit'
+      },
       body:JSON.stringify(body)
     });
     const d=await r.json();
     if(!d.choices||!d.choices[0]){
-      console.error('OpenAI error:',JSON.stringify(d));
+      console.error('OpenRouter error:',JSON.stringify(d));
       showToast('AI error: '+(d.error&&d.error.message?d.error.message:'Unknown error'));
       document.getElementById('aiLoadingRow').style.display='none';
       return;
@@ -1517,11 +1555,28 @@ function populateBranchSelector(){
   }
 }
 
+// Auto-match SKU by item name — match against jenis+grade in skuList
+function autoMatchSku(itemName){
+  if(!skuList.length||!itemName) return '';
+  const name=(itemName||'').toLowerCase().replace(/[^a-z0-9\s]/g,'');
+  const words=name.split(/\s+/).filter(w=>w.length>1);
+  let best='', bestScore=0;
+  skuList.forEach(s=>{
+    const label=((s.jenis||'')+' '+(s.grade||'')).toLowerCase().replace(/[^a-z0-9\s]/g,'');
+    const labelWords=label.split(/\s+/).filter(w=>w.length>1);
+    // Count how many words from item name appear in SKU label
+    const matches=words.filter(w=>labelWords.some(lw=>lw.includes(w)||w.includes(lw))).length;
+    const score= matches / Math.max(words.length,1);
+    if(score>bestScore){bestScore=score;best=s.category;}
+  });
+  return bestScore>=0.3 ? best : '';
+}
+
 function addItemRow(prefill=null){
   const tbody=document.getElementById('itemsBody');
   const idx=wizardItems.length;
-  // Only prefill category if it exists in skuList; otherwise leave blank for staff to pick
-  const prefillCat = prefill ? (prefill.category||'') : '';
+  // Auto-match SKU by item name first, fallback to AI category
+  const prefillCat = prefill ? (autoMatchSku(prefill.name) || prefill.category||'') : '';
   const validCat = skuList.length ? (skuList.find(s=>s.category===prefillCat) ? prefillCat : '') : prefillCat;
   const initQty = prefill?prefill.qty||1:1;
   const initPrice = prefill?(parseFloat(prefill.price)||0):0;
@@ -2203,11 +2258,11 @@ function showSupplierHistory(supplierName){
           </tr>`).join('')}</tbody>
         </table>
         ${r.driveLink?`<div style="margin-top:8px;text-align:center">
-          <a href="${r.driveLink}" target="_blank" style="color:var(--green);font-size:12px;text-decoration:none">📷 Lihat Gambar Resit</a>
+          <button onclick="showReceiptImageModal('${r.driveLink}')" style="background:none;border:none;color:var(--green);font-size:12px;cursor:pointer;padding:0">📷 Lihat Gambar Resit</button>
         </div>`:''}
       </div>`:
       (r.driveLink?`<div id="sh-items-${i}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);text-align:center">
-        <a href="${r.driveLink}" target="_blank" style="color:var(--green);font-size:12px;text-decoration:none">📷 Lihat Gambar Resit</a>
+        <button onclick="showReceiptImageModal('${r.driveLink}')" style="background:none;border:none;color:var(--green);font-size:12px;cursor:pointer;padding:0">📷 Lihat Gambar Resit</button>
       </div>`:'');
     const clickable=hasItems||r.driveLink;
     return `<div style="background:var(--surface2);border-radius:8px;margin-bottom:6px;overflow:hidden">
@@ -2426,7 +2481,7 @@ function renderReceiptCard(r, tab){
           <td style="padding:3px 4px;text-align:right;font-weight:600">${formatRM(it.lineTotal||((it.qty||1)*(it.price||0)))}</td>
         </tr>`).join('')}</tbody>
       </table>
-      ${r.driveLink?`<div style="margin-top:8px;text-align:center"><a href="${r.driveLink}" target="_blank" style="color:var(--green);font-size:11px">📷 Lihat Gambar Resit</a></div>`:''}
+      ${r.driveLink?`<div style="margin-top:8px;text-align:center"><button onclick="showReceiptImageModal('${r.driveLink}')" style="background:none;border:none;color:var(--green);font-size:11px;cursor:pointer;padding:0">📷 Lihat Gambar Resit</button></div>`:''}
     </div>`:'';
   return `<div class="receipt-card" id="card-${r.id}">
     <div class="receipt-header" onclick="toggleReceiptItems('${r.id}')" style="cursor:${hasItems?'pointer':'default'}">
@@ -2442,12 +2497,14 @@ function renderReceiptCard(r, tab){
     <div class="receipt-meta">📅 ${fmtDate(r.date)} · 🏬 ${r.branch}</div>
     <div class="receipt-meta">👤 ${r.uploadedBy} · ${CAT_EMOJI[r.category]||''} ${r.category}</div>
     ${r.nota?`<div class="receipt-meta" style="margin-top:4px;font-style:italic">"${r.nota}"</div>`:''}
-    ${!hasItems&&r.driveLink?`<div class="receipt-meta"><a href="${r.driveLink}" target="_blank" style="color:var(--green)">📷 Lihat Gambar</a></div>`:''}
+    ${!hasItems&&r.driveLink?`<div class="receipt-meta"><button onclick="showReceiptImageModal('${r.driveLink}')" style="background:none;border:none;color:var(--green);cursor:pointer;padding:0;font-size:13px">📷 Lihat Gambar</button></div>`:''}
     ${itemsHtml}
-    ${canAct?`<div class="receipt-actions">
+    <div class="receipt-actions" style="justify-content:flex-end">
+      ${canAct?`
       <button class="btn btn-success btn-sm" onclick="approveReceipt('${r.id}')">Lulus</button>
-      <button class="btn btn-danger btn-sm" onclick="rejectReceipt('${r.id}')">Tolak</button>
-    </div>`:''}
+      <button class="btn btn-danger btn-sm" onclick="rejectReceipt('${r.id}')">Tolak</button>`:''}
+      ${(currentRole==='accountant'||currentRole==='super_admin')?`<button class="btn btn-secondary btn-sm" onclick="showReceiptEditModal('${r.id}')">✏️ Edit</button>`:''}
+    </div>
   </div>`;
 }
 
@@ -2563,6 +2620,126 @@ function rejectReceipt(id){
   r.status='Rejected';
   setReceipts(receipts);
   syncReceiptStatusToSheet(r,'Rejected');
+  renderResitContent(activeResitTab);
+}
+
+function showReceiptEditModal(id){
+  const receipts=getReceipts();
+  const r=receipts.find(x=>x.id===id);
+  if(!r) return;
+  const items=r.itemDetails||[];
+  const itemRows=items.map((it,i)=>`
+    <tr id="edit-item-${i}">
+      <td style="padding:3px 2px"><input value="${(it.name||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:11px" onchange="updateEditItem(${i},'name',this.value)"></td>
+      <td style="padding:3px 2px"><input type="number" value="${it.qty||1}" style="width:36px;font-size:11px;text-align:center" onchange="updateEditItem(${i},'qty',parseFloat(this.value)||1)"></td>
+      <td style="padding:3px 2px"><input type="number" step="0.01" value="${it.price||0}" style="width:60px;font-size:11px;text-align:right" onchange="updateEditItem(${i},'price',parseFloat(this.value)||0)"></td>
+      <td style="padding:3px 2px"><button onclick="removeEditItem(${i})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px">✕</button></td>
+    </tr>`).join('');
+
+  const imgBtn=r.driveLink?`<button onclick="showReceiptImageModal('${r.driveLink}')" style="background:none;border:none;color:var(--green);cursor:pointer;font-size:12px;padding:0;margin-bottom:12px">📷 Lihat Gambar Resit</button>`:'';
+
+  const html=`
+  <div id="receiptEditData" data-id="${id}"></div>
+  ${imgBtn}
+  <div class="form-group">
+    <label class="form-label">Vendor</label>
+    <input class="form-input" id="edit-vendor" value="${(r.vendor||'').replace(/"/g,'&quot;')}">
+  </div>
+  <div style="display:flex;gap:8px">
+    <div class="form-group" style="flex:1">
+      <label class="form-label">Tarikh</label>
+      <input type="date" class="form-input" id="edit-date" value="${r.date||''}">
+    </div>
+    <div class="form-group" style="flex:1">
+      <label class="form-label">Jumlah (RM)</label>
+      <input type="number" step="0.01" class="form-input" id="edit-amount" value="${r.amount||0}">
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Nota</label>
+    <input class="form-input" id="edit-nota" value="${(r.nota||'').replace(/"/g,'&quot;')}">
+  </div>
+  <div style="font-size:12px;font-weight:600;margin-bottom:6px">Items</div>
+  <div style="overflow-x:auto">
+  <table style="width:100%;font-size:11px;border-collapse:collapse" id="editItemsTable">
+    <thead><tr style="color:var(--mid)">
+      <th style="text-align:left;padding:3px 2px">Item</th>
+      <th style="text-align:center;padding:3px 2px">Qty</th>
+      <th style="text-align:right;padding:3px 2px">Harga</th>
+      <th></th>
+    </tr></thead>
+    <tbody id="editItemsBody">${itemRows}</tbody>
+  </table>
+  </div>
+  <button onclick="addEditItemRow()" style="background:none;border:1px dashed var(--border);width:100%;padding:6px;border-radius:6px;color:var(--mid);cursor:pointer;margin-top:6px;font-size:12px">+ Tambah Item</button>
+  <div style="display:flex;gap:8px;margin-top:16px">
+    <button class="btn btn-primary" style="flex:1" onclick="saveReceiptEdit('${id}')">Simpan</button>
+    <button class="btn btn-secondary" style="flex:1" onclick="hideModal()">Batal</button>
+  </div>`;
+
+  // Store temp items for editing
+  window._editItems=JSON.parse(JSON.stringify(items));
+  showModal('✏️ Edit Resit', html);
+}
+
+function updateEditItem(i,field,val){
+  if(!window._editItems[i]) return;
+  window._editItems[i][field]=val;
+}
+
+function removeEditItem(i){
+  if(!window._editItems) return;
+  window._editItems.splice(i,1);
+  // Re-render rows
+  const r=getReceipts().find(x=>x.id===document.getElementById('receiptEditData').dataset.id)||{itemDetails:[]};
+  const tbody=document.getElementById('editItemsBody');
+  if(!tbody) return;
+  tbody.innerHTML=window._editItems.map((it,idx)=>`
+    <tr id="edit-item-${idx}">
+      <td style="padding:3px 2px"><input value="${(it.name||'').replace(/"/g,'&quot;')}" style="width:100%;font-size:11px" onchange="updateEditItem(${idx},'name',this.value)"></td>
+      <td style="padding:3px 2px"><input type="number" value="${it.qty||1}" style="width:36px;font-size:11px;text-align:center" onchange="updateEditItem(${idx},'qty',parseFloat(this.value)||1)"></td>
+      <td style="padding:3px 2px"><input type="number" step="0.01" value="${it.price||0}" style="width:60px;font-size:11px;text-align:right" onchange="updateEditItem(${idx},'price',parseFloat(this.value)||0)"></td>
+      <td style="padding:3px 2px"><button onclick="removeEditItem(${idx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px">✕</button></td>
+    </tr>`).join('');
+}
+
+function addEditItemRow(){
+  if(!window._editItems) window._editItems=[];
+  const idx=window._editItems.length;
+  window._editItems.push({name:'',qty:1,price:0,lineTotal:0,category:''});
+  const tbody=document.getElementById('editItemsBody');
+  if(!tbody) return;
+  const tr=document.createElement('tr');
+  tr.id='edit-item-'+idx;
+  tr.innerHTML=`
+    <td style="padding:3px 2px"><input value="" style="width:100%;font-size:11px" onchange="updateEditItem(${idx},'name',this.value)"></td>
+    <td style="padding:3px 2px"><input type="number" value="1" style="width:36px;font-size:11px;text-align:center" onchange="updateEditItem(${idx},'qty',parseFloat(this.value)||1)"></td>
+    <td style="padding:3px 2px"><input type="number" step="0.01" value="0" style="width:60px;font-size:11px;text-align:right" onchange="updateEditItem(${idx},'price',parseFloat(this.value)||0)"></td>
+    <td style="padding:3px 2px"><button onclick="removeEditItem(${idx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+async function saveReceiptEdit(id){
+  const receipts=getReceipts();
+  const r=receipts.find(x=>x.id===id);
+  if(!r) return;
+  r.vendor=(document.getElementById('edit-vendor').value||'').trim()||r.vendor;
+  r.date=document.getElementById('edit-date').value||r.date;
+  r.amount=parseFloat(document.getElementById('edit-amount').value)||r.amount;
+  r.nota=document.getElementById('edit-nota').value||'';
+  // Recalc item lineTotals
+  r.itemDetails=(window._editItems||[]).map(it=>({
+    ...it,
+    lineTotal:(parseFloat(it.price)||0)*(parseFloat(it.qty)||1)
+  }));
+  r.items=r.itemDetails.map(i=>i.name).join(', ');
+  setReceipts(receipts);
+  hideModal();
+  showToast('Resit disimpan ✓');
+  // Sync to sheet
+  try{
+    syncReceiptStatusToSheet(r, r.status);
+  }catch(e){}
   renderResitContent(activeResitTab);
 }
 
@@ -3173,15 +3350,16 @@ Kembalikan JSON SAHAJA (tiada teks lain):
 
 PENTING: Sertakan SEMUA baris — jangan skip mana-mana bayaran.`;
 
-    const workerUrl = 'https://ezyresit.keyrooll.workers.dev/';
-    const resp = await fetch(workerUrl, {
+    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'Authorization':'Bearer '+apiKey
+        'Authorization':'Bearer '+apiKey,
+        'HTTP-Referer':'https://ezyresit.keyrooll.workers.dev/',
+        'X-Title':'EzyResit'
       },
       body: JSON.stringify({
-        model:'gpt-4o',
+        model:'openai/gpt-4o',
         messages:[{role:'user',content:[
           {type:'text',text:prompt},
           {type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64}`}}
