@@ -2160,15 +2160,17 @@ async function appendToSheets(rows, itemDetails=[]){
     // Check/create resit_items tab
     const chk=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1`,{headers:{Authorization:'Bearer '+token}});
     const chkD=await chk.json();
+    const receiptDate=rows[0][1]||''; // Tarikh from main row col B
+    const receiptVendor=rows[0][2]||''; // Vendor from main row col C
     if(!chkD.values||!chkD.values.length){
-      // Create header
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1:G1?valueInputOption=USER_ENTERED`,{
+      // Create header with Supplier & Tarikh columns
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1:I1?valueInputOption=USER_ENTERED`,{
         method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
-        body:JSON.stringify({values:[['ResitID','Item','Kod','Qty','Harga','LineTotal','Kategori']]})
+        body:JSON.stringify({values:[['ResitID','Supplier','Tarikh','Item','Kod','Qty','Harga','LineTotal','Kategori']]})
       });
     }
-    const itemRows=itemDetails.map(it=>[receiptId,it.name||'',it.code||'',it.qty||1,it.price||0,it.lineTotal||0,it.category||'']);
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A:G:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{
+    const itemRows=itemDetails.map(it=>[receiptId,receiptVendor,receiptDate,it.name||'',it.code||'',it.qty||1,it.price||0,it.lineTotal||0,it.category||'']);
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A:I:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{
       method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify({values:itemRows})
     });
@@ -4258,14 +4260,25 @@ async function loadReceiptsFromSheet(){
 
     // Load items from resit_items tab
     try{
-      const ri=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A2:G`,{headers:{Authorization:'Bearer '+tok}});
+      // Fetch header + data
+      const ri=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1:I`,{headers:{Authorization:'Bearer '+tok}});
       const rid=await ri.json();
-      if(rid.values&&rid.values.length){
+      if(rid.values&&rid.values.length>1){
+        const header=(rid.values[0]||[]).map(h=>(h||'').toString().toLowerCase());
+        // Detect format by header: new format has 'supplier' in col B
+        const isNewFormat=header[1]==='supplier';
+        const dataRows=rid.values.slice(1);
         const itemMap={};
-        rid.values.forEach(row=>{
+        dataRows.forEach(row=>{
           const rid2=row[0];if(!rid2) return;
           if(!itemMap[rid2]) itemMap[rid2]=[];
-          itemMap[rid2].push({name:row[1]||'',code:row[2]||'',qty:parseFloat(row[3])||1,price:parseFloat(row[4])||0,lineTotal:parseFloat(row[5])||0,category:row[6]||''});
+          if(isNewFormat){
+            // ResitID,Supplier,Tarikh,Item,Kod,Qty,Harga,LineTotal,Kategori
+            itemMap[rid2].push({name:row[3]||'',code:row[4]||'',qty:parseFloat(row[5])||1,price:parseFloat(row[6])||0,lineTotal:parseFloat(row[7])||0,category:row[8]||''});
+          } else {
+            // ResitID,Item,Kod,Qty,Harga,LineTotal,Kategori
+            itemMap[rid2].push({name:row[1]||'',code:row[2]||'',qty:parseFloat(row[3])||1,price:parseFloat(row[4])||0,lineTotal:parseFloat(row[5])||0,category:row[6]||''});
+          }
         });
         receipts.forEach(r=>{if(itemMap[r.id]) r.itemDetails=itemMap[r.id];});
       }
