@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.55-2506/0935</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.57-2506/1035</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -1408,13 +1408,13 @@ async function analyzeWithAI(){
     let json;
     try{
       // Remove markdown code blocks and control characters
-      const cleaned=text.replace(/```json[\n]?|[\n]?```/g,'').replace(/[-]/g,' ').trim();
+      const cleaned=text.replace(/```json[\n]?|[\n]?```/g,'').trim();
       json=JSON.parse(cleaned);
     }catch(e2){
       try{
         const match=text.match(/\{[\s\S]*\}/);
         if(!match) throw new Error('No JSON found');
-        const safe=match[0].replace(/[-]/g,' ');
+        const safe=match[0];
         json=JSON.parse(safe);
       }catch(e3){
         console.error('AI parse error, raw text:',text);
