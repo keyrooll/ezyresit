@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.60-2506/1444</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.61-2506/1516</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -3851,8 +3851,11 @@ async function saveInputManual(){
   const sid=SHEET_ID;
   const h={'Authorization':'Bearer '+tok,'Content-Type':'application/json'};
 
-  // 1. Save resit to Sheet
-  const resitRow=[[date,supplier,'',amount,'101','COGS','','keyrooll@gmail.com','keyrooll@gmail.com',status,status==='Pending'?'':'keyrooll@gmail.com','',nota]];
+  // 1. Save resit to Sheet — format: ID,Tarikh,Vendor,Jumlah,Akaun,Kategori,Cawangan,Staff,Email,Status,ApprovedBy,DriveLink,Nota
+  const manId='r'+Date.now()+Math.random().toString(36).substr(2,5);
+  const manUser=currentUser?currentUser.name||currentUser.email:'keyrooll';
+  const manEmail=currentUser?currentUser.email:'keyrooll@gmail.com';
+  const resitRow=[[manId,date,supplier,amount,'101','COGS','',manUser,manEmail,status,status==='Pending'?'':manEmail,'',nota]];
   try{
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/resit!A:M:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{method:'POST',headers:h,body:JSON.stringify({values:resitRow})});
   }catch(e){showToast('Gagal simpan resit ⚠️');return;}
