@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.52-2506/2349</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.53-2506/0920</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -1407,12 +1407,19 @@ async function analyzeWithAI(){
     const text=d.choices[0].message.content;
     let json;
     try{
-      const cleaned=text.replace(/```json[\n]?|[\n]?```/g,'').trim();
+      // Remove markdown code blocks and control characters
+      const cleaned=text.replace(/```json[\n]?|[\n]?```/g,'').replace(/[ -]/g,' ').trim();
       json=JSON.parse(cleaned);
     }catch(e2){
-      const match=text.match(/\{[\s\S]*\}/);
-      if(match) json=JSON.parse(match[0]);
-      else throw new Error('Cannot parse AI: '+text.substring(0,100));
+      try{
+        const match=text.match(/\{[\s\S]*\}/);
+        if(!match) throw new Error('No JSON found');
+        const safe=match[0].replace(/[ -]/g,' ');
+        json=JSON.parse(safe);
+      }catch(e3){
+        console.error('AI parse error, raw text:',text);
+        throw new Error('Cannot parse AI response: '+text.substring(0,150));
+      }
     }
     document.getElementById('aiVendorName').textContent=json.vendor||'-';
     const conf=json.vendor_confidence==='high';
