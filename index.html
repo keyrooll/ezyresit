@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.50-2406/2153</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.51-2506/2153</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -493,9 +493,9 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
       <input class="form-input" id="profileEmail" disabled>
     </div>
         <div class="form-group" style="border-top:1px solid var(--border);margin-top:8px;padding-top:16px">
-      <label class="form-label">OpenRouter API Key</label>
+      <label class="form-label">OpenAI API Key</label>
       <div style="display:flex;gap:8px">
-        <input class="form-input" id="profileApiKey" type="password" placeholder="sk-or-v1-..." style="flex:1" autocomplete="off">
+        <input class="form-input" id="profileApiKey" type="password" placeholder="sk-proj-..." style="flex:1" autocomplete="off">
         <button class="btn btn-secondary" style="white-space:nowrap;padding:0 14px" onclick="saveProfileApiKey()">Simpan</button>
       </div>
       <div style="font-size:11px;color:var(--mid);margin-top:4px">Kosongkan untuk kekalkan key semasa</div>
@@ -523,8 +523,8 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
     <div class="modal-handle"></div>
     <div class="modal-title">Tetapan</div>
     <div class="form-group">
-      <label class="form-label">OpenRouter API Key</label>
-      <input class="form-input" id="openaiKeyInput" type="password" placeholder="sk-or-v1-...">
+      <label class="form-label">OpenAI API Key</label>
+      <input class="form-input" id="openaiKeyInput" type="password" placeholder="sk-proj-...">
       <div style="font-size:11px;color:var(--mid);margin-top:4px">Key disimpan dalam peranti sahaja. Tidak dikongsi.</div>
     </div>
     <button class="btn btn-primary btn-block" onclick="saveSettings()">Simpan</button>
@@ -539,13 +539,13 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
     <div class="modal-handle"></div>
     <div style="text-align:center;margin-bottom:16px">
       <div style="font-size:32px;margin-bottom:8px">🔑</div>
-      <div class="modal-title" style="margin-bottom:4px">OpenRouter API Key</div>
+      <div class="modal-title" style="margin-bottom:4px">OpenAI API Key</div>
       <div style="font-size:13px;color:var(--mid)">Masukkan key untuk aktifkan AI detect resit.<br>Disimpan dalam peranti ini sahaja.</div>
     </div>
     <div class="form-group">
-      <input class="form-input" id="apiKeyInput" type="password" placeholder="sk-or-v1-..." autocomplete="off">
+      <input class="form-input" id="apiKeyInput" type="password" placeholder="sk-proj-..." autocomplete="off">
     </div>
-    <div style="font-size:11px;color:var(--mid);margin-bottom:16px">Dapatkan key di <strong>openrouter.ai</strong> → Keys</div>
+    <div style="font-size:11px;color:var(--mid);margin-bottom:16px">Dapatkan key di <strong>platform.openai.com</strong> → API Keys</div>
     <button class="btn btn-primary btn-block" onclick="saveApiKey()">Simpan & Teruskan</button>
     <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="closeModal('apiKeyModal')">Nanti Dulu</button>
   </div>
@@ -606,7 +606,7 @@ let charts = {};
 // =====================
 // STORAGE HELPERS
 // =====================
-function getApiKey(){return lsGet('ezy_openrouter_key','');}
+function getApiKey(){return lsGet('ezy_openai_key','');}
 function lsGet(k, def=null){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def}}
 function lsSet(k,v){localStorage.setItem(k,JSON.stringify(v))}
 function formatRM(val){
@@ -1175,33 +1175,37 @@ function saveProfile(){
 // SETTINGS
 // =====================
 function openSettings(){
-  const key=lsGet('ezy_openrouter_key','');
+  const key=localStorage.getItem('ezy_openai_key')||'';
   document.getElementById('openaiKeyInput').value=key||'';
   openModal('settingsModal');
 }
 function saveSettings(){
   const key=document.getElementById('openaiKeyInput').value.trim();
-  lsSet('ezy_openrouter_key',key);
+  if(!key.startsWith('sk-')){showToast('Key mesti bermula dengan sk-...');return;}
+  localStorage.setItem('ezy_openai_key',key);
   closeModal('settingsModal');
   showToast('Tetapan disimpan!');
 }
 function saveApiKey(){
   const key=document.getElementById('apiKeyInput').value.trim();
   if(!key){showToast('Sila masukkan API key');return;}
-  lsSet('ezy_openrouter_key',key);
+  if(!key.startsWith('sk-')){showToast('Key mesti bermula dengan sk-...');return;}
+  localStorage.setItem('ezy_openai_key',key);
   closeModal('apiKeyModal');
   showToast('API Key disimpan ✓');
+  setTimeout(()=>analyzeWithAI(),300);
 }
 function saveProfileApiKey(){
   const key=document.getElementById('profileApiKey').value.trim();
   if(!key){showToast('Key tidak berubah');return;}
-  lsSet('ezy_openrouter_key',key);
+  if(!key.startsWith('sk-')){showToast('Key mesti bermula dengan sk-...');return;}
+  localStorage.setItem('ezy_openai_key',key);
   showToast('API Key dikemaskini ✓');
   document.getElementById('profileApiKey').value='';
 }
 function clearAllData(){
   if(!confirm('AMARAN: Semua data akan dipadam. Tindakan ini tidak boleh dibuat alik. Teruskan?')) return;
-  const keep=['ezy_openrouter_key','ezy_registered_users','ezy_staff_profiles'];
+  const keep=['ezy_openai_key','ezy_registered_users','ezy_staff_profiles'];
   const toRemove=[];
   for(let i=0;i<localStorage.length;i++){
     const k=localStorage.key(i);
@@ -1212,7 +1216,7 @@ function clearAllData(){
   setTimeout(()=>location.reload(),1200);
 }
 function exportBackup(){
-  const keys=['ezy_receipts','ezy_suppliers','ezy_registered_users','ezy_staff_profiles','ezy_openrouter_key','payments','ezy_sheet_id'];
+  const keys=['ezy_receipts','ezy_suppliers','ezy_registered_users','ezy_staff_profiles','ezy_openai_key','payments','ezy_sheet_id'];
   const data={version:'ezyresit-backup-v1',exportedAt:new Date().toISOString()};
   keys.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)data[k]=JSON.parse(v);});
   // also grab per-user profiles and waDraft keys
@@ -1252,7 +1256,7 @@ function importBackup(e){
   e.target.value='';
 }
 function checkApiKeyOnLogin(){
-  const key=lsGet('ezy_openrouter_key','');
+  const key=lsGet('ezy_openai_key','');
   if(!key){
     setTimeout(()=>{
       document.getElementById('apiKeyInput').value='';
@@ -1363,35 +1367,39 @@ async function stepTwoInit(){
 }
 
 async function analyzeWithAI(){
-  const key=lsGet('ezy_openrouter_key','');
-  if(!key){
+  // Read raw from localStorage to avoid JSON.parse issues
+  let key=(localStorage.getItem('ezy_openai_key')||'').trim();
+  // Strip JSON quotes if stored with lsSet
+  if(key.startsWith('"')&&key.endsWith('"')) key=JSON.parse(key);
+  key=(key||'').trim();
+  if(!key||!key.startsWith('sk-')){
     document.getElementById('aiLoadingRow').style.display='none';
     document.getElementById('apiKeyInput').value='';
+    localStorage.removeItem('ezy_openai_key');
+    showToast('Sila masukkan OpenAI API key (sk-...)');
     openModal('apiKeyModal');
     return;
   }
   try{
     const base64=uploadedImage.split(',')[1];
     const body={
-      model:'openai/gpt-4o',max_tokens:600,temperature:0.1,
+      model:'gpt-4o',max_tokens:600,temperature:0.1,
       messages:[{role:'user',content:[
         {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+base64,detail:'high'}},
         {type:'text',text:'You are a receipt OCR assistant. Analyze this receipt image carefully. Return ONLY valid JSON, no markdown: {"date":"YYYY-MM-DD","vendor":"string","vendor_confidence":"high","amount":0.00,"items":[{"name":"string","qty":1,"price":0.00,"category":"COGS","account_code":"101"}]}. Categories: COGS,UTILITIES,RENTAL,RENOVATION,MARKETING,TRANSPORTATION,GAS,MANAGEMENT,OTHERS. If unclear use OTHERS/101.'}
       ]}]
     };
-    const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{
+    const r=await fetch('https://api.openai.com/v1/chat/completions',{
       method:'POST',
       headers:{
         'Authorization':'Bearer '+key,
-        'Content-Type':'application/json',
-        'HTTP-Referer':'https://ezyresit.keyrooll.workers.dev/',
-        'X-Title':'EzyResit'
+        'Content-Type':'application/json'
       },
       body:JSON.stringify(body)
     });
     const d=await r.json();
     if(!d.choices||!d.choices[0]){
-      console.error('OpenRouter error:',JSON.stringify(d));
+      console.error('OpenAI error:',JSON.stringify(d));
       showToast('AI error: '+(d.error&&d.error.message?d.error.message:'Unknown error'));
       document.getElementById('aiLoadingRow').style.display='none';
       return;
@@ -3350,16 +3358,14 @@ Kembalikan JSON SAHAJA (tiada teks lain):
 
 PENTING: Sertakan SEMUA baris — jangan skip mana-mana bayaran.`;
 
-    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'Authorization':'Bearer '+apiKey,
-        'HTTP-Referer':'https://ezyresit.keyrooll.workers.dev/',
-        'X-Title':'EzyResit'
+        'Authorization':'Bearer '+apiKey
       },
       body: JSON.stringify({
-        model:'openai/gpt-4o',
+        model:'gpt-4o',
         messages:[{role:'user',content:[
           {type:'text',text:prompt},
           {type:'image_url',image_url:{url:`data:image/jpeg;base64,${base64}`}}
