@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.54-2506/0928</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.55-2506/0935</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -1386,7 +1386,7 @@ async function analyzeWithAI(){
       model:'gpt-4o',max_tokens:1500,temperature:0.1,
       messages:[{role:'user',content:[
         {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+base64,detail:'high'}},
-        {type:'text',text:'You are a receipt OCR assistant. Analyze this receipt image carefully. Return ONLY valid JSON, no markdown: {"date":"YYYY-MM-DD","vendor":"string","vendor_confidence":"high","amount":0.00,"items":[{"name":"string","qty":1,"price":0.00,"category":"COGS","account_code":"101"}]}. Categories: COGS,UTILITIES,RENTAL,RENOVATION,MARKETING,TRANSPORTATION,GAS,MANAGEMENT,OTHERS. If unclear use OTHERS/101.'}
+        {type:'text',text:'You are a receipt OCR assistant. Analyze this receipt image carefully. Return ONLY valid JSON, no markdown, no extra text: {"date":"YYYY-MM-DD","vendor":"string","vendor_confidence":"high","amount":0.00,"items":[{"name":"string","qty":1,"price":0.00,"category":"COGS","account_code":"101"}]}. IMPORTANT: For date, year "26" means 2026, "25" means 2025. For amount, sum ALL items if no total shown. Categories: COGS,UTILITIES,RENTAL,RENOVATION,MARKETING,TRANSPORTATION,GAS,MANAGEMENT,OTHERS. If unclear use OTHERS/101.'}
       ]}]
     };
     const r=await fetch('https://ezyresit.keyrooll.workers.dev/',{
