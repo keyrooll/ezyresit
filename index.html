@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.62-2506/1609</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.72-2606/2230</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -1937,14 +1937,24 @@ async function submitReceipt(){
 
 function resetWizard(){
   uploadedImage=null;uploadedPages=[];selectedVendor=null;wizardItems=[];currentStep=1;
-  document.getElementById('pageThumbsRow').style.display='none';
-  document.getElementById('addPageBtn').style.display='none';
-  document.getElementById('imagePreview').style.display='none';
-  document.getElementById('btnStep1Next').disabled=true;
-  document.getElementById('itemsBody').innerHTML='';
-  document.getElementById('receiptAmount').value='';
-  document.getElementById('receiptNota').value='';
-  document.getElementById('wSuccess').style.display='none';
+  const el={
+    pageThumbsRow:document.getElementById('pageThumbsRow'),
+    addPageBtn:document.getElementById('addPageBtn'),
+    imagePreview:document.getElementById('imagePreview'),
+    btnStep1Next:document.getElementById('btnStep1Next'),
+    itemsBody:document.getElementById('itemsBody'),
+    receiptAmount:document.getElementById('receiptAmount'),
+    receiptNota:document.getElementById('receiptNota'),
+    wSuccess:document.getElementById('wSuccess')
+  };
+  if(el.pageThumbsRow) el.pageThumbsRow.style.display='none';
+  if(el.addPageBtn) el.addPageBtn.style.display='none';
+  if(el.imagePreview) el.imagePreview.style.display='none';
+  if(el.btnStep1Next) el.btnStep1Next.disabled=true;
+  if(el.itemsBody) el.itemsBody.innerHTML='';
+  if(el.receiptAmount) el.receiptAmount.value='';
+  if(el.receiptNota) el.receiptNota.value='';
+  if(el.wSuccess) el.wSuccess.style.display='none';
   goStep(1);
   initWizard();
 }
@@ -2592,23 +2602,24 @@ async function syncReceiptStatusToSheet(r,status){
   const tok=getValidToken()||accessToken||currentToken;
   if(!tok) return;
   try{
-    // Search all rows for matching vendor+date+amount
-    const findUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A:N`;
+    // Format baru: ID(A),Tarikh(B),Vendor(C),Jumlah(D),Akaun(E),Kategori(F),Cawangan(G),Staff(H),Email(I),Status(J),ApprovedBy(K),DriveLink(L),Nota(M)
+    const findUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A:M`;
     const fr=await fetch(findUrl,{headers:{Authorization:'Bearer '+tok}});
     const fd=await fr.json();
     if(!fd.values) return;
     const rows=fd.values;
-    // Headers: Tarikh,Vendor,Item,Jumlah,Akaun,Kategori,Cawangan,Staff,Email,Status,Approved By,Drive Link,Nota
-    // Col:      A     B      C    D      E     F        G        H     I     J      K           L          M
+    const receiptId=r.id||'';
     const dateStr=r.date||'';
     const vendor=r.vendor||'';
     let rowIdx=-1;
     for(let i=1;i<rows.length;i++){
-      if(rows[i][0]===dateStr && rows[i][1]===vendor){rowIdx=i+1;break;}
+      // Match by ID (col A) dahulu — paling tepat
+      if(receiptId && rows[i][0]===receiptId){rowIdx=i+1;break;}
+      // Fallback: match by Tarikh(col B) + Vendor(col C)
+      if(!receiptId && rows[i][1]===dateStr && rows[i][2]===vendor){rowIdx=i+1;break;}
     }
     if(rowIdx<1) return;
     const approvedByName=currentUser?(currentUser.name||currentUser.email):'System';
-    const approvedAtStr=new Date().toLocaleString('en-MY');
     const updateUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!J${rowIdx}:K${rowIdx}?valueInputOption=RAW`;
     await fetch(updateUrl,{
       method:'PUT',
