@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.62-2506/1609</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.63-2606/2144</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -1937,14 +1937,12 @@ async function submitReceipt(){
 
 function resetWizard(){
   uploadedImage=null;uploadedPages=[];selectedVendor=null;wizardItems=[];currentStep=1;
-  document.getElementById('pageThumbsRow').style.display='none';
-  document.getElementById('addPageBtn').style.display='none';
-  document.getElementById('imagePreview').style.display='none';
-  document.getElementById('btnStep1Next').disabled=true;
-  document.getElementById('itemsBody').innerHTML='';
-  document.getElementById('receiptAmount').value='';
-  document.getElementById('receiptNota').value='';
-  document.getElementById('wSuccess').style.display='none';
+  const els={'pageThumbsRow':'none','addPageBtn':'none','imagePreview':'none','wSuccess':'none'};
+  Object.entries(els).forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.style.display=v;});
+  const next=document.getElementById('btnStep1Next');if(next)next.disabled=true;
+  const body=document.getElementById('itemsBody');if(body)body.innerHTML='';
+  const amt=document.getElementById('receiptAmount');if(amt)amt.value='';
+  const nota=document.getElementById('receiptNota');if(nota)nota.value='';
   goStep(1);
   initWizard();
 }
