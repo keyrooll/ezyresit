@@ -204,7 +204,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.64-2606/2210</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyResit v1.62-2506/1609</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -1899,7 +1899,7 @@ async function submitReceipt(){
   };
   receipts.push(entry);
   // Sheet resit: ONE row per receipt (total amount only)
-  sheetRows.push([date,vendor?vendor.name:'','',totalAmount,primaryAccount,primaryCat,branch,uploadedBy,u.email,'Pending','',driveLink,nota||'']);
+  sheetRows.push([id,date,vendor?vendor.name:'',totalAmount,primaryAccount,primaryCat,branch,uploadedBy,u.email,'Pending','',driveLink,nota||'']);
   setReceipts(receipts);
   // Update supplier tab in Sheet
   if(vendor) setTimeout(()=>updateSupplierTab(vendor.name).catch(()=>{}),3000);
@@ -1937,12 +1937,14 @@ async function submitReceipt(){
 
 function resetWizard(){
   uploadedImage=null;uploadedPages=[];selectedVendor=null;wizardItems=[];currentStep=1;
-  const els={'pageThumbsRow':'none','addPageBtn':'none','imagePreview':'none','wSuccess':'none'};
-  Object.entries(els).forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.style.display=v;});
-  const next=document.getElementById('btnStep1Next');if(next)next.disabled=true;
-  const body=document.getElementById('itemsBody');if(body)body.innerHTML='';
-  const amt=document.getElementById('receiptAmount');if(amt)amt.value='';
-  const nota=document.getElementById('receiptNota');if(nota)nota.value='';
+  document.getElementById('pageThumbsRow').style.display='none';
+  document.getElementById('addPageBtn').style.display='none';
+  document.getElementById('imagePreview').style.display='none';
+  document.getElementById('btnStep1Next').disabled=true;
+  document.getElementById('itemsBody').innerHTML='';
+  document.getElementById('receiptAmount').value='';
+  document.getElementById('receiptNota').value='';
+  document.getElementById('wSuccess').style.display='none';
   goStep(1);
   initWizard();
 }
@@ -2141,14 +2143,14 @@ async function appendToSheets(rows, itemDetails=[]){
   const checkData=await check.json();
   const isEmpty=!checkData.values||!checkData.values.length;
   if(isEmpty){
-    const headers=[['Tarikh','Vendor','Item','Jumlah','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
+    const headers=[['ID','Tarikh','Vendor','Jumlah','Akaun','Kategori','Cawangan','Staff','Email','Status','Approved By','Drive Link','Nota']];
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A1:M1?valueInputOption=USER_ENTERED`,{
       method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify({values:headers})
     });
   }
   // Append main resit row
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A:M:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`;
+  const url=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!A:M:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
   const r=await fetch(url,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values:rows})});
   if(!r.ok){const e=await r.json();throw new Error(e.error&&e.error.message||r.status);}
 
@@ -3855,7 +3857,7 @@ async function saveInputManual(){
   const manId='r'+Date.now()+Math.random().toString(36).substr(2,5);
   const manUser=currentUser?currentUser.name||currentUser.email:'keyrooll';
   const manEmail=currentUser?currentUser.email:'keyrooll@gmail.com';
-  const resitRow=[[date,supplier,'',amount,'101','COGS','',manUser,manEmail,status,status==='Pending'?'':manEmail,'',nota]];
+  const resitRow=[[manId,date,supplier,amount,'101','COGS','',manUser,manEmail,status,status==='Pending'?'':manEmail,'',nota]];
   try{
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/resit!A:M:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{method:'POST',headers:h,body:JSON.stringify({values:resitRow})});
   }catch(e){showToast('Gagal simpan resit ⚠️');return;}
