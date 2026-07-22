@@ -1,0 +1,17 @@
+name = "ezydelivery"
+main = "worker.js"
+compatibility_date = "2026-07-16"
+
+# D1 database binding. Create it once, then paste the printed database_id here:
+#   wrangler d1 create ezydelivery
+#   wrangler d1 execute ezydelivery --file=./schema.sql        # local
+#   wrangler d1 execute ezydelivery --remote --file=./schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "ezydelivery"
+database_id = "3f1ce377-1ac4-4ac3-b239-c3d129b14556"
+
+# Secrets are NOT set here (never commit them). Set once with:
+#   wrangler secret put ONPAY_WEBHOOK_TOKEN
+#   wrangler secret put STAFF_EMAILS         # e.g. keyrooll@gmail.com,staff@ezydurian.com
+#   wrangler secret put GOOGLE_CLIENT_ID     # optional; same client id as the app config

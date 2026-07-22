@@ -128,9 +128,9 @@ body{font-family:'Inter',sans-serif;background:#f9fafb;color:var(--dark);min-hei
 .alert-amber{background:#fffbeb;color:#92400e;border:1px solid #fcd34d}
 .alert-green{background:var(--green-light);color:#065f46;border:1px solid #a7f3d0}
 /* MODAL */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:flex-end;justify-content:center}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
-.modal-sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px;max-height:90vh;overflow-y:auto}
+.modal-sheet{background:#fff;border-radius:16px;width:calc(100% - 32px);max-width:480px;padding:24px;max-height:90vh;overflow-y:auto}
 .modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px}
 .modal-title{font-size:17px;font-weight:700;margin-bottom:20px}
 /* SUPPLIER CARD */
@@ -205,7 +205,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyAccount v3.24-0107/1900</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyAccount v3.38-1607/2221</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -233,9 +233,9 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
     <div class="header-left">
       <img id="headerCompanyLogo" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD7HY4Un0Ga8+stR1y50XTtVu/FF1bNqFstyIbXQTOkYYA7cqrHjOOTk9a9Ak/1bf7p/lXl9jY3t/4I8Ita6fLcj+yYQzrbeaEJVev+kRY9eh+vavRwPJyvmtuuifR90znrXurf1t2Lth4p8SaL8Qz4b8Q2F7e6PeeUthrS2XlIJnX/AFT7eOSMA9QevByPRa8l8Y+J7PTtTsvDtnol3cWuiXMd3cXMUnlxq0Q8xlBfPA3jOWzlgB2r1SxuYbyxt7y3YtDPEssZIxlWAI/Q1zYnEUa8k6as1o7K17dbba9baE4eom5QUr2/r5kxGQRjINcPZ+E/EemWNvp+m+K9UjtLWNYoI/KtfkRRtUZMRJwvc9Ww3sb/AIv8INr+t6Zqa6rLbCxDDyCpZHJYMDwy4Py4PUFSR3rkk+Ft8IV0cat5VmdMuYp7uBTH5tzIHWKTytxwY/NlbIYA5QADbXXh1RjSb9qr72cb7X6v+tfJjqOblbl073/r+kaMvw0h1S7kn1++1K8890e4VZ0iS42cL5iRqAxA4yAD/TuNLvdMnQ22nXNs4twYzFEwzGFZo8Y6gBkZfqpHavKtV+BkFzcao1l4luLSC7hhit4TFI6W3liLAx5oDoDFuVWBALtndk56XwH8OI/C3iu58QnVEv7m7tJLeeSW0Cykm5knUhw3AAl2lcYOxSNuMVwSUG3JbvsrF06UYNtLc//Z" alt="" class="header-logo" style="width:32px;height:32px;border-radius:6px;object-fit:contain">
       <span class="header-title" id="headerCompanyName">EzyAccount</span>
-      <span style="font-size:9px;color:#9ca3af;margin-left:4px;letter-spacing:0.3px">v3.24-0107/1900</span>
+      <span style="font-size:9px;color:#9ca3af;margin-left:4px;letter-spacing:0.3px">v3.38-1607/2221</span>
     </div>
-    <div class="header-right"><button onclick="window.location.href='index.html'" title="Tukar Syarikat" style="background:none;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-weight:500;color:#6b7280;cursor:pointer;padding:5px 10px;margin-right:4px">🏢 Tukar</button>
+    <div class="header-right"><button onclick="window.location.href='../index.html'" title="Tukar Syarikat" style="background:none;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-weight:500;color:#6b7280;cursor:pointer;padding:5px 10px;margin-right:4px">🏢 Tukar</button>
       <button id="btnRefresh" onclick="refreshAllData()" title="Refresh Data" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;line-height:1">🔄</button>
       <span class="settings-gear" onclick="openSettings()" title="Settings">⚙</span>
       <div class="user-badge" onclick="openProfile()">
@@ -403,14 +403,14 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-secondary" style="flex:1" onclick="goStep(3)">Kembali</button>
-            <button class="btn btn-primary" style="flex:1" id="btnSubmit" onclick="submitReceipt()">Hantar</button>
+            <button class="btn btn-primary" style="flex:1" id="btnSubmit" onclick="submitReceipt()">Simpan</button>
           </div>
         </div>
         <!-- Success -->
         <div id="wSuccess" style="display:none" class="success-screen">
           <div class="success-icon">✅</div>
-          <div style="font-size:20px;font-weight:700;margin-bottom:8px">Resit Dihantar!</div>
-          <div style="font-size:14px;color:var(--mid);margin-bottom:24px">Resit anda telah berjaya dihantar untuk semakan.</div>
+          <div style="font-size:20px;font-weight:700;margin-bottom:8px">Resit Telah Disimpan</div>
+          <div style="font-size:14px;color:var(--mid);margin-bottom:24px">Resit anda telah berjaya disimpan untuk semakan.</div>
           <button class="btn btn-primary" onclick="resetWizard()">Upload Resit Baru</button>
           <div id="staffRecentTx" style="margin-top:20px;width:100%;text-align:left"></div>
         </div>
@@ -460,6 +460,8 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
     </div>
 
     <!-- ===== INVOICE MODULE ===== -->
+    <div class="screen" id="screen-request"><div class="screen-inner" id="requestContent"></div></div>
+
     <div class="screen" id="screen-invoice">
       <div class="screen-inner" id="invoiceContent"></div>
     </div>
@@ -607,6 +609,16 @@ const SHEET_ID = COMPANY_CONFIG.sheetId;
 const MASTER_SHEET_ID = '1u3H6D57vx7jahjc40S9u_qwhCXduMQ7gMTZyoP7J8Z8';
 const DRIVE_FOLDER_NAME = COMPANY_CONFIG.driveFolderName;
 const DRIVE_ROOT_FOLDER_ID = COMPANY_CONFIG.driveFolderRootId;
+const MALAY_MONTHS=['Januari','Februari','Mac','April','Mei','Jun','Julai','Ogos','September','Oktober','November','Disember'];
+function malayMonthName(d){ return MALAY_MONTHS[d.getMonth()]; }
+// All companies share one Drive root; this resolves (and caches) the company's own
+// subfolder inside it so receipts/invoices from different companies never mix together.
+let _companyDriveFolderIdCache=null;
+async function getCompanyDriveFolderId(token){
+  if(_companyDriveFolderIdCache) return _companyDriveFolderIdCache;
+  _companyDriveFolderIdCache=await getOrCreateSubfolder(token, DRIVE_ROOT_FOLDER_ID, COMPANY_CONFIG.id);
+  return _companyDriveFolderIdCache;
+}
 const SKU_SHEET_ID = COMPANY_CONFIG.skuSheetId;
 const SUPER_ADMIN = COMPANY_CONFIG.superAdmin;
 const ACCOUNTANTS = COMPANY_CONFIG.accountants||[];
@@ -650,9 +662,15 @@ function fmtDate(d){
   if(!d) return '-';
   // Accepts YYYY-MM-DD or DD/MM/YY or DD/MM/YYYY
   const s=String(d).trim();
-  if(s.includes('-')){const p=s.split('-');if(p.length===3)return p[2].slice(-2)+'/'+p[1]+'/'+p[0].slice(2);}
-  if(s.includes('/')){const p=s.split('/');if(p.length===3)return p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2].slice(-2);}
+  if(s.includes('-')){const p=s.split('-');if(p.length===3)return p[2].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+(p[0].length===2?'20'+p[0]:p[0]);}
+  if(s.includes('/')){const p=s.split('/');if(p.length===3)return p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+(p[2].length===2?'20'+p[2]:p[2]);}
   return s;
+}
+// Force a date to be written to Sheets as literal dd/mm/yyyy TEXT (leading apostrophe = Sheets "plain text" marker).
+// Prevents USER_ENTERED from auto-detecting it as a date and storing a serial number that later renders
+// as a raw number (e.g. "46208") when the cell's inherited number format isn't a date format.
+function toSheetDateText(d){
+  return "'"+fmtDate(d);
 }
 function showModal(title,bodyHtml){
   let m=document.getElementById('genericModal');
@@ -894,7 +912,12 @@ async function syncAllStaffFromSheet(){
       email:row[2],name:row[0]||row[2],role:row[1]||'pending',
       picture:row[3]||'',joinedAt:row[4]||Date.now(),fromSheet:true
     }));
-    lsSet('ezy_registered_users',users);
+    // De-duplicate by email — if a staff member accidentally has more than one row
+    // (e.g. registered again after a cache reset before their first row was approved),
+    // keep the LAST occurrence since it reflects the most recently written role.
+    const byEmail={};
+    users.forEach(u=>{byEmail[u.email]=u;});
+    lsSet('ezy_registered_users',Object.values(byEmail));
   }catch(e){console.warn('Staff from sheet:',e);}
 }
 
@@ -903,22 +926,237 @@ function setRegisteredUsers(u){lsSet('ezy_registered_users',u)}
 function getUserProfile(email){return lsGet('ezy_user_profile_'+email,{})}
 function setUserProfile(email,data){lsSet('ezy_user_profile_'+email,data)}
 
+// ===== Central staff registry (EzyGroup Staff sheet) — role is PER COMPANY =====
+// This app used to read roles only from its own 'Staff' tab in MASTER_SHEET_ID, which the landing
+// page and the "Urus Staff" panel never write to. A user granted a role there was let through the
+// landing and then bounced to "Menunggu Kelulusan" here. The central registry is now the source of
+// truth; the old per-sheet Staff tab is kept as a fallback so nobody currently working loses access.
+const STAFF_REGISTRY_SHEET_ID='1Ej0vKOeizIKvH0x-7cTskU8Z26MYa1xoXtIpqiL77Qg';
+async function loadCentralStaff(){
+  const tok=getValidToken()||accessToken||currentToken; if(!tok) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${STAFF_REGISTRY_SHEET_ID}/values/Staff!A1:Z`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(d.error||!d.values||!d.values.length){ lsSet('ezy_central_staff',{header:[],rows:[]}); return; }
+    lsSet('ezy_central_staff',{header:d.values[0].map(h=>(h||'').toString().trim()),rows:d.values.slice(1).filter(x=>x[0])});
+  }catch(e){ console.warn('loadCentralStaff:',e); }
+}
+// Role for THIS company from the central registry. Returns a role, 'pending', or null (unknown user).
+function getCompanyRole(email){
+  if((email||'').toLowerCase()===(SUPER_ADMIN||'').toLowerCase()) return 'super_admin';
+  const reg=lsGet('ezy_central_staff',{header:[],rows:[]});
+  const header=reg.header||[], rows=reg.rows||[];
+  if(!header.length) return null;
+  const ei=Math.max(0,header.findIndex(h=>h.toLowerCase()==='email'));
+  const ci=header.findIndex(h=>h.toLowerCase()===COMPANY_CONFIG.id.toLowerCase());
+  const row=rows.find(r=>(r[ei]||'').toString().trim().toLowerCase()===(email||'').toLowerCase());
+  if(!row) return null;            // not in registry
+  if(ci<0) return 'pending';       // company column missing
+  const role=(row[ci]||'').toString().trim().toLowerCase();
+  return role||'pending';          // in registry but no role for this company
+}
 function getRole(email){
   if(email===SUPER_ADMIN) return 'super_admin';
   if(ACCOUNTANTS.includes(email)) return 'accountant';
-  // Check Sheet-sourced role first (source of truth)
+  // Central registry wins
+  const cr=getCompanyRole(email);
+  if(cr&&cr!=='pending') return cr;
+  // Fallback: legacy per-sheet Staff tab (keeps existing users working during the migration)
   const users=getRegisteredUsers();
   const u=users.find(x=>x.email===email);
   if(u&&u.role&&u.role!=='pending') return u.role;
-  // Fallback to local profiles
   const profiles=getStaffProfiles();
   if(profiles[email]&&profiles[email].role) return profiles[email].role;
-  return 'staff';
+  return cr||'pending';
 }
 function getStaffBranches(email){
   const profiles=getStaffProfiles();
   if(profiles[email]&&profiles[email].branches) return profiles[email].branches;
   return BRANCHES; // default all
+}
+
+// ================= REQUEST MODULE (branch -> HQ goods request) =================
+const REQ_HQ_BRANCH='Batu Caves';
+function reqUserName(){ const u=currentUser; if(!u) return ''; return (getUserProfile(u.email).fullname)||u.name||u.email; }
+function reqMyBranches(){ const em=currentUser&&currentUser.email; const b=em?getStaffBranches(em):BRANCHES; return (b&&b.length)?b:BRANCHES; }
+// EXPLICIT assignment only (no default-all) — used to decide HQ status.
+function reqAssignedBranches(){ const em=currentUser&&currentUser.email; const p=getStaffProfiles()[em]; return (p&&p.branches&&p.branches.length)?p.branches:[]; }
+function reqIsHQ(){ return reqAssignedBranches().includes(REQ_HQ_BRANCH) || currentRole==='super_admin'; }
+function reqSafeJson(s){ try{return JSON.parse(s||'[]');}catch(e){return [];} }
+function reqDateKey(d){ const f=fmtDate(d); if(!f||f==='-') return ''; const p=f.split('/'); return p.length===3?(p[2]+'-'+p[1]+'-'+p[0]):''; }
+
+// --- data: Request tab ---
+function getRequests(){ return lsGet('ezy_requests_'+COMPANY_CONFIG.id,[]); }
+function setRequests(l){ lsSet('ezy_requests_'+COMPANY_CONFIG.id,l); }
+async function loadRequestsFromSheet(){
+  const tok=getValidToken()||accessToken||currentToken; if(!tok) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Request!A2:L`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json(); if(d.error) return;
+    setRequests((d.values||[]).filter(x=>x[0]).map(x=>({id:x[0],date:x[1]||'',branch:x[2]||'',email:x[3]||'',nama:x[4]||'',items:reqSafeJson(x[5]),nota:x[6]||'',status:x[7]||'Pending',invoiceId:x[8]||'',fulfilledBy:x[9]||'',fulfilledAt:x[10]||'',actionNote:x[11]||''})));
+  }catch(e){ console.warn('loadRequests:',e); }
+}
+async function syncRequestsToSheet(){
+  const tok=getValidToken()||accessToken||currentToken; if(!tok) return;
+  try{
+    const cr=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Request!A1:A1`,{headers:{Authorization:'Bearer '+tok}});
+    if((await cr.json()).error) await ensureSheetTab(tok,SHEET_ID,'Request');
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Request!A1:L100000:clear`,{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'}});
+    const rows=[['ID','Tarikh','Branch','Email','Nama','Items','Nota','Status','InvoiceID','FulfilledOleh','FulfilledAt','NotaTindakan']];
+    getRequests().forEach(r=>rows.push([r.id,r.date,r.branch,r.email,r.nama,JSON.stringify(r.items||[]),r.nota||'',r.status||'Pending',r.invoiceId||'',r.fulfilledBy||'',r.fulfilledAt||'',r.actionNote||'']));
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Request!A1?valueInputOption=USER_ENTERED`,{method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({values:rows})});
+  }catch(e){ console.warn('syncRequests:',e); }
+}
+
+// --- data: SKU Request tab (ID, Nama, Harga) ---
+window._reqSku = window._reqSku || [];
+function reqSkuRange(a1){ return encodeURIComponent("'SKU Request'!"+a1); }
+async function loadReqSku(){
+  const tok=getValidToken()||accessToken||currentToken; if(!tok) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${reqSkuRange('A2:C500')}`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json(); if(d.error){ await ensureReqSkuTab(); return; }
+    window._reqSku=(d.values||[]).filter(x=>x[1]).map(x=>({id:x[0]||'',name:(x[1]||'').trim(),price:parseFloat((x[2]||'').toString().replace(/[, ]/g,''))||0}));
+  }catch(e){ console.warn('loadReqSku:',e); }
+}
+async function ensureReqSkuTab(){
+  const tok=getValidToken()||accessToken||currentToken; if(!tok) return;
+  try{
+    const cr=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${reqSkuRange('A1:A1')}`,{headers:{Authorization:'Bearer '+tok}});
+    if((await cr.json()).error){
+      await ensureSheetTab(tok,SHEET_ID,'SKU Request');
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${reqSkuRange('A1')}?valueInputOption=USER_ENTERED`,{method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({values:[['ID','Nama','Harga']]})});
+    }
+  }catch(e){ console.warn('ensureReqSkuTab:',e); }
+}
+async function growReqSku(items){
+  const tok=getValidToken()||accessToken||currentToken; if(!tok) return;
+  if(!window._reqSku) window._reqSku=[];
+  const existing=new Set(window._reqSku.map(s=>(s.name||'').trim().toLowerCase()));
+  const rows=[];
+  (items||[]).forEach(it=>{ const nm=(it.name||'').trim(); if(!nm) return; const k=nm.toLowerCase(); if(existing.has(k)) return; existing.add(k); const id='SKR-'+Date.now()+Math.random().toString(36).substr(2,3); const pr=parseFloat(it.price)||0; rows.push([id,nm,pr]); window._reqSku.push({id,name:nm,price:pr}); });
+  if(!rows.length) return;
+  try{ await ensureReqSkuTab(); await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${reqSkuRange('A:C')}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},body:JSON.stringify({values:rows})}); }catch(e){ console.warn('growReqSku:',e); }
+}
+
+// --- render ---
+function renderRequestScreen(){
+  _renderRequestInner();
+  Promise.all([loadRequestsFromSheet().catch(()=>{}),loadReqSku().catch(()=>{})]).then(()=>_renderRequestInner()).catch(()=>{});
+}
+function reqPendingCount(){ return getRequests().filter(r=>r.status==='Pending').length; }
+function _renderRequestInner(){
+  const el=document.getElementById('requestContent'); if(!el) return;
+  const hq=reqIsHQ();
+  let list=getRequests().slice().sort((a,b)=>(reqDateKey(b.date)||'').localeCompare(reqDateKey(a.date)||''));
+  if(!hq){ const em=currentUser&&currentUser.email; const mine=reqMyBranches(); list=list.filter(r=>r.email===em||mine.includes(r.branch)); }
+  const pending=list.filter(r=>r.status==='Pending');
+  let html=`<div style="font-size:18px;font-weight:700;margin-bottom:12px">📦 Request${hq?' — HQ':''}</div>
+    <button class="btn btn-primary btn-block" style="margin-bottom:12px" onclick="showRequestForm()">Request item dari HQ</button>`;
+  if(hq) html+=`<div class="kpi-card" style="margin-bottom:12px"><div class="kpi-label">Request Pending</div><div class="kpi-value" style="color:${pending.length?'var(--amber)':'var(--green)'}">${pending.length}</div></div>`;
+  if(!list.length){ html+='<div class="empty-state"><div class="empty-icon">📦</div><div>Tiada request</div></div>'; el.innerHTML=html; return; }
+  html+=list.map(r=>reqCard(r,hq)).join('');
+  el.innerHTML=html;
+}
+function reqBadge(s){ const c={Pending:'var(--amber)',Draft:'#6b7280',Invoiced:'#2563eb',Fulfilled:'var(--green)',Rejected:'var(--red)'}[s]||'var(--mid)'; return `<span style="font-size:11px;font-weight:700;color:${c}">${s}</span>`; }
+function reqCard(r,hq){
+  const itemsHtml=(r.items||[]).map(it=>`<div style="display:flex;justify-content:space-between;padding:2px 0;border-top:1px solid var(--border)"><span>${it.name}</span><span style="color:var(--mid);font-weight:600">×${it.qty}</span></div>`).join('');
+  return `<div class="card mb-8" style="padding:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700">${r.branch}</div>${reqBadge(r.status)}</div>
+    <div style="font-size:11px;color:var(--mid);margin:2px 0">${fmtDate(r.date)} · ${r.nama||r.email}</div>
+    <div style="font-size:12px;margin-bottom:6px">${itemsHtml}</div>
+    ${r.nota?`<div style="font-size:11px;color:var(--mid);font-style:italic">"${r.nota}"</div>`:''}
+    ${r.invoiceId?`<div style="font-size:10px;color:#2563eb">🧾 Invoice: ${r.invoiceId}</div>`:''}
+    ${r.fulfilledBy?`<div style="font-size:10px;color:${r.status==='Rejected'?'var(--red)':'var(--green)'}">${r.status==='Rejected'?'✕ Ditolak':'✓ Fulfilled'} oleh <b>${r.fulfilledBy}</b>${r.fulfilledAt?' · '+r.fulfilledAt:''}${r.actionNote?` — "${r.actionNote}"`:''}</div>`:''}
+    ${hq&&r.status!=='Rejected'&&r.status!=='Fulfilled'?`<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      ${r.status==='Pending'?`<button class="btn btn-sm btn-primary" onclick="convertRequestToInvoice('${r.id}')">Convert → Invoice</button>`:''}
+      ${r.invoiceId?`<button class="btn btn-sm" style="background:#059669;color:#fff" onclick="fulfilRequest('${r.id}')">Fulfil</button>`:''}
+      <button class="btn btn-sm btn-danger" onclick="rejectRequest('${r.id}')">Reject</button>
+    </div>`:''}
+  </div>`;
+}
+
+// --- create request form ---
+function showRequestForm(){
+  window._reqDraft={branch:reqMyBranches()[0]||BRANCHES[0],items:[{name:'',price:0,qty:1}],nota:''};
+  const branchOpts=reqMyBranches().map(b=>`<option value="${b}">${b}</option>`).join('');
+  showModal('+ Buat Request',`
+    <div class="form-group"><label class="form-label">Untuk Branch</label><select class="form-input" onchange="window._reqDraft.branch=this.value">${branchOpts}</select></div>
+    <div class="form-group"><label class="form-label">Item</label><div id="reqItemsWrap"></div>
+      <button class="btn btn-outline btn-block" style="margin-top:6px" onclick="reqAddItem()">+ Tambah Item</button></div>
+    <div class="form-group"><label class="form-label">Nota (pilihan)</label><textarea class="form-input" rows="2" oninput="window._reqDraft.nota=this.value" placeholder="Catatan"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveRequest()">Hantar Request</button>`);
+  renderReqItems();
+  loadReqSku().then(()=>renderReqItems()).catch(()=>{});
+}
+function renderReqItems(){
+  const wrap=document.getElementById('reqItemsWrap'); if(!wrap) return;
+  const skus=window._reqSku||[];
+  const opts=skus.map(s=>`<option value="${(s.name||'').replace(/"/g,'&quot;')}">${s.name} (RM${(s.price||0).toFixed(2)})</option>`).join('');
+  wrap.innerHTML=window._reqDraft.items.map((it,i)=>`
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+      ${opts?`<select class="form-input" style="flex:2" onchange="applyReqSku(${i},this.value)"><option value="">— SKU —</option>${opts}<option value="__new__">➕ SKU Baru</option></select>`:''}
+      <input class="form-input" style="flex:2" placeholder="Nama item" value="${(it.name||'').replace(/"/g,'&quot;')}" oninput="reqUpdateItem(${i},'name',this.value)">
+      <input class="form-input" style="width:56px" type="number" min="1" placeholder="Qty" value="${it.qty||''}" oninput="reqUpdateItem(${i},'qty',this.value)">
+      <button onclick="reqRemoveItem(${i})" style="background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer">×</button>
+    </div>`).join('');
+}
+function reqUpdateItem(i,f,v){ if(window._reqDraft.items[i]) window._reqDraft.items[i][f]=v; }
+function reqAddItem(){ window._reqDraft.items.push({name:'',price:0,qty:1}); renderReqItems(); }
+function reqRemoveItem(i){ window._reqDraft.items.splice(i,1); renderReqItems(); }
+function applyReqSku(i,val){
+  const it=window._reqDraft.items[i]; if(!it) return;
+  if(val==='__new__'){ const nm=(prompt('Nama SKU baru:')||'').trim(); if(nm){ const pr=parseFloat(prompt('Harga (RM):','0'))||0; it.name=nm; it.price=pr; } renderReqItems(); return; }
+  if(!val) return;
+  it.name=val; const s=(window._reqSku||[]).find(x=>x.name===val); if(s) it.price=s.price;
+  renderReqItems();
+}
+function saveRequest(){
+  const d=window._reqDraft; const items=(d.items||[]).filter(it=>(it.name||'').trim());
+  if(!items.length){ showToast('Sila tambah sekurang-kurangnya 1 item ⚠️'); return; }
+  const em=currentUser&&currentUser.email;
+  const req={id:'REQ-'+Date.now(),date:fmtDate(new Date().toISOString().split('T')[0]),branch:d.branch,email:em,nama:reqUserName(),
+    items:items.map(it=>({name:(it.name||'').trim(),price:parseFloat(it.price)||0,qty:parseFloat(it.qty)||1})),
+    nota:d.nota||'',status:'Pending',invoiceId:'',fulfilledBy:'',fulfilledAt:''};
+  const list=getRequests(); list.push(req); setRequests(list); syncRequestsToSheet().catch(()=>{});
+  growReqSku(items).catch(()=>{});
+  hideModal(); showToast('Request dihantar ✅'); _renderRequestInner();
+}
+
+// --- HQ actions ---
+function convertRequestToInvoice(reqId){
+  const req=getRequests().find(r=>r.id===reqId); if(!req) return;
+  window._convertReqId=reqId;
+  switchTab('invoice', renderInvoiceScreen);
+  showInvoiceForm();
+  invoiceItems=(req.items||[]).map(it=>({desc:it.name||'',unit:'',qty:it.qty||'',rate:it.price||'',amount:((parseFloat(it.qty)||0)*(parseFloat(it.price)||0)).toFixed(2)}));
+  const addr=(getBranchAddresses()[req.branch])||req.branch;
+  const bt=document.getElementById('invBillTo'); if(bt) bt.value=addr;
+  const bs=document.getElementById('invBranchSel'); if(bs) bs.value=req.branch;
+  if(typeof renderInvoiceItems==='function') renderInvoiceItems();
+  if(typeof recalcInvoiceTotal==='function') recalcInvoiceTotal();
+  showToast('Semak item + letak harga, kemudian Simpan invoice');
+}
+function linkRequestInvoice(reqId,invId,invStatus){
+  const list=getRequests(); const r=list.find(x=>x.id===reqId); if(!r) return;
+  r.invoiceId=invId;
+  // Mirror the invoice status: saved as Draft -> 'Draft', sent -> 'Invoiced'.
+  if(r.status!=='Fulfilled'&&r.status!=='Rejected') r.status=(invStatus==='Draft')?'Draft':'Invoiced';
+  setRequests(list); syncRequestsToSheet().catch(()=>{});
+}
+function fulfilRequest(reqId){
+  const list=getRequests(); const r=list.find(x=>x.id===reqId); if(!r) return;
+  if(!confirm('Tandakan request ini sebagai FULFILLED?')) return;
+  const note=(prompt('Nota (pilihan) — cth barang dihantar:','')||'').trim();
+  r.status='Fulfilled'; r.fulfilledBy=reqUserName(); r.fulfilledAt=new Date().toLocaleString('en-GB'); r.actionNote=note;
+  setRequests(list); syncRequestsToSheet().catch(()=>{}); _renderRequestInner();
+}
+function rejectRequest(reqId){
+  const list=getRequests(); const r=list.find(x=>x.id===reqId); if(!r) return;
+  const note=(prompt('Sebab reject:','')||'').trim();
+  if(note===''&&!confirm('Reject tanpa sebab?')) return;
+  r.status='Rejected'; r.fulfilledBy=reqUserName(); r.fulfilledAt=new Date().toLocaleString('en-GB'); r.actionNote=note;
+  setRequests(list); syncRequestsToSheet().catch(()=>{}); _renderRequestInner();
 }
 
 // =====================
@@ -957,16 +1195,16 @@ async function fetchAndSetUser(){
     currentUser = u;
     lsSet('ezy_user',u);
 
-    // First sync from Sheet to get latest roles
+    // Central registry (what the landing page and "Urus Staff" write to) is the source of truth.
+    // The legacy per-sheet Staff tab is still synced so getRole() can fall back to it.
+    await loadCentralStaff();
     await syncAllStaffFromSheet();
 
-    // Check role from Sheet (source of truth)
-    const allUsers = getRegisteredUsers();
-    const thisUser = allUsers.find(x=>x.email===u.email);
+    const role = getRole(u.email);
 
-    if(!thisUser){
-      // Brand new user — not in Sheet yet, register as pending
-      registerUser(u);
+    if(!role || role==='pending'){
+      // No role for this company yet — record the request in the legacy tab, then show pending.
+      if(!getRegisteredUsers().find(x=>x.email===u.email)) registerUser(u);
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('mainApp').style.display='none';
       document.getElementById('deniedScreen').style.display='none';
@@ -975,18 +1213,7 @@ async function fetchAndSetUser(){
       return;
     }
 
-    const sheetRole = thisUser.role;
-
-    if(sheetRole==='pending'){
-      document.getElementById('loginScreen').style.display='none';
-      document.getElementById('mainApp').style.display='none';
-      document.getElementById('deniedScreen').style.display='none';
-      const ps=document.getElementById('pendingScreen');
-      if(ps){ps.style.display='flex';document.getElementById('pendingEmail').textContent=u.email;}
-      return;
-    }
-
-    currentRole = sheetRole || getRole(u.email);
+    currentRole = role;
     showMainApp();
   }catch(e){
     console.error('fetchAndSetUser error:',e);
@@ -1040,14 +1267,12 @@ function autoLogin(){
   if(token && user){
     currentToken = token;
     accessToken = token;
-    currentUser = user;
-    currentRole = getRole(user.email);
-    showMainApp();
+    fetchAndSetUser();
     return;
   }
 
   // No valid token — redirect to index.html to login
-  window.location.href = 'index.html';
+  window.location.href = '../index.html';
 }
 
 // Returns a valid token or null. Does NOT auto-refresh (avoid popup blocked errors).
@@ -1075,7 +1300,7 @@ function logoutUser(){
   localStorage.removeItem('ezy_landing_token');localStorage.removeItem('ezy_landing_expiry');
   sessionStorage.removeItem('ezy_sess_token');sessionStorage.removeItem('ezy_sess_expiry');
   try{if(tokenToRevoke&&window.google) google.accounts.oauth2.revoke(tokenToRevoke,()=>{});}catch(e){}
-  window.location.href='index.html';
+  window.location.href = '../index.html';
 }
 
 function showMainApp(){
@@ -1145,6 +1370,7 @@ function setupAppForRole(){
       setupTabs([
         {id:'dashboard',label:'Dashboard',fn:renderBranchDashboard},
         {id:'invoice',label:'Invoice',fn:renderInvoiceScreen},
+        {id:'request',label:'Request',fn:renderRequestScreen},
         {id:'onpay',label:'Onpay',fn:renderOnpayScreen},
         {id:'payment',label:'Payment',fn:renderPaymentScreen},
         {id:'branch',label:'Branch',fn:renderBranchScreen}
@@ -1166,6 +1392,7 @@ function setupAppForRole(){
       setupTabs([
         {id:'dashboard',label:'Dashboard',fn:renderBranchDashboard},
         {id:'invoice',label:'Invoice',fn:renderInvoiceScreen},
+        {id:'request',label:'Request',fn:renderRequestScreen},
         {id:'onpay',label:'Onpay',fn:renderOnpayScreen},
         {id:'payment',label:'Payment',fn:renderPaymentScreen},
         {id:'branch',label:'Branch',fn:renderBranchScreen}
@@ -1187,9 +1414,11 @@ function setupAppForRole(){
       setupTabs([
         {id:'dashboard',label:'Dashboard',fn:renderBranchDashboard},
         {id:'invoice',label:'Invoice',fn:renderInvoiceScreen},
+        {id:'request',label:'Request',fn:renderRequestScreen},
         {id:'onpay',label:'Onpay',fn:renderOnpayScreen},
         {id:'payment',label:'Payment',fn:renderPaymentScreen},
-        {id:'branch',label:'Branch',fn:renderBranchScreen}
+        {id:'branch',label:'Branch',fn:renderBranchScreen},
+        {id:'staff',label:'Staff',fn:renderStaffScreen}
       ]);
     } else {
       setupTabs([
@@ -1972,7 +2201,7 @@ function renderReview(){
 
 async function submitReceipt(){
   const btn=document.getElementById('btnSubmit');
-  btn.disabled=true;btn.textContent='Menghantar...';
+  btn.disabled=true;btn.textContent='Menyimpan...';
   const vendor=selectedVendor;
   const date=document.getElementById('receiptDate').value;
   const amount=parseFloat(document.getElementById('receiptAmount').value)||0;
@@ -2046,7 +2275,7 @@ async function submitReceipt(){
   };
   receipts.push(entry);
   // Sheet resit: ONE row per receipt (total amount only)
-  sheetRows.push([id,date,vendor?vendor.name:'',totalAmount,primaryAccount,primaryCat,branch,uploadedBy,u.email,'Pending','',driveLink,nota||'']);
+  sheetRows.push([id,toSheetDateText(date),vendor?vendor.name:'',totalAmount,primaryAccount,primaryCat,branch,uploadedBy,u.email,'Pending','',driveLink,nota||'']);
   setReceipts(receipts);
   // Update supplier tab in Sheet
   if(vendor) setTimeout(()=>updateSupplierTab(vendor.name).catch(()=>{}),3000);
@@ -2064,7 +2293,7 @@ async function submitReceipt(){
   // ItemRegistry sync disabled - create 'ItemRegistry' tab in sheet first
   // try{await syncItemRegistryToSheet();}catch(e){}
 
-  btn.disabled=false;btn.textContent='Hantar';
+  btn.disabled=false;btn.textContent='Simpan';
   ['wStep1','wStep2','wStep3','wStep4'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('wSuccess').style.display='block';
   // Show last 5 receipts in success screen
@@ -2114,10 +2343,10 @@ async function uploadToDrive(base64,vendorName,date,amount){
   const cleanAmount='RM'+((parseFloat(amount)||0).toFixed(2));
   const filename=`${dd}${mm}${yy}-${cleanVendor}-${cleanAmount}`;
   const blob=base64ToBlob(base64,'image/jpeg');
-  // Subfolder: YYYY-MM based on TODAY (upload month), not receipt date
-  const todayMM=String(today.getMonth()+1).padStart(2,'0');
-  const monthFolder=`${today.getFullYear()}-${todayMM}`;
-  const folderId=await getOrCreateSubfolder(token, DRIVE_ROOT_FOLDER_ID, monthFolder);
+  // Subfolder: EzyGroup root > company > month name (based on TODAY, the upload month, not receipt date)
+  const companyFolderId=await getCompanyDriveFolderId(token);
+  const monthFolder=malayMonthName(today);
+  const folderId=await getOrCreateSubfolder(token, companyFolderId, monthFolder);
   const metadata={name:filename+'.jpg',parents:[folderId]};
   const form=new FormData();
   form.append('metadata',new Blob([JSON.stringify(metadata)],{type:'application/json'}));
@@ -2618,7 +2847,7 @@ function renderAccountantDashboard(){
   }
   html+=`<div class="kpi-grid">
     <div class="kpi-card"><div class="kpi-label">Total Resit</div><div class="kpi-value">${receipts.length}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pending.length}</div></div>
+    <div class="kpi-card" style="cursor:pointer" onclick="switchTab('resit')"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:var(--amber)">${pending.length}</div></div>
     <div class="kpi-card"><div class="kpi-label">Approved</div><div class="kpi-value" style="color:var(--green)">${approved.length}</div></div>
     <div class="kpi-card"><div class="kpi-label">Total Approved</div><div class="kpi-value" style="font-size:16px">${formatRM(totalApproved)}</div></div>
   </div>
@@ -2668,7 +2897,7 @@ function renderResitContent(tab){
   const kpiHtml=`<div class="kpi-grid" style="margin-bottom:12px">
     <div class="kpi-card"><div class="kpi-label">Jumlah Resit</div><div class="kpi-value">${allR.length}</div></div>
     <div class="kpi-card"><div class="kpi-label">Telah Diluluskan</div><div class="kpi-value" style="color:var(--green)">${approvedCount}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Pending Approval</div><div class="kpi-value" style="color:var(--amber)">${pendingCount}</div></div>
+    <div class="kpi-card" style="cursor:pointer" onclick="document.getElementById('restab-Pending')?.click()"><div class="kpi-label">Pending Approval</div><div class="kpi-value" style="color:var(--amber)">${pendingCount}</div></div>
     <div class="kpi-card"><div class="kpi-label">RM Purata Resit</div><div class="kpi-value" style="font-size:14px">${formatRM(avg)}</div></div>
   </div>`;
   if(tab==='Pending') receipts=receipts.filter(r=>r.status==='Pending');
@@ -2684,15 +2913,17 @@ function renderResitContent(tab){
   const allReceipts=getReceipts();
   const latest=allReceipts.slice().reverse().slice(0,10);
   if(latest.length){
+    const canActLatest=(currentRole==='accountant'||currentRole==='super_admin');
     html+=`<div style="margin-top:20px">
       <div class="section-title">10 Transaksi Terakhir</div>
       <div class="table-wrap">
         <table class="data-table">
-          <thead><tr><th>Tarikh</th><th>Vendor</th><th>Cawangan</th><th>RM</th><th>Status</th></tr></thead>
+          <thead><tr><th>Tarikh</th><th>Vendor</th><th>Cawangan</th><th>RM</th><th>Status</th>${canActLatest?'<th>Aksi</th>':''}</tr></thead>
           <tbody>${latest.map(r=>`<tr>
             <td>${fmtDate(r.date)}</td><td>${r.vendor}</td><td>${r.branch||'-'}</td>
             <td>${formatRM(parseFloat(r.amount||0))}</td>
             <td><span class="status-badge status-${(r.status||'').toLowerCase()}">${r.status}</span></td>
+            ${canActLatest?`<td>${r.status==='Pending'?`<button class="btn btn-success btn-sm" style="padding:2px 8px;font-size:11px" onclick="approveReceipt('${r.id}')">Lulus</button>`:''}</td>`:''}
           </tr>`).join('')}</tbody>
         </table>
       </div>
@@ -2766,15 +2997,20 @@ async function syncReceiptStatusToSheet(r,status){
     const fd=await fr.json();
     if(!fd.values) return;
     const rows=fd.values;
-    // Headers: Tarikh,Vendor,Item,Jumlah,Akaun,Kategori,Cawangan,Staff,Email,Status,Approved By,Drive Link,Nota
-    // Col:      A     B      C    D      E     F        G        H     I     J      K           L          M
-    const dateStr=r.date||'';
-    const vendor=r.vendor||'';
+    // NEW format rows: A=ID,B=Tarikh,C=Vendor,D=Jumlah,E=Akaun,F=Kategori,G=Cawangan,H=Staff,I=Email,J=Status,K=Approved By,L=Drive Link,M=Nota
     let rowIdx=-1;
     for(let i=1;i<rows.length;i++){
-      if(rows[i][0]===dateStr && rows[i][1]===vendor){rowIdx=i+1;break;}
+      if(rows[i][0]===r.id){rowIdx=i+1;break;}
     }
-    if(rowIdx<1) return;
+    if(rowIdx<1){
+      // Fallback for legacy OLD format rows: A=Tarikh,B=Vendor (no ID column)
+      const dateStr=r.date||'';
+      const vendor=r.vendor||'';
+      for(let i=1;i<rows.length;i++){
+        if(rows[i][0]===dateStr && rows[i][1]===vendor){rowIdx=i+1;break;}
+      }
+    }
+    if(rowIdx<1){console.warn('syncReceiptStatusToSheet: no matching row for',r.id);return;}
     const approvedByName=currentUser?(currentUser.name||currentUser.email):'System';
     const approvedAtStr=new Date().toLocaleString('en-MY');
     const updateUrl=`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit!J${rowIdx}:K${rowIdx}?valueInputOption=RAW`;
@@ -2811,7 +3047,7 @@ function showApprovalWaPrompt(r){
   const staffWa=(uploaderProfile.waNum||'').replace(/\D/g,'');
 
   // Build message
-  const dateStr=r.date||'-';
+  const dateStr=fmtDate(r.date);
   const vendor=r.vendor||'-';
   const amount=formatRM(parseFloat(r.amount||0));
   const approver=getUserProfile(currentUser.email).fullname||currentUser.name||currentUser.email;
@@ -3092,6 +3328,7 @@ function _renderBranchDashboardInner(){
       <button onclick="renderBranchDashboard()" class="btn btn-sm btn-secondary" style="margin-left:auto;white-space:nowrap">🔄</button>
     </div>
     <div class="kpi-grid" id="branchKpi"></div>
+    <div id="reqPendingBanner"></div>
     <div class="chart-wrap" style="margin-bottom:12px">
       <div class="chart-title">Trend Stock IN</div>
       <canvas id="bchart-trend" height="200"></canvas>
@@ -3116,6 +3353,14 @@ function _renderBranchDashboardInner(){
     <div class="card"><div class="card-title mb-12">Rekod Stock IN Terbaru</div><div class="table-wrap" id="blatest-tx"></div></div>
   `;
   setBranchPeriod('Bulan', document.getElementById('bperiod-Bulan'));
+  renderReqBanner();
+  loadRequestsFromSheet().then(()=>renderReqBanner()).catch(()=>{});
+}
+function renderReqBanner(){
+  const el=document.getElementById('reqPendingBanner'); if(!el) return;
+  if(!reqIsHQ()){ el.innerHTML=''; return; }
+  const n=reqPendingCount();
+  el.innerHTML=`<div class="kpi-card" style="cursor:pointer;margin-bottom:12px;border:1px solid ${n?'var(--amber)':'var(--border)'}" onclick="switchTab('request',renderRequestScreen)"><div class="kpi-label">📦 Request Pending (klik untuk lihat)</div><div class="kpi-value" style="color:${n?'var(--amber)':'var(--green)'}">${n}</div></div>`;
 }
 
 function setBranchPeriod(period, btn){
@@ -3179,7 +3424,7 @@ function setBranchPeriod(period, btn){
 
   // Branch doughnut — Stock IN by branch in period
   const byBranch={};
-  invoices.forEach(r=>{if(r.branch)byBranch[r.branch]=(byBranch[r.branch]||0)+r.total;});
+  invoices.forEach(r=>{if(r.branch){const k=normalizeBranchName(r.branch);byBranch[k]=(byBranch[k]||0)+r.total;}});
   const branchColors=COMPANY_CONFIG.branchColors||BRANCH_COLORS;
   const bc=document.getElementById('bchart-branch');
   if(bc){
@@ -3190,9 +3435,9 @@ function setBranchPeriod(period, btn){
     if(lb) lb.innerHTML=bkeys.map((k,i)=>`<div style="display:flex;align-items:center;gap:3px"><span style="width:7px;height:7px;border-radius:50%;background:${branchColors[i%branchColors.length]};flex-shrink:0;display:inline-block"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${k}</span><span style="color:var(--mid);flex-shrink:0">${totalB?Math.round(byBranch[k]/totalB*100):0}%</span></div>`).join('');
   }
 
-  // Bar chart — Stock IN by branch
+  // Bar chart — Stock IN by branch (always show all configured branches, even with 0 in this period)
   const barC=document.getElementById('bchart-bar');
-  if(barC){const bkeys=Object.keys(byBranch);charts['bchart-bar']=new Chart(barC,{type:'bar',data:{labels:bkeys,datasets:[{label:'RM',data:bkeys.map(k=>byBranch[k]),backgroundColor:branchColors}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});}
+  if(barC){const bkeys=COMPANY_CONFIG.branches||Object.keys(byBranch);charts['bchart-bar']=new Chart(barC,{type:'bar',data:{labels:bkeys,datasets:[{label:'RM',data:bkeys.map(k=>byBranch[k]||0),backgroundColor:branchColors}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});}
 
   // Balance per branch sidebar
   const lbBal=document.getElementById('blegend-balance');
@@ -3208,7 +3453,7 @@ function setBranchPeriod(period, btn){
   const ltEl=document.getElementById('blatest-tx');
   if(ltEl){
     const latest=allInvoices.slice(-10).reverse();
-    ltEl.innerHTML=latest.length?`<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:var(--surface2)"><th style="padding:6px 4px;text-align:left">Tarikh</th><th style="padding:6px 4px;text-align:left">Invoice</th><th style="padding:6px 4px;text-align:left">Branch</th><th style="padding:6px 4px;text-align:right">Jumlah</th></tr></thead><tbody>${latest.map(r=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 4px">${r.date||'-'}</td><td style="padding:6px 4px;color:var(--mid)">${r.invoiceNo||'-'}</td><td style="padding:6px 4px">${r.branch||'-'}</td><td style="padding:6px 4px;text-align:right;font-weight:600">${formatRM(r.total)}</td></tr>`).join('')}</tbody></table>`:'<div style="color:var(--mid);font-size:13px;text-align:center;padding:16px">Tiada rekod Stock IN</div>';
+    ltEl.innerHTML=latest.length?`<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:var(--surface2)"><th style="padding:6px 4px;text-align:left">Tarikh</th><th style="padding:6px 4px;text-align:left">Invoice</th><th style="padding:6px 4px;text-align:left">Branch</th><th style="padding:6px 4px;text-align:right">Jumlah</th></tr></thead><tbody>${latest.map(r=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 4px">${fmtDate(r.date)}</td><td style="padding:6px 4px;color:var(--mid)">${r.invoiceNo||'-'}</td><td style="padding:6px 4px">${r.branch||'-'}</td><td style="padding:6px 4px;text-align:right;font-weight:600">${formatRM(r.total)}</td></tr>`).join('')}</tbody></table>`:'<div style="color:var(--mid);font-size:13px;text-align:center;padding:16px">Tiada rekod Stock IN</div>';
   }
 }
 
@@ -3240,21 +3485,17 @@ function _renderOnpayScreenInner(){
     <!-- Input Form -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
       <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:12px">INPUT ONPAY BARU</div>
-      <div class="form-group">
-        <label class="form-label">Branch</label>
-        <select id="onpBranch" class="form-input">${branchOpts}</select>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <div style="flex:1"><label class="form-label">Branch</label>
+          <select id="onpBranch" class="form-input">${branchOpts}</select></div>
+        <div style="flex:1"><label class="form-label">Tarikh</label>
+          <input type="date" id="onpDate" class="form-input" value="${today}"></div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Tarikh</label>
-        <input type="date" id="onpDate" class="form-input" value="${today}">
-      </div>
-      <div class="form-group">
-        <label class="form-label">No. Invoice (optional)</label>
-        <input type="text" id="onpInvNo" class="form-input" placeholder="contoh: INV-001">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Jumlah Onpay (RM)</label>
-        <input type="number" id="onpAmount" class="form-input" placeholder="0.00" step="0.01">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div style="flex:1"><label class="form-label">No. Invoice (optional)</label>
+          <input type="text" id="onpInvNo" class="form-input" placeholder="cth: INV-001"></div>
+        <div style="flex:1"><label class="form-label">Jumlah Onpay (RM)</label>
+          <input type="number" id="onpAmount" class="form-input" placeholder="0.00" step="0.01"></div>
       </div>
       <button class="btn btn-primary" style="width:100%" onclick="saveOnpay()">Simpan ke Sheet</button>
     </div>
@@ -3279,7 +3520,7 @@ function _renderOnpayScreenInner(){
         <tbody>
           ${records.map(r=>`
             <tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:8px 10px">${r.date}</td>
+              <td style="padding:8px 10px">${fmtDate(r.date)}</td>
               <td style="padding:8px 10px;color:var(--mid)">${r.invoiceNo||'-'}</td>
               <td style="padding:8px 10px">${r.branch}</td>
               <td style="padding:8px 10px;text-align:right;font-weight:600;color:var(--green)">${formatRM(r.amount)}</td>
@@ -3317,11 +3558,24 @@ function renderBranchScreen(){
   });
 }
 
+// Older Stock IN rows were written with the branch's full address name (e.g. "Ezydurian Shah Alam")
+// instead of the clean configured name ("Shah Alam"), so a strict === comparison against
+// COMPANY_CONFIG.branches silently matched nothing and showed RM0 everywhere. Normalise before comparing.
+function normalizeBranchName(raw){
+  if(!raw) return raw;
+  const r=String(raw).trim().toLowerCase();
+  const match=(COMPANY_CONFIG.branches||[]).find(b=>{
+    const k=b.trim().toLowerCase();
+    return r===k || r.endsWith(' '+k) || r===('ezydurian '+k);
+  });
+  return match||raw;
+}
+
 // Balance = Stock IN - Onpay - Payment
 function getBranchBalance(branch){
-  const stockIn = sheetInvoices().filter(r=>!branch||r.branch===branch).reduce((a,r)=>a+(+r.total||0),0);
-  const onpay = sheetOnpay().filter(r=>!branch||r.branch===branch).reduce((a,r)=>a+(+r.amount||0),0);
-  const payment = sheetPayments().filter(r=>!branch||r.branch===branch).reduce((a,r)=>a+(+r.amount||0),0);
+  const stockIn = sheetInvoices().filter(r=>!branch||normalizeBranchName(r.branch)===branch).reduce((a,r)=>a+(+r.total||0),0);
+  const onpay = sheetOnpay().filter(r=>!branch||normalizeBranchName(r.branch)===branch).reduce((a,r)=>a+(+r.amount||0),0);
+  const payment = sheetPayments().filter(r=>!branch||normalizeBranchName(r.branch)===branch).reduce((a,r)=>a+(+r.amount||0),0);
   return {stockIn, onpay, payment, balance: stockIn - onpay - payment};
 }
 
@@ -3349,7 +3603,7 @@ function _renderBranchScreenInner(){
       <div class="kpi-card"><div class="kpi-label">Baki Hutang</div><div class="kpi-value" style="font-size:14px;color:${grand.balance>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(grand.balance))}</div></div>
     </div>
     ${rows.map(({b,i,stockIn,onpay,payment,balance})=>`
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px">
+      <div onclick="showBranchDetail('${b}')" style="cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
           <div style="width:10px;height:10px;border-radius:50%;background:${(COMPANY_CONFIG.branchColors||[])[i%8]||'#999'};flex-shrink:0"></div>
           <div style="font-size:14px;font-weight:700">${b}</div>
@@ -3364,6 +3618,37 @@ function _renderBranchScreenInner(){
         </div>
       </div>`).join('')}
   `;
+}
+
+function showBranchDetail(branch){
+  const invoices=sheetInvoices().filter(r=>normalizeBranchName(r.branch)===branch).slice().reverse();
+  const onpays=sheetOnpay().filter(r=>normalizeBranchName(r.branch)===branch).slice().reverse();
+  const payments=sheetPayments().filter(r=>normalizeBranchName(r.branch)===branch).slice().reverse();
+  const {stockIn,onpay,payment,balance}=getBranchBalance(branch);
+
+  function recTable(records,amountKey){
+    if(!records.length) return '<div style="color:var(--mid);font-size:12px;text-align:center;padding:10px">Tiada rekod</div>';
+    return `<table style="width:100%;font-size:12px;border-collapse:collapse">
+      <thead><tr style="background:var(--surface2)"><th style="padding:6px 4px;text-align:left">Tarikh</th><th style="padding:6px 4px;text-align:left">Invoice</th><th style="padding:6px 4px;text-align:right">Jumlah</th></tr></thead>
+      <tbody>${records.map(r=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 4px">${fmtDate(r.date)}</td><td style="padding:6px 4px;color:var(--mid)">${r.invoiceNo||'-'}</td><td style="padding:6px 4px;text-align:right;font-weight:600">${formatRM(r[amountKey])}</td></tr>`).join('')}</tbody>
+    </table>`;
+  }
+
+  const body=`
+    <div class="kpi-grid" style="margin-bottom:14px">
+      <div class="kpi-card"><div class="kpi-label">Stock IN</div><div class="kpi-value" style="font-size:13px">${formatRM(stockIn)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Onpay</div><div class="kpi-value" style="font-size:13px;color:var(--green)">${formatRM(onpay)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Payment</div><div class="kpi-value" style="font-size:13px;color:var(--green)">${formatRM(payment)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Baki</div><div class="kpi-value" style="font-size:13px;color:${balance>0?'var(--red)':'var(--green)'}">${formatRM(Math.abs(balance))}</div></div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:6px">STOCK IN</div>
+    ${recTable(invoices,'total')}
+    <div style="font-size:12px;font-weight:600;color:var(--mid);margin:14px 0 6px">ONPAY</div>
+    ${recTable(onpays,'amount')}
+    <div style="font-size:12px;font-weight:600;color:var(--mid);margin:14px 0 6px">PAYMENT</div>
+    ${recTable(payments,'amount')}
+  `;
+  showModal(branch, body);
 }
 
 function setPeriod(period, btn){
@@ -3501,20 +3786,21 @@ async function approveStaff(email){
   if(!u){showToast('Staff tidak dijumpai ⚠️');return;}
   u.role='staff';
   setRegisteredUsers(users);
-  // Update Sheet — find row and update role column (D)
+  // Update Sheet — update EVERY row matching this email (handles accidental duplicate
+  // registrations so an old stale duplicate can't leave the staff member stuck on Pending)
   const tok=getValidToken()||accessToken||currentToken;
   if(tok){
     try{
       const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${MASTER_SHEET_ID}/values/Staff!A1:E`,{headers:{Authorization:'Bearer '+tok}});
       const d=await r.json();
       if(d.values){
-        const rowIdx=d.values.findIndex(row=>row[2]===email);
-        if(rowIdx>=0){
-          const sheetRow=rowIdx+1;
-          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${MASTER_SHEET_ID}/values/Staff!B${sheetRow}?valueInputOption=RAW`,{
-            method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
-            body:JSON.stringify({values:[['staff']]})
-          });
+        for(let i=0;i<d.values.length;i++){
+          if(d.values[i][2]===email){
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${MASTER_SHEET_ID}/values/Staff!B${i+1}?valueInputOption=RAW`,{
+              method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+              body:JSON.stringify({values:[['staff']]})
+            });
+          }
         }
       }
     }catch(e){console.warn('Approve staff sheet update:',e);}
@@ -3531,16 +3817,18 @@ async function rejectStaff(email){
   const users=getRegisteredUsers();
   const filtered=users.filter(x=>x.email!==email);
   setRegisteredUsers(filtered);
-  // Remove from Sheet
+  // Remove from Sheet — remove EVERY row matching this email (handles accidental duplicates)
   const tok=getValidToken()||accessToken||currentToken;
   if(tok){
     try{
       const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${MASTER_SHEET_ID}/values/Staff!A1:E`,{headers:{Authorization:'Bearer '+tok}});
       const d=await r.json();
       if(d.values){
-        const rowIdx=d.values.findIndex(row=>row[2]===email);
-        if(rowIdx>=0){
-          const sheetRow=rowIdx+2;
+        const matchingRows=[];
+        d.values.forEach((row,i)=>{ if(row[2]===email) matchingRows.push(i+2); });
+        // Delete from bottom to top so earlier row numbers stay valid as rows shift up
+        for(let j=matchingRows.length-1;j>=0;j--){
+          const sheetRow=matchingRows[j];
           await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${MASTER_SHEET_ID}:batchUpdate`,{
             method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
             body:JSON.stringify({requests:[{deleteDimension:{range:{sheetId:0,dimension:'ROWS',startIndex:sheetRow-1,endIndex:sheetRow}}}]})
@@ -3563,19 +3851,20 @@ async function setStaffRole(email, role){
   const u = users.find(x=>x.email===email);
   if(u) u.role = role;
   setRegisteredUsers(users);
-  // Update Sheet
+  // Update Sheet — update EVERY row matching this email (handles accidental duplicates)
   const tok=getValidToken()||accessToken||currentToken;
   if(tok){
     try{
       const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${MASTER_SHEET_ID}/values/Staff!A1:E`,{headers:{Authorization:'Bearer '+tok}});
       const d=await r.json();
       if(d.values){
-        const rowIdx=d.values.findIndex(row=>row[2]===email);
-        if(rowIdx>=0){
-          await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${MASTER_SHEET_ID}/values/Staff!B${rowIdx+1}?valueInputOption=RAW`,{
-            method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
-            body:JSON.stringify({values:[[role]]})
-          });
+        for(let i=0;i<d.values.length;i++){
+          if(d.values[i][2]===email){
+            await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${MASTER_SHEET_ID}/values/Staff!B${i+1}?valueInputOption=RAW`,{
+              method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+              body:JSON.stringify({values:[[role]]})
+            });
+          }
         }
       }
     }catch(e){console.warn('setStaffRole sheet update:',e);}
@@ -3938,6 +4227,33 @@ async function writeInvoiceToSheet(inv){
   // Append to 'Stock in': Date, Invoice no, Branch, Amount
   const branch = inv.branch || inv.billTo?.split('\n')[0] || '';
   await _appendSheetRow('Stock in', [inv.date, inv.invoiceNo, branch, inv.total]);
+}
+
+// Update an existing 'Stock in' row in place (matched by invoice no). Without this,
+// editing an invoice only changed the local cache and the edit silently reverted to
+// the old amount on the next reload, because the Sheet still held the original row.
+async function updateInvoiceInSheet(inv, matchNo){
+  const tok=getValidToken()||accessToken||currentToken;
+  if(!tok) return;
+  const findNo=matchNo||inv.invoiceNo;
+  try{
+    const enc=encodeURIComponent('Stock in');
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${enc}!B2:F10000`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    const rows=d.values||[];
+    let rowIdx=-1;
+    if(findNo){
+      for(let i=0;i<rows.length;i++){
+        if((rows[i][1]||'')===findNo){rowIdx=i+2;break;}
+      }
+    }
+    if(rowIdx<0){ await writeInvoiceToSheet(inv); return; } // no matching row — append instead
+    const branch = inv.branch || inv.billTo?.split('\n')[0] || '';
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${enc}!B${rowIdx}:E${rowIdx}?valueInputOption=USER_ENTERED`,{
+      method:'PUT',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[[inv.date, inv.invoiceNo, branch, inv.total]]})
+    });
+  }catch(e){ console.warn('updateInvoiceInSheet:',e); }
 }
 
 async function writePaymentToSheet(p){
@@ -4319,10 +4635,14 @@ function genInvoiceNo(){
   const mm = String(d.getMonth()+1).padStart(2,'0');
   const yy = String(d.getFullYear()).slice(2);
   const dateKey = `${dd}${mm}${yy}`;
-  const counterKey = `ezy_inv_counter_${COMPANY_CONFIG.id}_${dateKey}`;
-  let counter = parseInt(localStorage.getItem(counterKey)||'0') + 1;
-  localStorage.setItem(counterKey, counter);
-  return `${dateKey}/${String(counter).padStart(2,'0')}`;
+  // Next running number = highest existing invoice no for today + 1 (based on real saved invoices,
+  // so opening the form repeatedly does not skip numbers).
+  let maxN = 0;
+  (window._invoiceCache||[]).forEach(x=>{
+    const no=(x.invoiceNo||'').toString();
+    if(no.startsWith(dateKey+'/')){ const n=parseInt(no.split('/')[1])||0; if(n>maxN) maxN=n; }
+  });
+  return `${dateKey}/${String(maxN+1).padStart(2,'0')}`;
 }
 
 function getBranchAddresses(){
@@ -4361,7 +4681,7 @@ function _renderInvoiceList(invoices){
               <div>
                 <div style="font-weight:700;font-size:14px">${inv.invoiceNo||inv.branch||'-'}</div>
                 <div style="font-size:12px;color:var(--mid)">${inv.billTo?.split('\n')[0]||inv.branch||'-'}</div>
-                <div style="font-size:11px;color:var(--mid)">${inv.date}</div>
+                <div style="font-size:11px;color:var(--mid)">${fmtDate(inv.date)}</div>
               </div>
               <div style="text-align:right">
                 <div style="font-weight:700;color:var(--green)">RM ${parseFloat(inv.total||0).toFixed(2)}</div>
@@ -4382,7 +4702,7 @@ function showInvoiceForm(invId=null){
   editingInvoiceId = invId;
   invoiceItems = inv ? JSON.parse(JSON.stringify(inv.items||[])) : [{desc:'',unit:'kg',qty:'',rate:'',amount:''}];
 
-  const addressOpts = branchKeys.map(k=>`<option value="${addresses[k]}" ${inv?.billTo===addresses[k]?'selected':''}>${k}</option>`).join('');
+  const addressOpts = branchKeys.map(k=>`<option value="${k}" ${inv?.branch===k?'selected':''}>${k}</option>`).join('');
 
   $id('invoiceFormWrap').style.display='block';
   $id('invoiceListWrap').style.display='none';
@@ -4431,7 +4751,7 @@ function showInvoiceForm(invId=null){
       <div style="display:flex;gap:8px">
         <button class="btn btn-outline" style="flex:1" onclick="cancelInvoiceForm()">Batal</button>
         <button class="btn btn-primary" style="flex:2" onclick="saveInvoice('Draft')">Simpan Draft</button>
-        <button class="btn btn-primary" style="flex:2;background:#2563eb" onclick="saveInvoice('Sent')">Hantar</button>
+        <button class="btn btn-primary" style="flex:2;background:#2563eb" onclick="saveInvoice('Sent')">Simpan</button>
       </div>
     </div>`;
   renderInvoiceItems();
@@ -4447,7 +4767,11 @@ function handleBranchSelect(val){
   const ta = $id('invBillTo');
   if(!ta) return;
   if(val === '__manual__'){ ta.value=''; ta.readOnly=false; ta.focus(); }
-  else if(val){ ta.value=val; ta.readOnly=true; }
+  else if(val){
+    const addresses = getBranchAddresses();
+    ta.value = addresses[val]||'';
+    ta.readOnly = true;
+  }
   else { ta.value=''; ta.readOnly=false; }
 }
 
@@ -4537,20 +4861,24 @@ function saveInvoice(status){
   const cache = window._invoiceCache || [];
   const now = new Date().toLocaleString('en-MY');
 
-  const branch = invoiceItems[0]?.branch || '';
+  const branchSel = $id('invBranchSel')?.value || '';
+  const branch = (branchSel && branchSel!=='__manual__') ? branchSel : '';
   const inv={id:'inv_'+Date.now(),invoiceNo,date,billTo,branch,items:invoiceItems,total,status,createdBy:currentUser?.email,createdAt:now};
 
   if(editingInvoiceId){
-    // For edit: just update cache, no sheet rewrite (sheet is source of truth on reload)
     const idx = cache.findIndex(x=>x.id===editingInvoiceId);
+    // Match the Sheet row by the ORIGINAL invoice no (in case the user changed it in this edit)
+    const prevNo = idx>=0 ? cache[idx].invoiceNo : invoiceNo;
     if(idx>=0) cache[idx]={...cache[idx],...inv,id:editingInvoiceId};
+    updateInvoiceInSheet(inv, prevNo); // update the 'Stock in' row in place
   } else {
     cache.push(inv);
     writeInvoiceToSheet(inv); // append to 'Stock in'
   }
   window._invoiceCache = cache;
   lsSet('ezy_invoices_'+COMPANY_CONFIG.id, cache);
-  showToast(status==='Sent'?'Invoice dihantar ✅':'Draft disimpan ✅');
+  if(window._convertReqId){ linkRequestInvoice(window._convertReqId, inv.id, status); window._convertReqId=null; }
+  showToast(status==='Sent'?'Invoice disimpan ✅':'Draft disimpan ✅');
   cancelInvoiceForm();
   renderInvoiceScreen();
 }
@@ -4610,7 +4938,7 @@ function viewInvoice(id){
   const role = currentRole;
   const canEdit = role==='accountant'||role==='super_admin';
   const canSaveImg = canEdit||role==='manager';
-  const canApprove = role==='super_admin'||role==='manager';
+  const canApprove = role==='super_admin'||role==='accountant';
   const el = $id('invoiceContent');
   if(!el) return;
 
@@ -4632,7 +4960,7 @@ function viewInvoice(id){
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;font-size:12px">
         <div>
-          <div style="color:var(--mid)">Invoice Date</div><div>${inv.date}</div>
+          <div style="color:var(--mid)">Invoice Date</div><div>${fmtDate(inv.date)}</div>
         </div>
         <div>
           <div style="color:var(--mid)">Bill To</div>
@@ -4717,7 +5045,7 @@ async function generateInvoiceImage(id){
     </div>
     <div style="display:flex;justify-content:space-between;margin-bottom:24px;font-size:13px">
       <div>
-        <div><span style="color:#888">Invoice Date: </span>${inv.date}</div>
+        <div><span style="color:#888">Invoice Date: </span>${fmtDate(inv.date)}</div>
       </div>
       <div style="text-align:right">
         <div style="color:#888">Bill To</div>
@@ -4779,24 +5107,32 @@ async function generateInvoiceImage(id){
 
     ctx.font='13px Arial';
     ctx.fillStyle='#888';
-    ctx.fillText('Invoice Date: ',40,185); ctx.fillStyle='#111'; ctx.fillText(inv.date,140,185);
+    ctx.fillText('Invoice Date: ',40,185); ctx.fillStyle='#111'; ctx.fillText(fmtDate(inv.date),140,185);
 
+    // Bill To — right-aligned block (matches the on-screen preview)
+    ctx.textAlign='right';
     ctx.fillStyle='#888';
-    ctx.fillText('Bill To',500,185);
+    ctx.font='13px Arial';
+    ctx.fillText('Bill To',860,185);
     ctx.fillStyle='#111';
     ctx.font='bold 13px Arial';
-    inv.billTo.split('\n').forEach((line,i)=>ctx.fillText(line,500,205+i*18));
+    inv.billTo.split('\n').forEach((line,i)=>ctx.fillText(line,860,205+i*18));
+    ctx.textAlign='left';
 
-    // Table header
+    // Table header: #, Item & Description, Supplier, Qty (centered), Rate, Amount
     let y = 270;
     ctx.fillStyle='#111';
     ctx.fillRect(40,y,820,32);
     ctx.fillStyle='#fff';
     ctx.font='bold 13px Arial';
-    ['#','Item & Description','Qty','Rate','Amount'].forEach((h,i)=>{
-      const x=[40,80,580,660,760][i];
-      ctx.fillText(h,x+8,y+21);
-    });
+    ctx.fillText('#',48,y+21);
+    ctx.fillText('Item & Description',88,y+21);
+    ctx.fillText('Supplier',388,y+21);
+    ctx.textAlign='center';
+    ctx.fillText('Qty',620,y+21);
+    ctx.textAlign='left';
+    ctx.fillText('Rate',668,y+21);
+    ctx.fillText('Amount',768,y+21);
 
     // Table rows
     (inv.items||[]).forEach((it,i)=>{
@@ -4808,13 +5144,15 @@ async function generateInvoiceImage(id){
       ctx.font='13px Arial';
       ctx.fillText(i+1,48,y+23);
       ctx.font='bold 13px Arial';
-      ctx.fillText(it.desc.substring(0,30),88,y+18);
+      ctx.fillText(it.desc.substring(0,28),88,y+23);
       ctx.font='11px Arial';
       ctx.fillStyle='#888';
-      ctx.fillText(supName.substring(0,25),88,y+32);
+      ctx.fillText(supName.substring(0,22),388,y+23);
       ctx.fillStyle='#111';
       ctx.font='13px Arial';
+      ctx.textAlign='center';
       ctx.fillText(it.qty,620,y+23);
+      ctx.textAlign='left';
       ctx.fillText(parseFloat(it.rate||0).toFixed(2),668,y+23);
       ctx.fillText(parseFloat(it.amount||0).toFixed(2),768,y+23);
     });
@@ -4825,31 +5163,52 @@ async function generateInvoiceImage(id){
     ctx.fillText('Total: MYR '+parseFloat(inv.total).toFixed(2),560,y);
     }; // end drawRest
 
-    // Draw company name top right
-    ctx.fillStyle='#111';
-    ctx.font='bold 16px Arial';
-    ctx.textAlign='right';
-    ctx.fillText(COMPANY_CONFIG.name, canvas.width-40, 60);
-    ctx.textAlign='left';
-
     if(logoSrc){
       const img = new Image();
+      // Errors thrown inside these async handlers happen after the outer try/catch has
+      // already returned, so they must be caught here too — otherwise a failed Drive
+      // upload (or any error) fails completely silently with no toast shown at all.
       img.onload = async ()=>{
-        ctx.drawImage(img, canvas.width-140, 10, 90, 55);
-        drawRest();
-        URL.revokeObjectURL(url);
-        const imgData = canvas.toDataURL('image/png');
-        const base64 = imgData.split(',')[1];
-        const d = new Date(inv.date);
-        const month = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        const day = String(d.getDate()).padStart(2,'0');
-        const branch = inv.billTo?.split('\n')[0]||'Unknown';
-        const filename = `${inv.invoiceNo.replace('/','_')}.png`;
-        const folderPath = `${month}/${day}/${branch}`;
-        await uploadInvoiceToDrive(base64, filename, folderPath);
-        showToast('Invoice disimpan ke Drive ✅');
+        try{
+          // Fit logo in a 220x160 box preserving aspect ratio (no stretch); right-aligned, ends above Bill To
+          const logoScale=Math.min(220/img.naturalWidth, 160/img.naturalHeight);
+          const logoW=img.naturalWidth*logoScale, logoH=img.naturalHeight*logoScale;
+          ctx.drawImage(img, canvas.width-40-logoW, 10, logoW, logoH);
+          drawRest();
+          URL.revokeObjectURL(url);
+          const imgData = canvas.toDataURL('image/png');
+          const base64 = imgData.split(',')[1];
+          const d = new Date(inv.date);
+          const month = malayMonthName(d);
+          const day = String(d.getDate()).padStart(2,'0');
+          const branch = inv.billTo?.split('\n')[0]||'Unknown';
+          const filename = `${inv.invoiceNo.replace('/','_')}.png`;
+          const folderPath = `${COMPANY_CONFIG.id}/${month}/${day}/${branch}`;
+          await uploadInvoiceToDrive(base64, filename, folderPath);
+          showToast('Invoice disimpan ke Drive ✅');
+        }catch(e){
+          console.warn('Generate invoice image (onload):',e);
+          showToast('Gagal jana gambar: '+e.message);
+        }
       };
-      img.onerror = async ()=>{ drawRest(); URL.revokeObjectURL(url); const imgData = canvas.toDataURL('image/png'); const base64=imgData.split(',')[1]; const d=new Date(inv.date); const month=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; const day=String(d.getDate()).padStart(2,'0'); const branch=inv.billTo?.split('\n')[0]||'Unknown'; const filename=`${inv.invoiceNo.replace('/','_')}.png`; await uploadInvoiceToDrive(base64,filename,`${month}/${day}/${branch}`); showToast('Invoice disimpan ke Drive ✅'); };
+      img.onerror = async ()=>{
+        try{
+          drawRest();
+          URL.revokeObjectURL(url);
+          const imgData = canvas.toDataURL('image/png');
+          const base64=imgData.split(',')[1];
+          const d=new Date(inv.date);
+          const month = malayMonthName(d);
+          const day=String(d.getDate()).padStart(2,'0');
+          const branch=inv.billTo?.split('\n')[0]||'Unknown';
+          const filename=`${inv.invoiceNo.replace('/','_')}.png`;
+          await uploadInvoiceToDrive(base64,filename,`${COMPANY_CONFIG.id}/${month}/${day}/${branch}`);
+          showToast('Invoice disimpan ke Drive ✅');
+        }catch(e){
+          console.warn('Generate invoice image (onerror):',e);
+          showToast('Gagal jana gambar: '+e.message);
+        }
+      };
       img.src = logoSrc;
       return; // async path handles the rest
     }
@@ -4861,11 +5220,11 @@ async function generateInvoiceImage(id){
     const imgData = canvas.toDataURL('image/png');
     const base64 = imgData.split(',')[1];
     const d = new Date(inv.date);
-    const month = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const month = malayMonthName(d);
     const day = String(d.getDate()).padStart(2,'0');
     const branch = inv.billTo?.split('\n')[0]||'Unknown';
     const filename = `${inv.invoiceNo}.png`;
-    const folderPath = `${month}/${day}/${branch}`;
+    const folderPath = `${COMPANY_CONFIG.id}/${month}/${day}/${branch}`;
 
     await uploadInvoiceToDrive(base64, filename, folderPath);
     showToast('Invoice disimpan ke Drive ✅');
@@ -4973,7 +5332,7 @@ function _renderPaymentScreenEzybranch(){
     html+=`<div class="table-wrap"><table class="data-table">
       <thead><tr><th>Tarikh</th><th>Invoice</th><th>Branch</th><th>RM</th></tr></thead>
       <tbody>${recent.map(p=>`<tr>
-        <td>${p.date||'-'}</td>
+        <td>${fmtDate(p.date)}</td>
         <td style="color:var(--mid);font-size:11px">${p.invoiceNo||'-'}</td>
         <td>${p.branch||p.supplier||'-'}</td>
         <td style="font-weight:600;color:var(--green)">${formatRM(p.amount)}</td>

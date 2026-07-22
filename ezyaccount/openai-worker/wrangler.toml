@@ -1,0 +1,14 @@
+name = "ezyresit"
+main = "worker.js"
+compatibility_date = "2026-07-16"
+
+# Runs the Worker close to OpenAI (US) instead of close to the user. Without this, the Worker
+# executes at the PoP nearest the visitor and its fetch to OpenAI egresses from there — traffic
+# routed via a region OpenAI blocks fails with "Country, region, or territory not supported".
+[placement]
+mode = "smart"
+
+# Secrets are NOT set here (never commit keys). Set them once with:
+#   wrangler secret put OPENAI_API_KEY
+#   wrangler secret put APP_SECRET
+# or in the dashboard: Workers & Pages > ezyresit > Settings > Variables and Secrets.

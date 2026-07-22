@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp Blast</title>
+<style>
+  :root { --primary:#25D366; --dark:#075E54; --bg:#f5f7f6; --border:#dcdfe3; }
+  * { box-sizing:border-box; }
+  body { font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); margin:0; padding:24px; color:#1a1a1a; }
+  h1 { color:var(--dark); font-size:22px; margin-bottom:4px; }
+  .sub { color:#666; font-size:13px; margin-bottom:20px; }
+  .card { background:#fff; border:1px solid var(--border); border-radius:10px; padding:18px; margin-bottom:16px; }
+  .card h2 { font-size:15px; margin:0 0 12px; color:var(--dark); }
+  label { display:block; font-size:12px; font-weight:600; color:#444; margin-bottom:4px; margin-top:10px; }
+  input, textarea, select { width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:inherit; }
+  textarea { min-height:110px; resize:vertical; font-family:ui-monospace,monospace; }
+  .row { display:flex; gap:12px; }
+  .row > div { flex:1; }
+  button { background:var(--primary); color:#fff; border:none; padding:10px 18px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  button.secondary { background:#fff; color:var(--dark); border:1px solid var(--border); }
+  button.stop { background:#e74c3c; }
+  .note { background:#fff9e6; border:1px solid #f0d878; border-radius:8px; padding:12px 14px; font-size:12.5px; line-height:1.6; color:#5a4a00; }
+  .note code { background:#00000010; padding:1px 5px; border-radius:4px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #eee; }
+  th { background:#fafafa; position:sticky; top:0; }
+  .status-ok { color:#1a7a4a; font-weight:600; }
+  .status-fail { color:#e74c3c; font-weight:600; }
+  .status-pending { color:#999; }
+  #logWrap { max-height:340px; overflow:auto; border:1px solid var(--border); border-radius:8px; }
+  .progressBar { height:8px; background:#eee; border-radius:4px; overflow:hidden; margin-top:10px; }
+  .progressBar div { height:100%; background:var(--primary); width:0%; transition:width .2s; }
+  .summary { display:flex; gap:18px; font-size:13px; margin-top:8px; }
+  .summary b { font-size:16px; }
+  .actions { display:flex; gap:10px; margin-top:14px; }
+</style>
+</head>
+<body>
+
+<h1>WhatsApp Blast — Broadcast ke Personil / Pelanggan</h1>
+<div class="sub">Kirim mesej WhatsApp templat rasmi (Meta Cloud API) kepada ramai penerima secara berjujukan &amp; selamat.</div>
+
+<div class="note">
+  <b>Sebelum guna:</b> anda perlu (1) akaun <b>WhatsApp Business Platform</b> di Meta Business Manager, (2) nombor telefon WA Business yang disahkan, (3) satu <b>message template</b> yang sudah <b>diluluskan</b> Meta (wajib untuk broadcast/cold contact — tidak boleh guna teks bebas kecuali pelanggan mesej anda dalam 24 jam terakhir), dan (4) satu <b>Cloudflare Worker</b> (fail <code>worker.js</code> dalam folder sama) yang dideploy dengan secrets <code>WA_TOKEN</code> &amp; <code>WA_PHONE_NUMBER_ID</code> — supaya token tidak terdedah di browser.
+</div>
+
+<div class="card">
+  <h2>1. Konfigurasi</h2>
+  <div class="row">
+    <div>
+      <label>Worker URL</label>
+      <input id="workerUrl" placeholder="https://whatsapp-blast.yourname.workers.dev/">
+    </div>
+    <div>
+      <label>Delay antara mesej (ms)</label>
+      <input id="delayMs" type="number" value="1200">
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>Nama Template (approved)</label>
+      <input id="templateName" placeholder="cth: promo_ogos">
+    </div>
+    <div>
+      <label>Kod Bahasa Template</label>
+      <input id="languageCode" value="ms" placeholder="ms / id / en_US">
+    </div>
+    <div>
+      <label>Kod negara default (jika nombor tiada kod negara)</label>
+      <input id="countryCode" value="60" placeholder="60">
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>2. Senarai Penerima (CSV: phone,nama,var2,...)</h2>
+  <textarea id="csvInput" placeholder="0123456789,Ahmad,Diskaun 20%&#10;60129998888,Siti,Diskaun 20%"></textarea>
+  <div class="actions">
+    <button class="secondary" id="parseBtn">Preview Senarai</button>
+    <span id="parseCount" style="align-self:center;color:#666;font-size:12.5px;"></span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>3. Hantar</h2>
+  <div class="actions">
+    <button id="sendBtn" disabled>Mula Hantar</button>
+    <button class="stop" id="stopBtn" disabled>Stop</button>
+    <button class="secondary" id="downloadBtn" disabled>Muat Turun Log (CSV)</button>
+  </div>
+  <div class="progressBar"><div id="progressFill"></div></div>
+  <div class="summary">
+    <span>Jumlah: <b id="sumTotal">0</b></span>
+    <span style="color:#1a7a4a">Berjaya: <b id="sumOk">0</b></span>
+    <span style="color:#e74c3c">Gagal: <b id="sumFail">0</b></span>
+  </div>
+  <div id="logWrap" style="margin-top:14px;">
+    <table>
+      <thead><tr><th>#</th><th>Nombor</th><th>Nama</th><th>Status</th><th>Maklumat</th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let rows = [];
+let stopFlag = false;
+
+['workerUrl','delayMs','templateName','languageCode','countryCode'].forEach(id => {
+  const saved = localStorage.getItem('wab_' + id);
+  if (saved) $(id).value = saved;
+  $(id).addEventListener('change', () => localStorage.setItem('wab_' + id, $(id).value));
+});
+
+function normalizePhone(raw, countryCode) {
+  let n = raw.replace(/[^0-9]/g, '');
+  if (n.startsWith('0')) n = countryCode + n.slice(1);
+  else if (!n.startsWith(countryCode)) n = countryCode + n;
+  return n;
+}
+
+function parseCsv(text) {
+  return text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const parts = line.split(',').map(p => p.trim());
+    return { phone: parts[0], name: parts[1] || '', vars: parts.slice(1) };
+  });
+}
+
+$('parseBtn').addEventListener('click', () => {
+  const countryCode = $('countryCode').value.trim() || '60';
+  rows = parseCsv($('csvInput').value).map(r => ({ ...r, normPhone: normalizePhone(r.phone, countryCode) }));
+  $('parseCount').textContent = rows.length + ' penerima dijumpai';
+  $('sumTotal').textContent = rows.length;
+  renderLog(rows.map(r => ({ phone: r.normPhone, name: r.name, status: 'pending', info: '' })));
+  $('sendBtn').disabled = rows.length === 0;
+});
+
+function renderLog(entries) {
+  $('logBody').innerHTML = entries.map((e, i) => `
+    <tr id="row-${i}">
+      <td>${i + 1}</td><td>${e.phone}</td><td>${e.name}</td>
+      <td class="status-${e.status === 'pending' ? 'pending' : e.status}">${e.status}</td>
+      <td>${e.info}</td>
+    </tr>`).join('');
+}
+
+function updateRow(i, status, info) {
+  const tr = document.getElementById('row-' + i);
+  if (!tr) return;
+  tr.children[3].className = 'status-' + status;
+  tr.children[3].textContent = status;
+  tr.children[4].textContent = info;
+}
+
+async function sendOne(row) {
+  const workerUrl = $('workerUrl').value.trim();
+  const templateName = $('templateName').value.trim();
+  const languageCode = $('languageCode').value.trim() || 'ms';
+  const params = row.vars.length > 1 ? row.vars.slice(1) : [row.name];
+
+  const res = await fetch(workerUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: row.normPhone, type: 'template', template: templateName, language: languageCode, params }),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error?.message || data.error || 'Gagal hantar');
+  return data.messages?.[0]?.id || 'sent';
+}
+
+$('sendBtn').addEventListener('click', async () => {
+  if (!$('workerUrl').value.trim() || !$('templateName').value.trim()) {
+    alert('Sila isi Worker URL dan Nama Template dahulu.');
+    return;
+  }
+  stopFlag = false;
+  $('sendBtn').disabled = true;
+  $('stopBtn').disabled = false;
+  $('downloadBtn').disabled = true;
+  let ok = 0, fail = 0;
+  const delay = parseInt($('delayMs').value, 10) || 1200;
+
+  for (let i = 0; i < rows.length; i++) {
+    if (stopFlag) break;
+    updateRow(i, 'pending', 'menghantar...');
+    try {
+      const msgId = await sendOne(rows[i]);
+      updateRow(i, 'ok', msgId);
+      ok++;
+    } catch (e) {
+      updateRow(i, 'fail', e.message);
+      fail++;
+    }
+    $('sumOk').textContent = ok;
+    $('sumFail').textContent = fail;
+    $('progressFill').style.width = Math.round(((i + 1) / rows.length) * 100) + '%';
+    if (i < rows.length - 1) await new Promise(r => setTimeout(r, delay));
+  }
+
+  $('sendBtn').disabled = false;
+  $('stopBtn').disabled = true;
+  $('downloadBtn').disabled = false;
+});
+
+$('stopBtn').addEventListener('click', () => { stopFlag = true; });
+
+$('downloadBtn').addEventListener('click', () => {
+  const lines = ['phone,name,status,info'];
+  document.querySelectorAll('#logBody tr').forEach(tr => {
+    const c = tr.children;
+    lines.push([c[1].textContent, c[2].textContent, c[3].textContent, c[4].textContent].map(v => `"${v.replace(/"/g,'""')}"`).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'whatsapp-blast-log.csv';
+  a.click();
+});
+</script>
+</body>
+</html>

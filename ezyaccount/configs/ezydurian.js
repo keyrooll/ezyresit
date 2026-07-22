@@ -26,10 +26,10 @@ const COMPANY_CONFIG = {
   branches: ['Batu Caves','Shah Alam','Putrajaya','TTDI'],
   branchColors: ['#1a7a4a','#2d9e62','#3b82f6','#8b5cf6'],
   branchAddresses: {
-    'Batu Caves': 'Ezydurian Bangi\n1, Jalan TIB 1/13, Taman Industri, 68100 Batu Caves, Selangor',
+    'Batu Caves': 'Ezydurian Batu Caves HQ\n1, Jalan TIB 1/13, Taman Industri Bolton, 68100 Batu Caves, Selangor',
     'Shah Alam': 'Ezydurian Shah Alam\n27, Jalan Opera E U2/E, Taman TTDI Jaya, 40150 Shah Alam, Selangor',
-    'Putrajaya': 'Ezydurian Putrajaya\nTaman Warisan Pertanian Putrajaya, 7, Jalan P16, Presint 16, 62000 Putrajaya',
-    'TTDI': 'Ezydurian TTDI\n34, Jalan Datuk Sulaiman, Taman Tun Dr Ismail, 60000 Kuala Lumpur, Wilayah Persekutuan Kuala Lumpur',
+    'Putrajaya': 'Ezydurian Putrajaya\nTaman Warisan Pertanian Putrajaya, Jalan P16, Presint 16, 62000 Putrajaya',
+    'TTDI': 'Ezydurian TTDI\n34, Jalan Datuk Sulaiman, Taman Tun Dr Ismail, 60000 Kuala Lumpur',
   },
 
   // Categories

@@ -128,9 +128,9 @@ body{font-family:'Inter',sans-serif;background:#f9fafb;color:var(--dark);min-hei
 .alert-amber{background:#fffbeb;color:#92400e;border:1px solid #fcd34d}
 .alert-green{background:var(--green-light);color:#065f46;border:1px solid #a7f3d0}
 /* MODAL */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:flex-end;justify-content:center}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
-.modal-sheet{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px;max-height:90vh;overflow-y:auto}
+.modal-sheet{background:#fff;border-radius:16px;width:calc(100% - 32px);max-width:480px;padding:24px;max-height:90vh;overflow-y:auto}
 .modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px}
 .modal-title{font-size:17px;font-weight:700;margin-bottom:20px}
 /* SUPPLIER CARD */
@@ -205,7 +205,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyAccount v3.24-0107/1900</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyAccount v3.26-1607/2221</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -233,9 +233,9 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
     <div class="header-left">
       <img id="headerCompanyLogo" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD7HY4Un0Ga8+stR1y50XTtVu/FF1bNqFstyIbXQTOkYYA7cqrHjOOTk9a9Ak/1bf7p/lXl9jY3t/4I8Ita6fLcj+yYQzrbeaEJVev+kRY9eh+vavRwPJyvmtuuifR90znrXurf1t2Lth4p8SaL8Qz4b8Q2F7e6PeeUthrS2XlIJnX/AFT7eOSMA9QevByPRa8l8Y+J7PTtTsvDtnol3cWuiXMd3cXMUnlxq0Q8xlBfPA3jOWzlgB2r1SxuYbyxt7y3YtDPEssZIxlWAI/Q1zYnEUa8k6as1o7K17dbba9baE4eom5QUr2/r5kxGQRjINcPZ+E/EemWNvp+m+K9UjtLWNYoI/KtfkRRtUZMRJwvc9Ww3sb/AIv8INr+t6Zqa6rLbCxDDyCpZHJYMDwy4Py4PUFSR3rkk+Ft8IV0cat5VmdMuYp7uBTH5tzIHWKTytxwY/NlbIYA5QADbXXh1RjSb9qr72cb7X6v+tfJjqOblbl073/r+kaMvw0h1S7kn1++1K8890e4VZ0iS42cL5iRqAxA4yAD/TuNLvdMnQ22nXNs4twYzFEwzGFZo8Y6gBkZfqpHavKtV+BkFzcao1l4luLSC7hhit4TFI6W3liLAx5oDoDFuVWBALtndk56XwH8OI/C3iu58QnVEv7m7tJLeeSW0Cykm5knUhw3AAl2lcYOxSNuMVwSUG3JbvsrF06UYNtLc//Z" alt="" class="header-logo" style="width:32px;height:32px;border-radius:6px;object-fit:contain">
       <span class="header-title" id="headerCompanyName">EzyAccount</span>
-      <span style="font-size:9px;color:#9ca3af;margin-left:4px;letter-spacing:0.3px">v3.24-0107/1900</span>
+      <span style="font-size:9px;color:#9ca3af;margin-left:4px;letter-spacing:0.3px">v3.26-1607/2221</span>
     </div>
-    <div class="header-right"><button onclick="window.location.href='index.html'" title="Tukar Syarikat" style="background:none;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-weight:500;color:#6b7280;cursor:pointer;padding:5px 10px;margin-right:4px">🏢 Tukar</button>
+    <div class="header-right"><button onclick="window.location.href='../index.html'" title="Tukar Syarikat" style="background:none;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-weight:500;color:#6b7280;cursor:pointer;padding:5px 10px;margin-right:4px">🏢 Tukar</button>
       <button id="btnRefresh" onclick="refreshAllData()" title="Refresh Data" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;line-height:1">🔄</button>
       <span class="settings-gear" onclick="openSettings()" title="Settings">⚙</span>
       <div class="user-badge" onclick="openProfile()">
@@ -403,14 +403,14 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-secondary" style="flex:1" onclick="goStep(3)">Kembali</button>
-            <button class="btn btn-primary" style="flex:1" id="btnSubmit" onclick="submitReceipt()">Hantar</button>
+            <button class="btn btn-primary" style="flex:1" id="btnSubmit" onclick="submitReceipt()">Simpan</button>
           </div>
         </div>
         <!-- Success -->
         <div id="wSuccess" style="display:none" class="success-screen">
           <div class="success-icon">✅</div>
-          <div style="font-size:20px;font-weight:700;margin-bottom:8px">Resit Dihantar!</div>
-          <div style="font-size:14px;color:var(--mid);margin-bottom:24px">Resit anda telah berjaya dihantar untuk semakan.</div>
+          <div style="font-size:20px;font-weight:700;margin-bottom:8px">Resit Telah Disimpan</div>
+          <div style="font-size:14px;color:var(--mid);margin-bottom:24px">Resit anda telah berjaya disimpan untuk semakan.</div>
           <button class="btn btn-primary" onclick="resetWizard()">Upload Resit Baru</button>
           <div id="staffRecentTx" style="margin-top:20px;width:100%;text-align:left"></div>
         </div>
@@ -903,17 +903,48 @@ function setRegisteredUsers(u){lsSet('ezy_registered_users',u)}
 function getUserProfile(email){return lsGet('ezy_user_profile_'+email,{})}
 function setUserProfile(email,data){lsSet('ezy_user_profile_'+email,data)}
 
+// ===== Central staff registry (EzyGroup Staff sheet) — role is PER COMPANY =====
+// This app used to read roles only from its own 'Staff' tab in MASTER_SHEET_ID, which the landing
+// page and the "Urus Staff" panel never write to. A user granted a role there was let through the
+// landing and then bounced to "Menunggu Kelulusan" here. The central registry is now the source of
+// truth; the old per-sheet Staff tab is kept as a fallback so nobody currently working loses access.
+const STAFF_REGISTRY_SHEET_ID='1Ej0vKOeizIKvH0x-7cTskU8Z26MYa1xoXtIpqiL77Qg';
+async function loadCentralStaff(){
+  const tok=getValidToken()||accessToken||currentToken; if(!tok) return;
+  try{
+    const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${STAFF_REGISTRY_SHEET_ID}/values/Staff!A1:Z`,{headers:{Authorization:'Bearer '+tok}});
+    const d=await r.json();
+    if(d.error||!d.values||!d.values.length){ lsSet('ezy_central_staff',{header:[],rows:[]}); return; }
+    lsSet('ezy_central_staff',{header:d.values[0].map(h=>(h||'').toString().trim()),rows:d.values.slice(1).filter(x=>x[0])});
+  }catch(e){ console.warn('loadCentralStaff:',e); }
+}
+// Role for THIS company from the central registry. Returns a role, 'pending', or null (unknown user).
+function getCompanyRole(email){
+  if((email||'').toLowerCase()===(SUPER_ADMIN||'').toLowerCase()) return 'super_admin';
+  const reg=lsGet('ezy_central_staff',{header:[],rows:[]});
+  const header=reg.header||[], rows=reg.rows||[];
+  if(!header.length) return null;
+  const ei=Math.max(0,header.findIndex(h=>h.toLowerCase()==='email'));
+  const ci=header.findIndex(h=>h.toLowerCase()===COMPANY_CONFIG.id.toLowerCase());
+  const row=rows.find(r=>(r[ei]||'').toString().trim().toLowerCase()===(email||'').toLowerCase());
+  if(!row) return null;            // not in registry
+  if(ci<0) return 'pending';       // company column missing
+  const role=(row[ci]||'').toString().trim().toLowerCase();
+  return role||'pending';          // in registry but no role for this company
+}
 function getRole(email){
   if(email===SUPER_ADMIN) return 'super_admin';
   if(ACCOUNTANTS.includes(email)) return 'accountant';
-  // Check Sheet-sourced role first (source of truth)
+  // Central registry wins
+  const cr=getCompanyRole(email);
+  if(cr&&cr!=='pending') return cr;
+  // Fallback: legacy per-sheet Staff tab (keeps existing users working during the migration)
   const users=getRegisteredUsers();
   const u=users.find(x=>x.email===email);
   if(u&&u.role&&u.role!=='pending') return u.role;
-  // Fallback to local profiles
   const profiles=getStaffProfiles();
   if(profiles[email]&&profiles[email].role) return profiles[email].role;
-  return 'staff';
+  return cr||'pending';
 }
 function getStaffBranches(email){
   const profiles=getStaffProfiles();
@@ -957,16 +988,16 @@ async function fetchAndSetUser(){
     currentUser = u;
     lsSet('ezy_user',u);
 
-    // First sync from Sheet to get latest roles
+    // Central registry (what the landing page and "Urus Staff" write to) is the source of truth.
+    // The legacy per-sheet Staff tab is still synced so getRole() can fall back to it.
+    await loadCentralStaff();
     await syncAllStaffFromSheet();
 
-    // Check role from Sheet (source of truth)
-    const allUsers = getRegisteredUsers();
-    const thisUser = allUsers.find(x=>x.email===u.email);
+    const role = getRole(u.email);
 
-    if(!thisUser){
-      // Brand new user — not in Sheet yet, register as pending
-      registerUser(u);
+    if(!role || role==='pending'){
+      // No role for this company yet — record the request in the legacy tab, then show pending.
+      if(!getRegisteredUsers().find(x=>x.email===u.email)) registerUser(u);
       document.getElementById('loginScreen').style.display='none';
       document.getElementById('mainApp').style.display='none';
       document.getElementById('deniedScreen').style.display='none';
@@ -975,18 +1006,7 @@ async function fetchAndSetUser(){
       return;
     }
 
-    const sheetRole = thisUser.role;
-
-    if(sheetRole==='pending'){
-      document.getElementById('loginScreen').style.display='none';
-      document.getElementById('mainApp').style.display='none';
-      document.getElementById('deniedScreen').style.display='none';
-      const ps=document.getElementById('pendingScreen');
-      if(ps){ps.style.display='flex';document.getElementById('pendingEmail').textContent=u.email;}
-      return;
-    }
-
-    currentRole = sheetRole || getRole(u.email);
+    currentRole = role;
     showMainApp();
   }catch(e){
     console.error('fetchAndSetUser error:',e);
@@ -1040,14 +1060,12 @@ function autoLogin(){
   if(token && user){
     currentToken = token;
     accessToken = token;
-    currentUser = user;
-    currentRole = getRole(user.email);
-    showMainApp();
+        fetchAndSetUser();
     return;
   }
 
   // No valid token — redirect to index.html to login
-  window.location.href = 'index.html';
+  window.location.href = '../index.html';
 }
 
 // Returns a valid token or null. Does NOT auto-refresh (avoid popup blocked errors).
@@ -1075,7 +1093,7 @@ function logoutUser(){
   localStorage.removeItem('ezy_landing_token');localStorage.removeItem('ezy_landing_expiry');
   sessionStorage.removeItem('ezy_sess_token');sessionStorage.removeItem('ezy_sess_expiry');
   try{if(tokenToRevoke&&window.google) google.accounts.oauth2.revoke(tokenToRevoke,()=>{});}catch(e){}
-  window.location.href='index.html';
+  window.location.href = '../index.html';
 }
 
 function showMainApp(){
@@ -1972,7 +1990,7 @@ function renderReview(){
 
 async function submitReceipt(){
   const btn=document.getElementById('btnSubmit');
-  btn.disabled=true;btn.textContent='Menghantar...';
+  btn.disabled=true;btn.textContent='Menyimpan...';
   const vendor=selectedVendor;
   const date=document.getElementById('receiptDate').value;
   const amount=parseFloat(document.getElementById('receiptAmount').value)||0;
@@ -2064,7 +2082,7 @@ async function submitReceipt(){
   // ItemRegistry sync disabled - create 'ItemRegistry' tab in sheet first
   // try{await syncItemRegistryToSheet();}catch(e){}
 
-  btn.disabled=false;btn.textContent='Hantar';
+  btn.disabled=false;btn.textContent='Simpan';
   ['wStep1','wStep2','wStep3','wStep4'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('wSuccess').style.display='block';
   // Show last 5 receipts in success screen
@@ -4431,7 +4449,7 @@ function showInvoiceForm(invId=null){
       <div style="display:flex;gap:8px">
         <button class="btn btn-outline" style="flex:1" onclick="cancelInvoiceForm()">Batal</button>
         <button class="btn btn-primary" style="flex:2" onclick="saveInvoice('Draft')">Simpan Draft</button>
-        <button class="btn btn-primary" style="flex:2;background:#2563eb" onclick="saveInvoice('Sent')">Hantar</button>
+        <button class="btn btn-primary" style="flex:2;background:#2563eb" onclick="saveInvoice('Sent')">Simpan</button>
       </div>
     </div>`;
   renderInvoiceItems();

@@ -14,17 +14,15 @@ const COMPANY_CONFIG = {
   superAdmin: 'keyrooll@gmail.com',
   accountants: [],
 
-  branches: ['Batu Caves','Shah Alam','Bangi Cafe','Bangi Durian','Putrajaya','TTDI','Bakery','Central Kitchen'],
-  branchColors: ['#1a7a4a','#2d9e62','#f59e0b','#3b82f6','#8b5cf6','#ef4444','#ec4899','#14b8a6'],
+  branches: ['Batu Caves','Shah Alam','Bangi Durian','Putrajaya','TTDI','Bakery'],
+  branchColors: ['#1a7a4a','#2d9e62','#3b82f6','#8b5cf6','#ef4444','#ec4899'],
   branchAddresses: {
-    'Batu Caves': 'Ezydurian Batu Caves\n1, Jalan TIB 1/13, Taman Industri, 68100 Batu Caves, Selangor',
+    'Batu Caves': 'Ezydurian Batu Caves HQ\n1, Jalan TIB 1/13, Taman Industri Bolton, 68100 Batu Caves, Selangor',
     'Shah Alam': 'Ezydurian Shah Alam\n27, Jalan Opera E U2/E, Taman TTDI Jaya, 40150 Shah Alam, Selangor',
-    'Bangi Cafe': 'Ezydurian Bangi Cafe\nBangi, Selangor',
-    'Bangi Durian': 'Ezydurian Bangi Durian\nBangi, Selangor',
-    'Putrajaya': 'Ezydurian Putrajaya\nTaman Warisan Pertanian Putrajaya, 7, Jalan P16, Presint 16, 62000 Putrajaya',
+    'Bangi Durian': 'Ezydurian Bangi\nJalan 3/69, Persiaran Universiti, Seksyen 3 Bandar Baru Bangi, Bandar Baru Bangi, Selangor',
+    'Putrajaya': 'Ezydurian Putrajaya\nTaman Warisan Pertanian Putrajaya, Jalan P16, Presint 16, 62000 Putrajaya',
     'TTDI': 'Ezydurian TTDI\n34, Jalan Datuk Sulaiman, Taman Tun Dr Ismail, 60000 Kuala Lumpur',
-    'Bakery': 'Ezybakery\nSelangor',
-    'Central Kitchen': 'Ezy Central Kitchen\nSelangor',
+    'Bakery': 'Ezybakery\n1, Jalan TIB 1/13, Taman Industri Bolton, 68100 Batu Caves, Selangor',
   },
 
   categories: ['COGS','UTILITIES','RENTAL','RENOVATION','MARKETING','TRANSPORTATION','GAS','MANAGEMENT','OTHERS'],
