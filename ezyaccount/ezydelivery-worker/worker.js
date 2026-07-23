@@ -136,6 +136,27 @@ export default {
         return payClaim(request, env);
       }
 
+      // -------- Delete runner (admin) --------
+      if ((m = path.match(/^\/runners\/([^/]+)\/delete$/)) && method === 'POST') {
+        if (!can(user, 'admin')) return json({ error: 'Forbidden' }, 403);
+        return deleteRunner(decodeURIComponent(m[1]), env);
+      }
+
+      // -------- Runner's own payment notifications --------
+      if (path === '/my/notifications' && method === 'GET') return myNotifications(env, user);
+      if (path === '/my/notifications/seen' && method === 'POST') return seenNotifications(env, user);
+
+      // -------- Complaints --------
+      if (path === '/complaints' && method === 'POST') return createComplaint(request, env, user);
+      if (path === '/complaints' && method === 'GET') {
+        if (!can(user, 'admin')) return json({ error: 'Forbidden' }, 403);
+        return listComplaints(env);
+      }
+      if ((m = path.match(/^\/complaints\/(\d+)\/resolve$/)) && method === 'POST') {
+        if (!can(user, 'admin')) return json({ error: 'Forbidden' }, 403);
+        return resolveComplaint(m[1], env);
+      }
+
       return json({ error: 'Not found' }, 404);
     } catch (e) {
       return json({ error: e.message }, 500);
@@ -594,11 +615,64 @@ async function payClaim(request, env) {
   const ids = Array.isArray(b.order_ids) ? b.order_ids : (b.order_id ? [b.order_id] : []);
   if (!ids.length) return json({ error: 'Tiada order' }, 400);
   const ph = ids.map(() => '?').join(',');
+  // Total + runner for the notification, BEFORE marking paid.
+  const { results } = await env.DB.prepare(
+    `SELECT runner_id, SUM(claim_amount) AS total, COUNT(*) AS n FROM orders
+      WHERE order_id IN (${ph}) AND delivery_type='freelance' AND claim_status='pending'
+      GROUP BY runner_id`
+  ).bind(...ids).all();
   await env.DB.prepare(
     `UPDATE orders SET claim_status='paid', claim_paid_at=? WHERE order_id IN (${ph}) AND delivery_type='freelance'`
   ).bind(nowISO(), ...ids).run();
+  // Notify each runner that their payment was settled (shows in runner app).
+  for (const r of results) {
+    if (!r.runner_id) continue;
+    await env.DB.prepare(
+      `INSERT INTO runner_notifications (runner_id, message, amount, created_at, seen) VALUES (?,?,?,?,0)`
+    ).bind(r.runner_id, `Bayaran untuk ${r.n} hantaran telah dijelaskan.`, r.total || 0, nowISO()).run();
+  }
   for (const id of ids) await mirror(env, id);
   return json({ ok: true, paid: ids.length });
+}
+
+async function deleteRunner(id, env) {
+  await env.DB.prepare(`DELETE FROM runners WHERE id=?`).bind(id).run();
+  await env.DB.prepare(`DELETE FROM runner_locations WHERE runner_id=?`).bind(id).run();
+  // Unlink any user pointing at this runner (keep the user, drop the link).
+  await env.DB.prepare(`UPDATE users SET runner_id=NULL WHERE runner_id=?`).bind(id).run();
+  return json({ ok: true });
+}
+
+async function myNotifications(env, user) {
+  if (!user.runner_id) return json({ notifications: [] });
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM runner_notifications WHERE runner_id=? AND seen=0 ORDER BY id DESC`
+  ).bind(user.runner_id).all();
+  return json({ notifications: results });
+}
+async function seenNotifications(env, user) {
+  if (user.runner_id) {
+    await env.DB.prepare(`UPDATE runner_notifications SET seen=1 WHERE runner_id=?`).bind(user.runner_id).run();
+  }
+  return json({ ok: true });
+}
+
+async function createComplaint(request, env, user) {
+  const b = await request.json();
+  if (!b.message) return json({ error: 'Mesej wajib' }, 400);
+  await env.DB.prepare(
+    `INSERT INTO complaints (from_email, from_role, order_id, subject, message, status, created_at)
+     VALUES (?,?,?,?,?, 'open', ?)`
+  ).bind(user.email, user.role, b.order_id || '', (b.subject || '').slice(0, 200), b.message.slice(0, 2000), nowISO()).run();
+  return json({ ok: true });
+}
+async function listComplaints(env) {
+  const { results } = await env.DB.prepare(`SELECT * FROM complaints ORDER BY (status='open') DESC, id DESC`).all();
+  return json({ complaints: results });
+}
+async function resolveComplaint(id, env) {
+  await env.DB.prepare(`UPDATE complaints SET status='resolved' WHERE id=?`).bind(id).run();
+  return json({ ok: true });
 }
 
 // ---------------------------------------------------------------------
