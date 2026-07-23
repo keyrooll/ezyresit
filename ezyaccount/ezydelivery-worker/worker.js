@@ -68,7 +68,7 @@ export default {
       }
       if (path === '/orders/bulk-assign' && method === 'POST') {
         if (!can(user, 'admin', 'staff')) return json({ error: 'Forbidden' }, 403);
-        return bulkAssign(request, env);
+        return await bulkAssign(request, env);
       }
       let m;
       if ((m = path.match(/^\/orders\/([^/]+)\/assign$/)) && method === 'POST') {
@@ -133,7 +133,7 @@ export default {
       }
       if (path === '/claims/pay' && method === 'POST') {
         if (!can(user, 'admin', 'account')) return json({ error: 'Forbidden' }, 403);
-        return payClaim(request, env);
+        return await payClaim(request, env);
       }
 
       // -------- Delete runner (admin) --------
@@ -470,15 +470,21 @@ async function bulkAssign(request, env) {
     claim = b.claim_amount != null && b.claim_amount !== '' ? Number(b.claim_amount) : null;
     claimStatus = 'pending';
   }
-  const ph = ids.map(() => '?').join(',');
-  const res = await env.DB.prepare(
-    `UPDATE orders SET delivery_type=?, runner_id=?, claim_amount=?, claim_status=?,
-       est_time=COALESCE(NULLIF(?,''), est_time), remark=COALESCE(NULLIF(?,''), remark),
-       status = CASE WHEN status='PENDING' THEN 'ASSIGNED' ELSE status END, updated_at=?
-     WHERE order_id IN (${ph})`
-  ).bind(dtype, runnerId, claim, claimStatus, b.est_time || '', b.remark || '', nowISO(), ...ids).run();
+  // D1 caps bound params per query (~100). Process ids in chunks.
+  let changed = 0;
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    const ph = chunk.map(() => '?').join(',');
+    const res = await env.DB.prepare(
+      `UPDATE orders SET delivery_type=?, runner_id=?, claim_amount=?, claim_status=?,
+         est_time=COALESCE(NULLIF(?,''), est_time), remark=COALESCE(NULLIF(?,''), remark),
+         status = CASE WHEN status='PENDING' THEN 'ASSIGNED' ELSE status END, updated_at=?
+       WHERE order_id IN (${ph})`
+    ).bind(dtype, runnerId, claim, claimStatus, b.est_time || '', b.remark || '', nowISO(), ...chunk).run();
+    changed += res.meta.changes;
+  }
   for (const id of ids) await mirror(env, id);
-  return json({ ok: true, assigned: res.meta.changes });
+  return json({ ok: true, assigned: changed });
 }
 
 async function updateStatus(orderId, request, env, user) {
@@ -614,22 +620,29 @@ async function payClaim(request, env) {
   const b = await request.json();
   const ids = Array.isArray(b.order_ids) ? b.order_ids : (b.order_id ? [b.order_id] : []);
   if (!ids.length) return json({ error: 'Tiada order' }, 400);
-  const ph = ids.map(() => '?').join(',');
-  // Total + runner for the notification, BEFORE marking paid.
-  const { results } = await env.DB.prepare(
-    `SELECT runner_id, SUM(claim_amount) AS total, COUNT(*) AS n FROM orders
-      WHERE order_id IN (${ph}) AND delivery_type='freelance' AND claim_status='pending'
-      GROUP BY runner_id`
-  ).bind(...ids).all();
-  await env.DB.prepare(
-    `UPDATE orders SET claim_status='paid', claim_paid_at=? WHERE order_id IN (${ph}) AND delivery_type='freelance'`
-  ).bind(nowISO(), ...ids).run();
-  // Notify each runner that their payment was settled (shows in runner app).
-  for (const r of results) {
-    if (!r.runner_id) continue;
+  // Chunk to stay under D1's per-query param limit. Accumulate per-runner totals.
+  const totals = {}; // runner_id -> {total, n}
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    const ph = chunk.map(() => '?').join(',');
+    const { results } = await env.DB.prepare(
+      `SELECT runner_id, SUM(claim_amount) AS total, COUNT(*) AS n FROM orders
+        WHERE order_id IN (${ph}) AND delivery_type='freelance' AND claim_status='pending'
+        GROUP BY runner_id`
+    ).bind(...chunk).all();
+    for (const r of results) {
+      if (!r.runner_id) continue;
+      const t = totals[r.runner_id] = totals[r.runner_id] || { total: 0, n: 0 };
+      t.total += r.total || 0; t.n += r.n || 0;
+    }
+    await env.DB.prepare(
+      `UPDATE orders SET claim_status='paid', claim_paid_at=? WHERE order_id IN (${ph}) AND delivery_type='freelance'`
+    ).bind(nowISO(), ...chunk).run();
+  }
+  for (const rid in totals) {
     await env.DB.prepare(
       `INSERT INTO runner_notifications (runner_id, message, amount, created_at, seen) VALUES (?,?,?,?,0)`
-    ).bind(r.runner_id, `Bayaran untuk ${r.n} hantaran telah dijelaskan.`, r.total || 0, nowISO()).run();
+    ).bind(rid, `Bayaran untuk ${totals[rid].n} hantaran telah dijelaskan.`, totals[rid].total, nowISO()).run();
   }
   for (const id of ids) await mirror(env, id);
   return json({ ok: true, paid: ids.length });
