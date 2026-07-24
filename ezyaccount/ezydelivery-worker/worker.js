@@ -53,6 +53,8 @@ export default {
       // Public customer tracking (per-order token in the link; no login).
       if (path === '/track' && method === 'GET') return trackOrder(url, env);
       if (path === '/track/rate' && method === 'POST') return rateOrder(request, env);
+      // Customer portal: any verified Google user sees ONLY orders matching their own email.
+      if (path === '/customer/orders' && method === 'GET') return customerOrders(request, env);
 
       // -------- Authenticate --------
       const user = await verifyUser(request, env);
@@ -120,6 +122,10 @@ export default {
       if (path === '/users' && method === 'POST') {
         if (!can(user, 'admin')) return json({ error: 'Forbidden' }, 403);
         return upsertUser(request, env);
+      }
+      if ((m = path.match(/^\/users\/([^/]+)\/delete$/)) && method === 'POST') {
+        if (!can(user, 'admin')) return json({ error: 'Forbidden' }, 403);
+        return deleteUser(decodeURIComponent(m[1]), env);
       }
       if ((m = path.match(/^\/users\/([^/]+)$/)) && method === 'POST') {
         if (!can(user, 'admin')) return json({ error: 'Forbidden' }, 403);
@@ -191,6 +197,42 @@ async function verifyUser(request, env) {
   return { email: row.email, role: row.role, runner_id: row.runner_id, runner_name: row.runner_name };
 }
 
+// Verify a Google ID token and return its email — no users-table check.
+// Used by the customer portal (a customer only ever sees their own orders).
+async function verifyGoogle(request, env) {
+  const auth = request.headers.get('Authorization') || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!token) return null;
+  const res = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token));
+  if (!res.ok) return null;
+  const info = await res.json();
+  if (info.email_verified !== 'true' && info.email_verified !== true) return null;
+  if (env.GOOGLE_CLIENT_ID && info.aud !== env.GOOGLE_CLIENT_ID) return null;
+  return (info.email || '').toLowerCase() || null;
+}
+
+async function customerOrders(request, env) {
+  const email = await verifyGoogle(request, env);
+  if (!email) return json({ error: 'Unauthorized' }, 401);
+  const { results } = await env.DB.prepare(
+    `SELECT o.order_id, o.status, o.products, o.total_amount, o.created_at, o.delivery_session,
+            o.address, r.name AS runner_name FROM orders o
+       LEFT JOIN runners r ON r.id=o.runner_id
+      WHERE o.email = ? ORDER BY o.created_at DESC LIMIT 200`
+  ).bind(email).all();
+  const out = await Promise.all(results.map(async (o) => ({
+    ...hydrate(o), track_token: await trackToken(o.order_id, env),
+  })));
+  return json({ email, orders: out });
+}
+
+async function deleteUser(email, env) {
+  email = email.toLowerCase();
+  if (email === 'keyrooll@gmail.com') return json({ error: 'Tak boleh padam super admin' }, 400);
+  await env.DB.prepare(`DELETE FROM users WHERE email=?`).bind(email).run();
+  return json({ ok: true });
+}
+
 // ---------------------------------------------------------------------
 // OnPay webhook
 // ---------------------------------------------------------------------
@@ -229,15 +271,16 @@ async function handleWebhook(request, env) {
   }
 
   await env.DB.prepare(
-    `INSERT INTO orders (order_id, created_at, customer_name, phone, address, products, total_amount, delivery_session, form_id, status, updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?, 'PENDING', ?)
+    `INSERT INTO orders (order_id, created_at, customer_name, phone, email, address, products, total_amount, delivery_session, form_id, status, updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?, 'PENDING', ?)
      ON CONFLICT(order_id) DO UPDATE SET
        created_at=excluded.created_at, customer_name=excluded.customer_name, phone=excluded.phone,
-       address=excluded.address, products=excluded.products, total_amount=excluded.total_amount,
+       email=excluded.email, address=excluded.address, products=excluded.products, total_amount=excluded.total_amount,
        delivery_session=excluded.delivery_session, form_id=excluded.form_id, updated_at=excluded.updated_at`
   ).bind(
     orderId, sale.payment_at || sale.created_at || nowISO(), sale.client_fullname || '',
-    normalisePhone(sale.client_phone_number || ''), buildAddress(sale), products,
+    normalisePhone(sale.client_phone_number || ''), (sale.client_email || '').toLowerCase(),
+    buildAddress(sale), products,
     Number(sale.total_amount || 0), session, formId, nowISO()
   ).run();
 
@@ -477,10 +520,11 @@ async function bulkAssign(request, env) {
     const ph = chunk.map(() => '?').join(',');
     const res = await env.DB.prepare(
       `UPDATE orders SET delivery_type=?, runner_id=?, claim_amount=?, claim_status=?,
+         tracking=COALESCE(NULLIF(?,''), tracking),
          est_time=COALESCE(NULLIF(?,''), est_time), remark=COALESCE(NULLIF(?,''), remark),
          status = CASE WHEN status='PENDING' THEN 'ASSIGNED' ELSE status END, updated_at=?
        WHERE order_id IN (${ph})`
-    ).bind(dtype, runnerId, claim, claimStatus, b.est_time || '', b.remark || '', nowISO(), ...chunk).run();
+    ).bind(dtype, runnerId, claim, claimStatus, b.tracking || '', b.est_time || '', b.remark || '', nowISO(), ...chunk).run();
     changed += res.meta.changes;
   }
   for (const id of ids) await mirror(env, id);
