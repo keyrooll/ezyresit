@@ -109,6 +109,13 @@ export default {
         if (!can(user, 'admin', 'staff', 'runner')) return json({ error: 'Forbidden' }, 403);
         return uploadPhoto(decodeURIComponent(m[1]), url, request, env);
       }
+      // Single order (for print-station reprint). Placed AFTER /orders/unprinted so that wins.
+      if ((m = path.match(/^\/orders\/([^/]+)$/)) && method === 'GET') {
+        if (!can(user, 'admin', 'staff')) return json({ error: 'Forbidden' }, 403);
+        const o = await env.DB.prepare(`SELECT o.*, f.name AS form_name FROM orders o LEFT JOIN forms f ON f.form_id=o.form_id WHERE o.order_id=?`).bind(decodeURIComponent(m[1])).first();
+        if (!o) return json({ error: 'Not found' }, 404);
+        return json({ order: hydrate(o) });
+      }
 
       // -------- Forms (branches) --------
       if (path === '/forms' && method === 'GET') {
