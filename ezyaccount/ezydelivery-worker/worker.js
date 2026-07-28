@@ -50,11 +50,17 @@ export default {
       if (path === '/sheet-ingest' && method === 'POST') return handleSheetIngest(request, env);
       // Public CSV feed for Google Sheets =IMPORTDATA (query-token gated; no header auth possible).
       if (path === '/orders.csv' && method === 'GET') return ordersCsv(url, env);
+      // Public photo serve (gated by track token in query, or Bearer auth).
+      let pm;
+      if ((pm = path.match(/^\/photo\/([^/]+)\/(ready|proof)$/)) && method === 'GET')
+        return servePhoto(decodeURIComponent(pm[1]), pm[2], url, request, env);
       // Public customer tracking (per-order token in the link; no login).
       if (path === '/track' && method === 'GET') return trackOrder(url, env);
       if (path === '/track/rate' && method === 'POST') return rateOrder(request, env);
       // Customer portal: any verified Google user sees ONLY orders matching their own email.
       if (path === '/customer/orders' && method === 'GET') return customerOrders(request, env);
+      if (path === '/customer/profile' && method === 'GET') return customerGetProfile(request, env);
+      if (path === '/customer/profile' && method === 'POST') return customerSaveProfile(request, env);
 
       // -------- Authenticate --------
       const user = await verifyUser(request, env);
@@ -64,6 +70,11 @@ export default {
 
       // -------- Orders --------
       if (path === '/orders' && method === 'GET') return listOrders(url, env, user);
+      // Print station: orders that arrived but haven't been printed yet (held/batch).
+      if (path === '/orders/unprinted' && method === 'GET') {
+        if (!can(user, 'admin', 'staff')) return json({ error: 'Forbidden' }, 403);
+        return unprintedOrders(env);
+      }
       if (path === '/orders' && method === 'POST') {
         if (!can(user, 'admin', 'staff')) return json({ error: 'Forbidden' }, 403);
         return createManualOrder(request, env);
@@ -88,6 +99,15 @@ export default {
       if ((m = path.match(/^\/orders\/([^/]+)\/edit$/)) && method === 'POST') {
         if (!can(user, 'admin', 'staff')) return json({ error: 'Forbidden' }, 403);
         return editOrder(decodeURIComponent(m[1]), request, env);
+      }
+      if ((m = path.match(/^\/orders\/([^/]+)\/printed$/)) && method === 'POST') {
+        if (!can(user, 'admin', 'staff')) return json({ error: 'Forbidden' }, 403);
+        await env.DB.prepare(`UPDATE orders SET printed_at=? WHERE order_id=?`).bind(nowISO(), decodeURIComponent(m[1])).run();
+        return json({ ok: true });
+      }
+      if ((m = path.match(/^\/orders\/([^/]+)\/photo$/)) && method === 'POST') {
+        if (!can(user, 'admin', 'staff', 'runner')) return json({ error: 'Forbidden' }, 403);
+        return uploadPhoto(decodeURIComponent(m[1]), url, request, env);
       }
 
       // -------- Forms (branches) --------
@@ -216,7 +236,7 @@ async function customerOrders(request, env) {
   if (!email) return json({ error: 'Unauthorized' }, 401);
   const { results } = await env.DB.prepare(
     `SELECT o.order_id, o.status, o.products, o.total_amount, o.created_at, o.delivery_session,
-            o.address, r.name AS runner_name FROM orders o
+            o.address, o.photo_ready, o.photo_proof, r.name AS runner_name FROM orders o
        LEFT JOIN runners r ON r.id=o.runner_id
       WHERE o.email = ? ORDER BY o.created_at DESC LIMIT 200`
   ).bind(email).all();
@@ -224,6 +244,54 @@ async function customerOrders(request, env) {
     ...hydrate(o), track_token: await trackToken(o.order_id, env),
   })));
   return json({ email, orders: out });
+}
+
+async function uploadPhoto(orderId, url, request, env) {
+  const type = url.searchParams.get('type') === 'proof' ? 'proof' : 'ready';
+  const buf = await request.arrayBuffer();
+  if (!buf || buf.byteLength < 100) return json({ error: 'Gambar kosong' }, 400);
+  if (buf.byteLength > 6_000_000) return json({ error: 'Gambar terlalu besar' }, 413);
+  await env.PHOTOS.put(`orders/${orderId}/${type}.jpg`, buf, { httpMetadata: { contentType: 'image/jpeg' } });
+  const col = type === 'proof' ? 'photo_proof' : 'photo_ready';
+  await env.DB.prepare(`UPDATE orders SET ${col}=? WHERE order_id=?`).bind(nowISO(), orderId).run();
+  return json({ ok: true, type });
+}
+
+async function servePhoto(orderId, type, url, request, env) {
+  const t = url.searchParams.get('t') || '';
+  let ok = t && t === await trackToken(orderId, env);
+  if (!ok) ok = !!(await verifyUser(request, env));        // staff/admin/account (fetch w/ Bearer)
+  if (!ok) ok = !!(await verifyGoogle(request, env));      // logged-in customer (fetch w/ Bearer)
+  if (!ok) return new Response('Unauthorized', { status: 401, headers: CORS });
+  const obj = await env.PHOTOS.get(`orders/${orderId}/${type}.jpg`);
+  if (!obj) return new Response('Not found', { status: 404, headers: CORS });
+  return new Response(obj.body, { headers: { ...CORS, 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=120' } });
+}
+
+async function unprintedOrders(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT o.*, f.name AS form_name FROM orders o LEFT JOIN forms f ON f.form_id=o.form_id
+      WHERE o.printed_at IS NULL AND o.status != 'CANCELED' ORDER BY o.created_at ASC LIMIT 50`
+  ).all();
+  return json({ orders: results.map(hydrate) });
+}
+
+async function customerGetProfile(request, env) {
+  const email = await verifyGoogle(request, env);
+  if (!email) return json({ error: 'Unauthorized' }, 401);
+  const p = await env.DB.prepare(`SELECT email,name,address,phone,emergency_phone FROM customer_profiles WHERE email=?`).bind(email).first();
+  return json({ email, profile: p || { email, name: '', address: '', phone: '', emergency_phone: '' } });
+}
+
+async function customerSaveProfile(request, env) {
+  const email = await verifyGoogle(request, env);
+  if (!email) return json({ error: 'Unauthorized' }, 401);
+  const b = await request.json();
+  await env.DB.prepare(
+    `INSERT INTO customer_profiles (email,name,address,phone,emergency_phone,updated_at) VALUES (?,?,?,?,?,?)
+     ON CONFLICT(email) DO UPDATE SET name=excluded.name, address=excluded.address, phone=excluded.phone, emergency_phone=excluded.emergency_phone, updated_at=excluded.updated_at`
+  ).bind(email, (b.name||'').trim(), (b.address||'').trim(), (b.phone||'').trim(), (b.emergency_phone||'').trim(), nowISO()).run();
+  return json({ ok: true });
 }
 
 async function deleteUser(email, env) {
@@ -310,9 +378,11 @@ async function trackOrder(url, env) {
   let products = []; try { products = JSON.parse(o.products || '[]'); } catch (_) {}
   return json({ order: {
     order_id: o.order_id, name: (o.customer_name || '').trim().split(/\s+/)[0] || '',
+    phone: o.phone || '', address: o.address || '',
     status: o.status, products, delivery_session: o.delivery_session,
     runner_name: o.runner_name, runner_phone: o.runner_phone, est_time: o.est_time,
     tracking: o.tracking, rating: o.rating,
+    photo_ready: !!o.photo_ready, photo_proof: !!o.photo_proof,
     runner_lat: o.runner_lat, runner_lng: o.runner_lng, runner_loc_at: o.runner_loc_at,
   } });
 }
@@ -490,7 +560,7 @@ async function assignOrder(orderId, request, env) {
     `UPDATE orders SET
        delivery_type=?, runner_id=?, claim_amount=?, claim_status=?,
        tracking=?, est_time=?, remark=?,
-       status = CASE WHEN status='PENDING' THEN 'ASSIGNED' ELSE status END,
+       status = CASE WHEN status IN ('PENDING','READY') THEN 'ASSIGNED' ELSE status END,
        updated_at=?
      WHERE order_id=?`
   ).bind(dtype, runnerId, claimAmount, claimStatus,
@@ -522,7 +592,7 @@ async function bulkAssign(request, env) {
       `UPDATE orders SET delivery_type=?, runner_id=?, claim_amount=?, claim_status=?,
          tracking=COALESCE(NULLIF(?,''), tracking),
          est_time=COALESCE(NULLIF(?,''), est_time), remark=COALESCE(NULLIF(?,''), remark),
-         status = CASE WHEN status='PENDING' THEN 'ASSIGNED' ELSE status END, updated_at=?
+         status = CASE WHEN status IN ('PENDING','READY') THEN 'ASSIGNED' ELSE status END, updated_at=?
        WHERE order_id IN (${ph})`
     ).bind(dtype, runnerId, claim, claimStatus, b.tracking || '', b.est_time || '', b.remark || '', nowISO(), ...chunk).run();
     changed += res.meta.changes;
@@ -537,9 +607,9 @@ async function updateStatus(orderId, request, env, user) {
   if (user && user.role === 'runner') {
     const own = await env.DB.prepare(`SELECT runner_id FROM orders WHERE order_id=?`).bind(orderId).first();
     if (!own || own.runner_id !== user.runner_id) return json({ error: 'Bukan order anda' }, 403);
-    if (b.status && !['ON_DELIVERY', 'DELIVERED'].includes(b.status)) return json({ error: 'Status tak dibenarkan' }, 403);
+    if (b.status && !['ON_DELIVERY', 'DELIVERED', 'FAILED'].includes(b.status)) return json({ error: 'Status tak dibenarkan' }, 403);
   }
-  const allowed = ['PENDING', 'ASSIGNED', 'ON_DELIVERY', 'DELIVERED', 'CANCELED'];
+  const allowed = ['PENDING', 'READY', 'ASSIGNED', 'ON_DELIVERY', 'DELIVERED', 'CANCELED', 'FAILED'];
   const sets = ['updated_at=?']; const binds = [nowISO()];
   if (b.status) {
     if (!allowed.includes(b.status)) return json({ error: 'Bad status' }, 400);

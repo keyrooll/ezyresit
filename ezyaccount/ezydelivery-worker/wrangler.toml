@@ -11,6 +11,11 @@ binding = "DB"
 database_name = "ezydelivery"
 database_id = "3f1ce377-1ac4-4ac3-b239-c3d129b14556"
 
+# R2 bucket for proof photos (prepared + delivered). Free tier 10GB.
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "ezydelivery-photos"
+
 # Secrets are NOT set here (never commit them). Set once with:
 #   wrangler secret put ONPAY_WEBHOOK_TOKEN
 #   wrangler secret put STAFF_EMAILS         # e.g. keyrooll@gmail.com,staff@ezydurian.com
