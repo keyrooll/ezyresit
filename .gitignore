@@ -12,3 +12,10 @@ ezyaccount/ezycafe/claude analisis/
 
 # ezyrent is its own git repo — deploy it from there, not as a gitlink here
 ezyaccount/ezyrent/
+
+# Nested repos that deploy from their OWN repos — never track as submodules here
+# (orphan gitlinks with no .gitmodules break the GitHub Pages build / checkout)
+ezyaccount/ezyaccount-test/
+ezyaccount/ezydelivery/
+/ezydelivery/
+backup complete/ezyaccount 1.0/ezyaccount/
