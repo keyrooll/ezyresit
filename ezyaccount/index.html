@@ -22,7 +22,7 @@
 
     /* ── LOGIN SCREEN ── */
     #loginScreen {
-      display: flex;
+      display: none;
       flex-direction: column;
       align-items: center;
       width: 100%;
@@ -175,7 +175,7 @@
 
     /* ── LOADING ── */
     #loadingScreen {
-      display: none;
+      display: flex;
       flex-direction: column;
       align-items: center;
       gap: 12px;
@@ -345,7 +345,7 @@
   </div>
 </div>
 
-<div class="footer">EzyAccount · v3.15-1503/1503</div>
+<div class="footer">EzyAccount · v3.16-1503/1503</div>
 
 <script>
 const COMPANIES = [
@@ -422,6 +422,9 @@ if(window._gisLoaded) _doGISInit();
 // Reuse the login logo as the loading-screen atom nucleus (no duplicate base64).
 (function(){ const l=document.querySelector('#loginScreen .main-logo'); const n=document.getElementById('loadNuc'); if(l&&n) n.src=l.getAttribute('src'); })();
 
+// Safety: never trap the user on the loader — if GIS/auth hasn't resolved after 8s, show login.
+setTimeout(function(){ var ls=document.getElementById('loadingScreen'); if(ls && getComputedStyle(ls).display!=='none' && _authPhase!=='active') showScreen('loginScreen'); }, 8000);
+
 function doLogin(){
   if(!gisReady||!tokenClient){
     setTimeout(()=>{if(gisReady&&tokenClient)tokenClient.requestAccessToken({prompt:'select_account'});},800);
@@ -445,7 +448,7 @@ function silentRenew(){
   try{ tokenClient.requestAccessToken({prompt:''}); }  // '' = no popup while a Google session exists
   catch(e){ _renewInFlight=false; onRenewFail(); }
 }
-function onRenewFail(){ const l=document.getElementById('loginLoading'); if(l) l.style.display='none'; }
+function onRenewFail(){ const l=document.getElementById('loginLoading'); if(l) l.style.display='none'; if(_authPhase==='entering') showScreen('loginScreen'); }
 
 async function handleTokenResponse(resp){
   _renewInFlight=false;
@@ -488,7 +491,7 @@ async function fetchUser(){
 
 function autoLogin(){
   const user=lsGet('ezy_user',null);
-  if(!user)return;
+  if(!user){ showScreen('loginScreen'); return; }
   // Check localStorage (kekal)
   const token1=lsGet('ezy_landing_token',null);
   const expiry1=lsGet('ezy_landing_expiry',0);
