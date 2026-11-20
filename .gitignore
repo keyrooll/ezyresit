@@ -1,0 +1,14 @@
+# OS junk
+.DS_Store
+
+# Wrangler local state & account caches (Cloudflare account info / request geolocation)
+.wrangler/
+
+# Local safety backups — keep out of the deployed repo
+/backups/
+
+# Private business data (sales exports / analysis)
+ezyaccount/ezycafe/claude analisis/
+
+# ezyrent is its own git repo — deploy it from there, not as a gitlink here
+ezyaccount/ezyrent/

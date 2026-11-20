@@ -1,0 +1,32 @@
+name = "ezyaccount-staff"
+main = "worker.js"
+compatibility_date = "2026-07-16"
+# No smart placement — this worker talks to D1 (APAC) + R2 + Google userinfo, so running near the
+# Malaysian user is best. (That setting only existed on ezyresit for OpenAI egress.)
+
+# Non-secret vars.
+[vars]
+# Google emails allowed to approve staff accounts (comma-separated).
+ADMIN_EMAILS = "keyrooll@gmail.com"
+# OAuth client id used for the owner's offline consent (same client the apps use).
+GOOGLE_CLIENT_ID = "27154479564-ufljm52nmlh4gg7ie54knphff44jvrrq.apps.googleusercontent.com"
+# Secret (set by the user, never committed):  wrangler secret put GOOGLE_CLIENT_SECRET
+
+# D1 — shared with nothing else; created once:
+#   wrangler d1 create ezyaccount   (already done; id below)
+#   wrangler d1 execute ezyaccount --remote --file=./schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "ezyaccount"
+database_id = "20ae3e63-d8b7-4d4f-b507-04fc3842891b"
+
+# R2 bucket for staff-uploaded receipt images (already created):
+#   wrangler r2 bucket create ezyaccount-receipts
+[[r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "ezyaccount-receipts"
+
+# Secret (set once, after first deploy creates the worker):
+#   wrangler secret put JWT_SECRET
+# Secret for the CFO API (Miss CFO agent key — gates /cfo/* only). Generate a long random string:
+#   wrangler secret put CFO_API_KEY

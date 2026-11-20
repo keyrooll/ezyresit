@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EzyAccount Staff Admin</title>
+<style>
+  :root{ --green:#1a7a4a; --green-d:#0f4a2c; --bg:#f9fafb; --card:#fff; --ink:#111827; --mid:#6b7280; --line:#e5e7eb; --red:#b91c1c; --amber:#b45309; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 14px 40px}
+  .wrap{width:100%;max-width:640px}
+  .brand{text-align:center;margin:10px 0 18px}
+  .brand b{font-size:24px;font-weight:800;color:var(--green)} .brand b span{color:#333}
+  .brand .sub{font-size:12px;color:var(--mid);margin-top:2px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  h2{font-size:16px;margin:0 0 4px}
+  .btn{padding:10px 16px;border:none;border-radius:10px;background:var(--green);color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+  .btn:disabled{opacity:.6}
+  .btn.sm{padding:7px 12px;font-size:13px}
+  .btn.ok{background:var(--green)} .btn.no{background:#fff;color:var(--red);border:1px solid var(--red)}
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+  .top .who{font-size:13px;color:var(--mid)}
+  select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fff}
+  .sec{font-size:12px;font-weight:700;color:var(--mid);text-transform:uppercase;letter-spacing:.04em;margin:18px 0 6px}
+  .staff{display:flex;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+  .staff .info{flex:1;min-width:180px} .staff .info b{font-size:14px} .staff .info .m{font-size:12px;color:var(--mid)}
+  .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .badge.pending{background:#fef3c7;color:var(--amber)} .badge.approved{background:#dcfce7;color:var(--green-d)} .badge.rejected{background:#fee2e2;color:var(--red)}
+  .muted{color:var(--mid);font-size:13px}
+  .msg{padding:10px 12px;border-radius:10px;font-size:13px;margin-top:12px;display:none}
+  .msg.err{background:#fee2e2;color:var(--red);display:block} .msg.ok{background:#dcfce7;color:var(--green-d);display:block} .msg.warn{background:#fef3c7;color:var(--amber);display:block}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><b>ezy<span>Account</span></b><div class="sub">Admin · kelulusan staff</div></div>
+
+  <div class="card" id="loginCard">
+    <h2>Log Masuk Admin</h2>
+    <p class="muted">Guna akaun Google admin untuk luluskan pendaftaran staff.</p>
+    <button class="btn" id="gBtn" style="margin-top:12px">Log Masuk dengan Google</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <div class="card" id="adminCard" hidden>
+    <div class="top">
+      <div><h2 style="margin:0">Kelulusan Staff</h2><div class="who" id="adminWho"></div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="filterCompany"><option value="">Semua syarikat</option></select>
+        <button class="btn sm" id="refreshBtn">↻ Muat semula</button>
+        <button class="btn sm" onclick="switchAccount()" style="background:#fff;color:var(--mid);border:1px solid var(--line)">Tukar akaun</button>
+      </div>
+    </div>
+    <div class="msg" id="adminMsg"></div>
+    <div id="list"><div class="muted">Memuatkan…</div></div>
+  </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer onload="onGisLoad()"></script>
+<script>
+const WORKER = 'https://ezyaccount-staff.keyrooll.workers.dev';
+const CLIENT_ID = '27154479564-ufljm52nmlh4gg7ie54knphff44jvrrq.apps.googleusercontent.com';
+const COMPANIES = {
+  ezybakery:{name:'Ezy Bakery',branches:['Bangi Cafe','Bangi Durian','Batu Caves','Putrajaya','Shah Alam','TTDI']},
+  ezycafe:{name:'Ezy Cafe',branches:['Ezy Cafe']},
+  ezydurian:{name:'Ezy Durian',branches:['Batu Caves','Shah Alam','Putrajaya','TTDI']},
+  ezydurianhq:{name:'Ezydurian HQ',branches:['Ezydurian HQ']},
+  ezysupplier:{name:'Ezy Supplier',branches:['Batu Caves','Shah Alam','Bangi Cafe','Bangi Durian','Putrajaya','TTDI','Bakery','Central Kitchen']},
+  ezybranch:{name:'Ezy Branch',branches:['Batu Caves','Shah Alam','Bangi Durian','Putrajaya','TTDI','Bakery']},
+  ezycashier:{name:'Ezy Cashier',branches:['Batu Caves','Bangi','Shah Alam']},
+  ezysentralkitchen:{name:'Ezy Sentral Kitchen',branches:['Central Kitchen']},
+};
+const coName=(id)=>(COMPANIES[id]||{}).name||id||'';
+let meEmail='';
+const $ = (id)=>document.getElementById(id);
+const show = (el,on)=>{ el.hidden=!on; };
+function msg(el,t,k){ el.className='msg '+(k||''); el.textContent=t||''; if(!t) el.className='msg'; }
+function getTok(){ try{ return sessionStorage.getItem('ezy_admin_tok')||''; }catch(e){ return ''; } }
+
+let tokenClient=null, gisReady=false;
+function onGisLoad(){
+  gisReady=true;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    // Same scope as the main app so Google reuses the existing grant (no fresh consent that can hang).
+    scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive',
+    callback: (resp)=>{
+      if(resp && resp.access_token){
+        try{ sessionStorage.setItem('ezy_admin_tok', resp.access_token); }catch(e){}
+        enterAdmin();
+      } else { msg($('loginMsg'),'Log masuk gagal: '+((resp&&resp.error)||'tiada token')+'. Cuba lagi.','err'); }
+    },
+    error_callback: (err)=>{ msg($('loginMsg'),'Log masuk gagal: '+((err&&err.type)||'ralat')+'. Benarkan popup & cuba lagi.','err'); }
+  });
+  if(getTok()) enterAdmin(); // reuse token within the hour
+}
+$('gBtn').onclick = ()=>{
+  if(!gisReady||!tokenClient){ msg($('loginMsg'),'Google belum sedia, cuba sekejap lagi','warn'); return; }
+  msg($('loginMsg'),'',''); tokenClient.requestAccessToken({prompt:'select_account'});
+};
+
+function fillFilter(){
+  $('filterCompany').innerHTML = '<option value="">Semua syarikat</option>' +
+    Object.keys(COMPANIES).map(id=>`<option value="${id}">${coName(id)}</option>`).join('');
+}
+function enterAdmin(){
+  show($('loginCard'),false); show($('adminCard'),true);
+  fillFilter();
+  // Show who's logged in — non-blocking so it can never hold up the list.
+  fetch('https://www.googleapis.com/oauth2/v2/userinfo',{headers:{Authorization:'Bearer '+getTok()}})
+    .then(r=>r.json()).then(u=>{ meEmail=(u&&u.email)||''; $('adminWho').textContent = meEmail?('Log masuk sebagai '+meEmail):''; })
+    .catch(()=>{});
+  loadList();
+}
+function switchAccount(){ try{ sessionStorage.removeItem('ezy_admin_tok'); }catch(e){} location.reload(); }
+async function loadList(){
+  const company = $('filterCompany').value;
+  $('list').innerHTML='<div class="muted">Memuatkan…</div>';
+  try{
+    const r=await fetch(WORKER+'/staff/admin/list'+(company?('?company='+encodeURIComponent(company)):''),
+      {headers:{'Authorization':'Bearer '+getTok()}});
+    if(r.status===401){
+      $('list').innerHTML='';
+      msg($('adminMsg'),'Akaun '+(meEmail||'ini')+' bukan admin yang dibenarkan. Hanya keyrooll@gmail.com boleh lulus staff. Klik "Tukar akaun" & log masuk sebagai admin.','err');
+      return;
+    }
+    const d=await r.json(); const staff=d.staff||[];
+    msg($('adminMsg'),'','');
+    render(staff);
+  }catch(e){ $('list').innerHTML='<div class="muted">Gagal memuatkan.</div>'; }
+}
+function render(staff){
+  if(!staff.length){ $('list').innerHTML='<div class="muted">Tiada staff.</div>'; return; }
+  const order={pending:0,approved:1,rejected:2};
+  staff.sort((a,b)=>(order[a.status]??9)-(order[b.status]??9));
+  const groups={pending:[],approved:[],rejected:[]};
+  staff.forEach(s=>(groups[s.status]||(groups[s.status]=[])).push(s));
+  const label={pending:'Menunggu kelulusan',approved:'Diluluskan',rejected:'Ditolak'};
+  let html='';
+  ['pending','approved','rejected'].forEach(st=>{
+    const g=groups[st]; if(!g||!g.length) return;
+    html += `<div class="sec">${label[st]} (${g.length})</div>`;
+    html += g.map(s=>row(s)).join('');
+  });
+  $('list').innerHTML=html;
+}
+function branchOptionsFor(companyId, selected){
+  const b=(COMPANIES[companyId]||{}).branches||[];
+  return b.map(x=>`<option value="${x}"${x===selected?' selected':''}>${x}</option>`).join('');
+}
+function onCoChange(sel){
+  const email=sel.getAttribute('data-email');
+  const br=document.querySelector('.brSel[data-email="'+CSS.escape(email)+'"]');
+  if(br) br.innerHTML=branchOptionsFor(sel.value,'');
+}
+function row(s){
+  const em=s.email.replace(/'/g,"\\'");
+  const badge=`<span class="badge ${s.status}">${({pending:'Menunggu',approved:'Lulus',rejected:'Tolak'})[s.status]||s.status}</span>`;
+  const info=`<div class="info"><b>${s.name||s.email}</b><div class="m">${s.email}${s.company?(' · '+coName(s.company)):''}${s.branch?(' · '+s.branch):''}</div></div>`;
+  if(s.status!=='approved'){
+    // admin assigns the company (+ optional branch) when approving
+    const coSel=`<select class="coSel" data-email="${s.email}" onchange="onCoChange(this)" style="flex:1;min-width:140px"><option value="">— pilih syarikat —</option>${Object.keys(COMPANIES).map(id=>`<option value="${id}"${s.company===id?' selected':''}>${coName(id)}</option>`).join('')}</select>`;
+    const brSel=`<select class="brSel" data-email="${s.email}" style="flex:1;min-width:120px">${branchOptionsFor(s.company,s.branch)}</select>`;
+    const tolak = s.status==='pending' ? `<button class="btn sm no" onclick="act('${em}','rejected')">Tolak</button>` : '';
+    return `<div class="staff">${info}${badge}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:6px;align-items:center">
+        ${coSel}${brSel}<button class="btn sm ok" onclick="act('${em}','approved')">Lulus</button>${tolak}
+      </div></div>`;
+  }
+  return `<div class="staff">${info}${badge}<div style="display:flex;gap:6px"><button class="btn sm no" onclick="act('${em}','rejected')">Tarik balik</button></div></div>`;
+}
+async function act(email, status){
+  let company='', branch='';
+  if(status==='approved'){
+    const co=document.querySelector('.coSel[data-email="'+CSS.escape(email)+'"]');
+    const br=document.querySelector('.brSel[data-email="'+CSS.escape(email)+'"]');
+    company = co ? co.value : '';
+    branch = br ? br.value : '';
+    if(!company){ msg($('adminMsg'),'Pilih syarikat untuk '+email+' dahulu','err'); return; }
+  }
+  msg($('adminMsg'),'Mengemaskini…','warn');
+  try{
+    const r=await fetch(WORKER+'/staff/admin/approve',{method:'POST',
+      headers:{'Authorization':'Bearer '+getTok(),'Content-Type':'application/json'},
+      body:JSON.stringify({email, status, company, branch})});
+    const d=await r.json();
+    if(r.ok){ msg($('adminMsg'),'✅ '+email+' → '+(status==='approved'?('diluluskan ('+coName(company)+')'):'ditolak'),'ok'); loadList(); }
+    else if(r.status===401){ msg($('adminMsg'),'Bukan admin / sesi tamat','err'); }
+    else { msg($('adminMsg'),d.error||'Gagal','err'); }
+  }catch(e){ msg($('adminMsg'),'Masalah sambungan','err'); }
+}
+window.act = act;
+$('refreshBtn').onclick = loadList;
+$('filterCompany').onchange = loadList;
+</script>
+</body>
+</html>

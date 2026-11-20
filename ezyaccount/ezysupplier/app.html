@@ -46,7 +46,7 @@ body{font-family:'Inter',sans-serif;background:#f9fafb;color:var(--dark);min-hei
 .screen.active{display:block}
 .screen-inner{padding:16px}
 /* LOGIN */
-#loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 32px;background:#f9fafb;position:relative}
+#loginScreen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 32px;background:#f9fafb;position:relative}
 .login-logo{width:180px;height:auto;margin-bottom:6px}
 .login-title{font-size:28px;font-weight:800;color:var(--dark);margin-bottom:28px;text-align:center}
 .login-sub{font-size:13px;color:var(--mid);margin-bottom:28px;text-align:center;letter-spacing:.2px}
@@ -196,6 +196,39 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
 <div class="app" id="app">
 
 <!-- LOGIN SCREEN -->
+<!-- BOOT SCREEN: neutral loading shown while auth resolves; prevents the login-screen
+     flash when entering from the dashboard with a valid token. Hidden automatically once a
+     real screen (app/pending/denied/login) appears; existing auth logic is untouched. -->
+<div id="bootScreen" style="position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f9fafb;z-index:9998">
+  <div style="font-size:26px;font-weight:800;color:#1a7a4a;letter-spacing:.5px">EzyAccount</div>
+  <div style="width:34px;height:34px;border:4px solid #e5e7eb;border-top-color:#1a7a4a;border-radius:50%;margin-top:16px;animation:_bootspin .8s linear infinite"></div>
+  <div style="margin-top:14px;font-size:13px;color:#6b7280">Memuatkan…</div>
+</div>
+<style>@keyframes _bootspin{to{transform:rotate(360deg)}}</style>
+<script>
+(function(){
+  function hideBoot(){var b=document.getElementById('bootScreen');if(b)b.style.display='none';}
+  function anyVisible(els){for(var i=0;i<els.length;i++){var d=getComputedStyle(els[i]).display;if(d&&d!=='none')return true;}return false;}
+  function watch(){
+    var els=['mainApp','pendingScreen','deniedScreen','loginScreen']
+      .map(function(id){return document.getElementById(id);}).filter(Boolean);
+    if(!els.length){hideBoot();return;}
+    if(anyVisible(els)){hideBoot();return;}
+    var obs=new MutationObserver(function(){if(anyVisible(els)){hideBoot();obs.disconnect();}});
+    els.forEach(function(el){obs.observe(el,{attributes:true,attributeFilter:['style']});});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',watch);else watch();
+  // Last resort: never trap the user on the spinner. If nothing has appeared after 15s,
+  // reveal the login screen so they always have an action.
+  setTimeout(function(){
+    var b=document.getElementById('bootScreen');
+    if(b&&b.style.display!=='none'){
+      var ls=document.getElementById('loginScreen'); if(ls) ls.style.display='flex';
+      hideBoot();
+    }
+  },15000);
+})();
+</script>
 <div id="loginScreen">
   <img src="data:image/jpeg;base64,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" alt="EzyAccount" class="login-logo">
   <div class="login-title" style="font-size:28px;font-weight:800;color:var(--dark);margin-bottom:4px">Receipt System</div>
@@ -205,7 +238,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
   <label class="kekal-row">
     <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
   </label>
-  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyAccount v3.53-1607/1906</div>
+  <div style="position:absolute;bottom:20px;font-size:11px;color:#bbb;letter-spacing:0.5px">EzyAccount v3.56-2251/2224</div>
 </div>
 
 <!-- PENDING SCREEN -->
@@ -233,7 +266,7 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
     <div class="header-left">
       <img id="headerCompanyLogo" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAgACADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD7HY4Un0Ga8+stR1y50XTtVu/FF1bNqFstyIbXQTOkYYA7cqrHjOOTk9a9Ak/1bf7p/lXl9jY3t/4I8Ita6fLcj+yYQzrbeaEJVev+kRY9eh+vavRwPJyvmtuuifR90znrXurf1t2Lth4p8SaL8Qz4b8Q2F7e6PeeUthrS2XlIJnX/AFT7eOSMA9QevByPRa8l8Y+J7PTtTsvDtnol3cWuiXMd3cXMUnlxq0Q8xlBfPA3jOWzlgB2r1SxuYbyxt7y3YtDPEssZIxlWAI/Q1zYnEUa8k6as1o7K17dbba9baE4eom5QUr2/r5kxGQRjINcPZ+E/EemWNvp+m+K9UjtLWNYoI/KtfkRRtUZMRJwvc9Ww3sb/AIv8INr+t6Zqa6rLbCxDDyCpZHJYMDwy4Py4PUFSR3rkk+Ft8IV0cat5VmdMuYp7uBTH5tzIHWKTytxwY/NlbIYA5QADbXXh1RjSb9qr72cb7X6v+tfJjqOblbl073/r+kaMvw0h1S7kn1++1K8890e4VZ0iS42cL5iRqAxA4yAD/TuNLvdMnQ22nXNs4twYzFEwzGFZo8Y6gBkZfqpHavKtV+BkFzcao1l4luLSC7hhit4TFI6W3liLAx5oDoDFuVWBALtndk56XwH8OI/C3iu58QnVEv7m7tJLeeSW0Cykm5knUhw3AAl2lcYOxSNuMVwSUG3JbvsrF06UYNtLc//Z" alt="" class="header-logo" style="width:32px;height:32px;border-radius:6px;object-fit:contain">
       <span class="header-title" id="headerCompanyName">EzyAccount</span>
-      <span style="font-size:9px;color:#9ca3af;margin-left:4px;letter-spacing:0.3px">v3.53-1607/1906</span>
+      <span style="font-size:9px;color:#9ca3af;margin-left:4px;letter-spacing:0.3px">v3.56-2251/2224</span>
     </div>
     <div class="header-right"><button onclick="window.location.href='../index.html'" title="Tukar Syarikat" style="background:none;border:1px solid #e5e7eb;border-radius:8px;font-size:12px;font-weight:500;color:#6b7280;cursor:pointer;padding:5px 10px;margin-right:4px">🏢 Tukar</button>
       <button id="btnRefresh" onclick="refreshAllData()" title="Refresh Data" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;line-height:1">🔄</button>
@@ -277,9 +310,16 @@ table.data-table td{padding:8px;border-bottom:1px solid var(--border);color:var(
           <input type="file" id="galleryInput" accept="image/*" onchange="handleFileSelect(event)" style="display:none">
           <input type="file" id="galleryExtraInput" accept="image/*" multiple onchange="handleExtraPages(event)" style="display:none">
           <button class="btn btn-primary btn-block" id="btnStep1Next" onclick="goStep(2)" disabled>Seterusnya</button>
+          <!-- STAFF-only -->
+          <div id="staffDraftBox" style="display:none">
+            <div class="form-group" id="draftBranchGroup"><label class="form-label">Cawangan</label><select class="form-input form-select" id="draftBranch"></select></div>
+            <button class="btn btn-primary btn-block" id="btnSubmitDraft" onclick="submitDraft()" disabled>Hantar Resit</button>
+            <div style="font-size:11px;color:var(--mid);text-align:center;margin-top:8px">📷 Snap &amp; hantar sahaja — accountant akan lengkapkan butiran.</div>
+          </div>
         </div>
         <!-- Step 2: Vendor -->
         <div id="wStep2" style="display:none">
+          <div id="draftCompleteBanner" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#92400e"></div>
           <div id="aiLoadingRow" class="loading-row">
             <div class="spinner"></div>
             <span>AI sedang menganalisis resit...</span>
@@ -1075,17 +1115,50 @@ function initGIS(){
 
 // doLogin() defined in INIT section below
 
+// ===== Stay logged in: silently top up the 1-hour Google token so nobody re-authorises =====
+let _authPhase = 'entering';   // 'entering' = getting into the app, 'active' = already inside
+let _renewTimer = null;
+let _renewInFlight = false;
+function scheduleSilentRenew(expiry){
+  if(_renewTimer) clearTimeout(_renewTimer);
+  const ms = Math.max(30000, (expiry - Date.now()) - 5*60000); // ~5 min before it expires
+  _renewTimer = setTimeout(()=>silentRenew(), ms);
+}
+function silentRenew(){
+  if(!gisReady || !tokenClient || _renewInFlight) return;
+  _renewInFlight = true;
+  try{ tokenClient.requestAccessToken({prompt:''}); }   // '' = no popup while a Google session exists
+  catch(e){ _renewInFlight=false; console.warn('silentRenew',e); onRenewFail(); }
+}
+function onRenewFail(){
+  // Couldn't refresh silently (signed out of Google / cleared cookies).
+  if(_authPhase==='entering') window.location.href='../index.html'; // need a real login
+  else showReconnectBar();                                          // already inside — offer reconnect
+}
+function showReconnectBar(){
+  if(document.getElementById('reconnectBar')) return;
+  const b=document.createElement('div');
+  b.id='reconnectBar';
+  b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#b91c1c;color:#fff;padding:10px 14px;text-align:center;font-size:14px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.25)';
+  b.innerHTML='Sesi Google tamat. <button onclick="doLogin()" style="margin-left:8px;background:#fff;color:#b91c1c;border:none;border-radius:6px;padding:6px 12px;font-weight:700;cursor:pointer">Sambung semula</button>';
+  document.body.appendChild(b);
+}
+function hideReconnectBar(){ const b=document.getElementById('reconnectBar'); if(b) b.remove(); }
+
 async function handleTokenResponse(resp){
-  if(resp.error){console.error(resp);return;}
+  _renewInFlight=false;
+  if(resp.error){ console.warn('token error',resp.error); onRenewFail(); return; }
   currentToken = resp.access_token;
   accessToken = resp.access_token;
   const expiry = Date.now() + (resp.expires_in||3599)*1000;
-  const kekal = document.getElementById('kekalCheck').checked;
-  if(kekal){
-    lsSet('ezy_token',currentToken);
-    lsSet('ezy_token_expiry',expiry);
-    lsSet('ezy_kekal',true);
-  }
+  // Always persist so login survives a browser restart — stay signed in until explicit Logout.
+  lsSet('ezy_token',currentToken);
+  lsSet('ezy_token_expiry',expiry);
+  lsSet('ezy_kekal',true);
+  hideReconnectBar();
+  scheduleSilentRenew(expiry);
+  if(_authPhase==='active' && currentUser) return; // background refresh only — don't re-init the app
+  _authPhase='active';
   await fetchAndSetUser();
 }
 
@@ -1162,41 +1235,54 @@ function autoLogin(){
   const token3 = sessionStorage.getItem('ezy_sess_token');  // index.html session
   const expiry3 = Number(sessionStorage.getItem('ezy_sess_expiry')||0);
 
-  let token = null;
-  if(token1 && expiry1 > Date.now()) token = token1;
-  else if(token2 && expiry2 > Date.now()) token = token2;
-  else if(token3 && expiry3 > Date.now()) token = token3;
+  let token = null, expiry = 0;
+  if(token1 && expiry1 > Date.now()){ token = token1; expiry = expiry1; }
+  else if(token2 && expiry2 > Date.now()){ token = token2; expiry = expiry2; }
+  else if(token3 && expiry3 > Date.now()){ token = token3; expiry = expiry3; }
 
   if(token && user){
     currentToken = token;
     accessToken = token;
-        fetchAndSetUser();
+    _authPhase = 'active';
+    fetchAndSetUser();
+    scheduleSilentRenew(expiry);
     return;
   }
 
-  // No valid token — redirect to index.html to login
+  // Token expired but we still remember the user → get a fresh one SILENTLY instead of
+  // forcing a re-login. Only fall back to the login page if that can't be done.
+  if(user){
+    _authPhase = 'entering';
+    if(gisReady && tokenClient){
+      silentRenew();
+      // Safety net: if no token arrives (Google session really gone), go log in.
+      setTimeout(()=>{ if(!currentToken && _authPhase==='entering') window.location.href='../index.html'; }, 6000);
+    }
+    // else: GIS not ready yet — onGISLoaded() calls autoLogin() again once it is.
+    return;
+  }
+
+  // No remembered user at all — go to the landing page to log in.
   window.location.href = '../index.html';
 }
 
-// Returns a valid token or null. Does NOT auto-refresh (avoid popup blocked errors).
+// Returns the current token. When it is within ~5 min of expiring, kick off a guarded silent
+// renewal in the background so API calls never hit an expired token (no popup, no re-login).
 function getValidToken(){
   if(!currentToken) return null;
-  // Check localStorage expiry first
-  const expiry = lsGet('ezy_token_expiry', 0);
-  if(expiry > Date.now() + 60000) return currentToken;
-  // Also check sessionStorage expiry (token from landing page)
-  const sessExpiry = Number(sessionStorage.getItem('ezy_sess_expiry')||0);
-  if(sessExpiry > Date.now() + 60000) return currentToken;
-  // Also check landing token expiry
-  const landingExpiry = lsGet('ezy_landing_expiry', 0);
-  if(landingExpiry > Date.now() + 60000) return currentToken;
-  // Token still in memory — trust it (Google token lasts 1hr from issue)
-  if(currentToken) return currentToken;
-  return null;
+  const exp = Math.max(
+    lsGet('ezy_token_expiry', 0),
+    Number(sessionStorage.getItem('ezy_sess_expiry')||0),
+    lsGet('ezy_landing_expiry', 0)
+  );
+  if(exp && exp - Date.now() < 5*60000) silentRenew(); // near/after expiry → refresh in background
+  return currentToken;
 }
 
 function logoutUser(){
   const tokenToRevoke=currentToken;
+  if(_renewTimer) clearTimeout(_renewTimer);   // stop silent renewal so logout really logs out
+  _authPhase='entering';
   currentToken=null;currentUser=null;currentRole=null;
   localStorage.removeItem('ezy_token');localStorage.removeItem('ezy_token_expiry');
   localStorage.removeItem('ezy_kekal');localStorage.removeItem('ezy_user');
@@ -1529,6 +1615,12 @@ function initWizard(){
   populateAccountSelects();
   wizardItems=[];
   addItemRow();
+  const isStaff=currentRole==='staff';
+  const draftBox=document.getElementById('staffDraftBox');
+  const nextBtn=document.getElementById('btnStep1Next');
+  if(draftBox) draftBox.style.display=isStaff?'block':'none';
+  if(nextBtn) nextBtn.style.display=isStaff?'none':'block';
+  if(isStaff) populateDraftBranch();
 }
 
 function renderWizardSteps(active){
@@ -1579,7 +1671,8 @@ function handleFileSelect(e){
     uploadedImage=base64;
     renderPageThumbs();
     document.getElementById('btnStep1Next').disabled=false;
-    setTimeout(()=>goStep(2), 400);
+    const ds=document.getElementById('btnSubmitDraft'); if(ds) ds.disabled=false;
+    if(currentRole!=='staff') setTimeout(()=>goStep(2), 400);
   });
 }
 
@@ -2185,6 +2278,74 @@ function renderReview(){
   document.getElementById('reviewContent').innerHTML=html;
 }
 
+function populateDraftBranch(){
+  const sel=document.getElementById('draftBranch'); if(!sel) return;
+  const branches=getStaffBranches(currentUser?currentUser.email:'');
+  const grp=document.getElementById('draftBranchGroup');
+  if(branches.length<=1){ if(grp) grp.style.display='none'; sel.innerHTML=`<option value="${branches[0]||''}">${branches[0]||''}</option>`; }
+  else { if(grp) grp.style.display='block'; sel.innerHTML=branches.map(b=>`<option value="${b}">${b}</option>`).join(''); }
+}
+async function submitDraft(){
+  const btn=document.getElementById('btnSubmitDraft');
+  if(!uploadedImage && !(uploadedPages&&uploadedPages.length)){ showToast('Sila ambil gambar resit dulu ⚠️'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Menghantar...'; }
+  const branch=document.getElementById('draftBranch')?.value || (getStaffBranches(currentUser.email)[0]||'');
+  const u=currentUser; const profile=getUserProfile(u.email); const uploadedBy=profile.fullname||u.name;
+  const date=new Date().toISOString().split('T')[0];
+  let driveLink='',filename='';
+  try{ const result=await uploadToDrive(uploadedImage,'Draf-Resit',date,0); driveLink=result.link||''; filename=result.filename||''; }
+  catch(e){ console.warn('Drive upload (draft):',e.message||e); }
+  const id='r'+Date.now()+Math.random().toString(36).substr(2,5);
+  const entry={ id,date,vendor:'',amount:0,items:'',itemDetails:[],category:'UNCLASSIFIED',account:'108',branch,
+    uploadedBy,uploadedEmail:u.email,uploadedAt:new Date().toISOString(),status:'Draf',approvedBy:'',driveLink,filename,nota:'',
+    payAkaunId:'',payAkaun:'',payType:'',payStatus:'Outstanding',dueDate:'',paidAt:'' };
+  const receipts=getReceipts(); receipts.push(entry); setReceipts(receipts);
+  // One resit row, status 'Draf', blank vendor/amount — accountant fills the rest.
+  const sheetRow=[toSheetDateText(date),'','',0,'108','UNCLASSIFIED',branch,uploadedBy,u.email,'Draf','',driveLink,'',id,'','Outstanding','',''];
+  try{ await appendToSheets([sheetRow], []); }catch(e){ console.warn('Sheets (draft):',e.message||e); }
+  if(btn){ btn.disabled=false; btn.textContent='Hantar Resit'; }
+  ['wStep1','wStep2','wStep3','wStep4'].forEach(idd=>{const el=document.getElementById(idd);if(el)el.style.display='none';});
+  document.getElementById('wSuccess').style.display='block';
+  const recentEl=document.getElementById('staffRecentTx');
+  if(recentEl){
+    const last5=getReceipts().slice().reverse().slice(0,5);
+    recentEl.innerHTML=`<div style="font-size:12px;font-weight:600;color:var(--mid);margin-bottom:8px">5 RESIT TERBARU</div>`+
+      last5.map(r=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <div><div style="font-weight:500">${r.vendor||'(belum lengkap)'}</div><div style="color:var(--mid)">${fmtDate(r.date)} · ${r.branch||'-'}</div></div>
+        <span class="status-badge status-${(r.status||'').toLowerCase()}" style="font-size:10px">${r.status}</span></div>`).join('');
+  }
+  showToast('Resit dihantar ✅ (accountant akan lengkapkan)');
+}
+async function appendItemRowsForReceipt(entry, itemDetails){
+  const token=accessToken||currentToken; if(!token||!itemDetails||!itemDetails.length) return;
+  const chk=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1`,{headers:{Authorization:'Bearer '+token}});
+  const chkD=await chk.json();
+  if(chkD.error){
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({requests:[{addSheet:{properties:{title:'resit_items'}}}]})});
+  }
+  if(chkD.error||!chkD.values||!chkD.values.length){
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A1:K1?valueInputOption=USER_ENTERED`,{method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values:[['ResitID','Supplier','Tarikh','Item','Kod','Qty','Harga','LineTotal','Kategori','Unit','Akaun']]})});
+  }
+  const itemRows=itemDetails.map(it=>[entry.id,entry.vendor||'',toSheetDateText(entry.date),it.name||'',it.code||'',it.qty||1,it.price||0,it.lineTotal||0,it.category||'',it.unit||'',it.account||'']);
+  await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/resit_items!A:K:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({values:itemRows})});
+}
+function completeDraft(id){
+  const r=getReceipts().find(x=>x.id===id); if(!r) return;
+  window._completingDraftId=id;
+  // Land on the upload screen, then jump straight to the vendor step (image already on file).
+  if(currentRole==='staff'){ switchNav('upload'); } else { switchTab('upload'); }
+  initWizard();
+  // Image lives on Drive (viewable via the banner); keep uploadedImage null so step 2 does NOT
+  // auto-run AI on a URL, and submitReceipt reuses the draft's driveLink instead of re-uploading.
+  uploadedImage=null; uploadedPages=[];
+  $val('receiptDate', r.date && dateSortKey(r.date) ? dateSortKey(r.date) : new Date().toISOString().split('T')[0]);
+  const bsel=document.getElementById('receiptBranch'); if(bsel && r.branch){ if(![...bsel.options].some(o=>o.value===r.branch)) bsel.add(new Option(r.branch,r.branch)); bsel.value=r.branch; }
+  goStep(2);
+  const banner=document.getElementById('draftCompleteBanner');
+  if(banner){ banner.style.display='block'; banner.innerHTML=`✏️ Melengkapkan draf oleh <b>${r.uploadedBy||'-'}</b> · ${fmtDate(r.date)}${r.driveLink?` · <button onclick="showReceiptImageModal('${r.driveLink}')" style="background:none;border:none;color:var(--green);cursor:pointer;padding:0;font-size:12px">📷 Lihat Gambar</button>`:''}`; }
+  showToast('Isi butiran, kemudian Simpan');
+}
+
 async function submitReceipt(){
   const btn=document.getElementById('btnSubmit');
   btn.disabled=true;btn.textContent='Menghantar...';
@@ -2204,13 +2365,14 @@ async function submitReceipt(){
   const profile=getUserProfile(u.email);
   const uploadedBy=profile.fullname||u.name;
 
-  // Upload to Google Drive
-  let driveLink='',filename='';
-  try{
-    const result=await uploadToDrive(uploadedImage,vendor?vendor.name:'Receipt',date,amount);
-    driveLink=result.link||'';filename=result.filename||'';
-  }catch(e){
-    console.warn('Drive upload skipped:',e.message||e);
+  const draftId=window._completingDraftId||'';
+  const draftRec=draftId?getReceipts().find(x=>x.id===draftId):null;
+  let driveLink=(draftRec&&draftRec.driveLink)||'',filename='';
+  if(!driveLink){
+    try{
+      const result=await uploadToDrive(uploadedImage,vendor?vendor.name:'Receipt',date,amount);
+      driveLink=result.link||'';filename=result.filename||'';
+    }catch(e){ console.warn('Drive upload skipped:',e.message||e); }
   }
 
   // Group by category - items as breakdown, receipt amount as total
@@ -2256,7 +2418,7 @@ async function submitReceipt(){
   const EXPENSE_CATS=['COGS','UTILITIES','RENTAL','RENOVATION','MARKETING','TRANSPORTATION','GAS','MANAGEMENT','OTHERS'];
   const primaryCat=vendor&&EXPENSE_CATS.includes(vendor.category)?vendor.category:(EXPENSE_CATS.includes(Object.keys(byCat)[0])?Object.keys(byCat)[0]:'COGS');
   const primaryAccount=vendor?vendor.account||'101':(Object.values(byCat)[0]?.account||'101');
-  const id='r'+Date.now()+Math.random().toString(36).substr(2,5);
+  const id=draftId||('r'+Date.now()+Math.random().toString(36).substr(2,5));
   const entry={
     id,date,vendor:vendor?vendor.name:'',amount:totalAmount,
     items:allItemDetails.map(i=>i.name).join(', ')||'',
@@ -2265,7 +2427,8 @@ async function submitReceipt(){
     uploadedBy,uploadedEmail:u.email,uploadedAt:new Date().toISOString(),
     status:'Pending',approvedBy:'',driveLink,filename,nota
   };
-  receipts.push(entry);
+  if(draftId){ const _i=receipts.findIndex(x=>x.id===draftId); if(_i>=0) receipts[_i]=entry; else receipts.push(entry); }
+  else receipts.push(entry);
   // Sheet resit: ONE row per receipt (total amount only)
   // Sheet 'resit' layout (matches the existing/old sheet header):
   // A=Tarikh, B=Vendor, C=Item(blank; items live in resit_items), D=Jumlah, E=Akaun,
@@ -2283,8 +2446,14 @@ async function submitReceipt(){
     setSuppliers(suppliers);
   }
 
-  // Append to Google Sheets
-  try{await appendToSheets(sheetRows, allItemDetails);}catch(e){console.warn('Sheets skip:',e.message||e);}
+  if(draftId){
+    try{ await syncReceiptRowToSheet(entry); await appendItemRowsForReceipt(entry, allItemDetails); }
+    catch(e){ console.warn('Draft complete sheet:',e.message||e); }
+    window._completingDraftId='';
+    const banner=document.getElementById('draftCompleteBanner'); if(banner) banner.style.display='none';
+  } else {
+    try{await appendToSheets(sheetRows, allItemDetails);}catch(e){console.warn('Sheets skip:',e.message||e);}
+  }
   // ItemRegistry sync disabled - create 'ItemRegistry' tab in sheet first
   // try{await syncItemRegistryToSheet();}catch(e){}
 
@@ -2998,7 +3167,7 @@ function renderBelianContent(tab){
   let receipts=getReceipts();
   const allR=receipts;
   const totalSpend=allR.reduce((a,r)=>a+parseFloat(r.amount||0),0);
-  const pendingCount=allR.filter(r=>r.status==='Pending').length;
+  const pendingCount=allR.filter(r=>r.status==='Pending'||r.status==='Draf').length;
   const approvedCount=allR.filter(r=>r.status==='Approved'||r.status==='Paid').length;
   const avg=allR.length?totalSpend/allR.length:0;
   const kpiHtml=`<div class="kpi-grid" style="margin-bottom:12px">
@@ -3007,7 +3176,7 @@ function renderBelianContent(tab){
     <div class="kpi-card" style="cursor:pointer" onclick="document.getElementById('beltab-Pending')?.click()"><div class="kpi-label">Pending Approval</div><div class="kpi-value" style="color:var(--amber)">${pendingCount}</div></div>
     <div class="kpi-card"><div class="kpi-label">RM Purata Resit</div><div class="kpi-value" style="font-size:14px">${formatRM(avg)}</div></div>
   </div>`;
-  if(tab==='Pending') receipts=receipts.filter(r=>r.status==='Pending');
+  if(tab==='Pending') receipts=receipts.filter(r=>r.status==='Pending'||r.status==='Draf');
   else if(tab==='Approved') receipts=receipts.filter(r=>r.status==='Approved'||r.status==='Paid');
   let html=kpiHtml;
   if(!receipts.length){
@@ -3024,7 +3193,7 @@ function renderResitContent(tab){
   // KPI summary (all receipts, not filtered by tab)
   const allR=receipts;
   const totalSpend=allR.reduce((a,r)=>a+parseFloat(r.amount||0),0);
-  const pendingCount=allR.filter(r=>r.status==='Pending').length;
+  const pendingCount=allR.filter(r=>r.status==='Pending'||r.status==='Draf').length;
   const approvedCount=allR.filter(r=>r.status==='Approved'||r.status==='Paid').length;
   const paidCount=allR.filter(r=>r.status==='Paid').length;
   const avg=allR.length?totalSpend/allR.length:0;
@@ -3034,7 +3203,7 @@ function renderResitContent(tab){
     <div class="kpi-card" style="cursor:pointer" onclick="document.getElementById('restab-Pending')?.click()"><div class="kpi-label">Pending Approval</div><div class="kpi-value" style="color:var(--amber)">${pendingCount}</div></div>
     <div class="kpi-card"><div class="kpi-label">RM Purata Resit</div><div class="kpi-value" style="font-size:14px">${formatRM(avg)}</div></div>
   </div>`;
-  if(tab==='Pending') receipts=receipts.filter(r=>r.status==='Pending');
+  if(tab==='Pending') receipts=receipts.filter(r=>r.status==='Pending'||r.status==='Draf');
   else if(tab==='Approved') receipts=receipts.filter(r=>r.status==='Approved'||r.status==='Paid');
   // 'All' shows all
   let html=kpiHtml;
@@ -3068,6 +3237,7 @@ function renderResitContent(tab){
 
 function renderReceiptCard(r, tab){
   const canAct=(currentRole==='accountant'||currentRole==='super_admin')&&r.status==='Pending';
+  const canComplete=(currentRole==='accountant'||currentRole==='super_admin')&&r.status==='Draf';
   const statusClass=r.status==='Pending'?'status-pending':r.status==='Approved'?'status-approved':r.status==='Paid'?'status-paid':'status-rejected';
   const hasItems=r.itemDetails&&r.itemDetails.length>0;
   const itemsHtml=hasItems?`
@@ -3093,7 +3263,7 @@ function renderReceiptCard(r, tab){
   return `<div class="receipt-card" id="card-${r.id}">
     <div class="receipt-header" onclick="toggleReceiptItems('${r.id}')" style="cursor:${hasItems?'pointer':'default'}">
       <div>
-        <div class="receipt-vendor">${r.vendor}</div>
+        <div class="receipt-vendor">${r.vendor||'<span style="color:#d97706">⚠️ Belum lengkap</span>'}</div>
         <span class="status-badge ${statusClass}">${r.status}</span>
       </div>
       <div style="text-align:right">
@@ -3107,6 +3277,7 @@ function renderReceiptCard(r, tab){
     ${!hasItems&&r.driveLink?`<div class="receipt-meta"><button onclick="showReceiptImageModal('${r.driveLink}')" style="background:none;border:none;color:var(--green);cursor:pointer;padding:0;font-size:13px">📷 Lihat Gambar</button></div>`:''}
     ${itemsHtml}
     <div class="receipt-actions" style="justify-content:flex-end">
+      ${canComplete?`<button class="btn btn-primary btn-sm" onclick="completeDraft('${r.id}')">✏️ Lengkapkan</button>`:''}
       ${canAct?`
       <button class="btn btn-success btn-sm" onclick="approveReceipt('${r.id}')">Lulus</button>
       <button class="btn btn-danger btn-sm" onclick="rejectReceipt('${r.id}')">Tolak</button>`:''}

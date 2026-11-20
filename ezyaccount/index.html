@@ -191,6 +191,32 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Atom loader: 3 tilted orbits + 3 round glossy balls (offset-path keeps them round). */
+    .atomldr{width:120px;height:120px;position:relative}
+    .atomldr .orb{position:absolute;inset:0}
+    .atomldr .orb.o2{transform:rotate(60deg)}
+    .atomldr .orb.o3{transform:rotate(120deg)}
+    .atomldr .rng{display:none}
+    .atomldr .el{position:absolute;width:14px;height:14px;border-radius:50%;
+      offset-path:path("M 8 60 A 52 18 0 1 1 112 60 A 52 18 0 1 1 8 60");offset-rotate:0deg;
+      background:radial-gradient(circle at 32% 27%, #ececec 0%, #8a8a8a 38%, #171717 100%);
+      box-shadow:inset -2px -2px 4px rgba(0,0,0,.5), 0 1px 2px rgba(0,0,0,.25);
+      animation:atomride 1.9s linear infinite, atomdepth 1.9s linear infinite}
+    .atomldr .orb.o2 .el{animation-delay:-.63s,-.63s}
+    .atomldr .orb.o3 .el{animation-delay:-1.26s,-1.26s}
+    @keyframes atomride{to{offset-distance:100%}}
+    /* Depth only (no scaling — balls stay one size): front half of the orbit sits above the
+       logo (z-index 6 > logo's 5), back half sits behind it (z-index 4). Flip points are at the
+       ellipse's far left/right extremes, so the swap never happens over the logo. */
+    @keyframes atomdepth{0%,49.9%{z-index:6}50%,100%{z-index:4}}
+    .atomldr .nuc{position:absolute;top:50%;left:50%;width:18px;height:18px;margin:-9px;border-radius:50%;z-index:5;
+      background:radial-gradient(circle at 32% 27%, #6fd39a 0%, #1a7a4a 55%, #0f4a2c 100%);
+      box-shadow:inset -2px -2px 4px rgba(0,0,0,.35)}
+    /* Login: the main logo sits in the centre of the atom; balls stay one size and orbit in front of it. */
+    .login-atom{transform:scale(.9);margin:2px 0 14px}
+    .atomldr .main-logo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      width:72px;height:72px;object-fit:contain;border-radius:50%;background:#f9fafb;margin:0;z-index:5}
+
     .footer {
       margin-top: 36px;
       font-size: 11px;
@@ -202,7 +228,12 @@
 
 <!-- LOGIN -->
 <div id="loginScreen">
-  <img class="main-logo" src="data:image/jpeg;base64,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" alt="EzySystem">
+  <div class="atomldr login-atom">
+    <div class="orb o1"><div class="rng"></div><div class="el"></div></div>
+    <div class="orb o2"><div class="rng"></div><div class="el"></div></div>
+    <div class="orb o3"><div class="rng"></div><div class="el"></div></div>
+    <img class="main-logo" src="data:image/jpeg;base64,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" alt="EzySystem">
+  </div>
   <div id="loginFallback" style="display:none;font-size:30px;font-weight:800;color:#1a7a4a;margin-bottom:12px">
     ezy<span style="color:#333">account</span>
   </div>
@@ -217,14 +248,58 @@
     Log Masuk dengan Google
   </button>
   <label class="kekal-row">
-    <input type="checkbox" id="kekalCheck"> Kekal Log Masuk
+    <input type="checkbox" id="kekalCheck" checked> Kekal Log Masuk
   </label>
   <div class="login-loading" id="loginLoading">⏳ Sedang log masuk...</div>
+  <div style="margin-top:18px;padding-top:14px;border-top:1px solid #eee;text-align:center">
+    <a id="emailLoginToggle" style="font-size:13px;color:#1a7a4a;font-weight:600;text-decoration:none;cursor:pointer">👤 Log Masuk dengan Email</a>
+    <div id="emailLoginForm" style="display:none;margin-top:12px;text-align:left">
+      <input id="elEmail" type="email" autocomplete="username" placeholder="email@contoh.com" style="width:100%;padding:11px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:15px;margin-bottom:8px">
+      <input id="elPass" type="password" autocomplete="current-password" placeholder="password" style="width:100%;padding:11px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:15px">
+      <button id="elBtn" style="width:100%;padding:12px;border:none;border-radius:10px;background:#1a7a4a;color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px">Log Masuk</button>
+      <div id="elMsg" style="font-size:13px;margin-top:10px;display:none"></div>
+      <div style="text-align:center;margin-top:10px;font-size:12px;color:#6b7280">Belum ada akaun? <a href="staff.html" style="color:#1a7a4a;font-weight:600">Daftar di sini</a></div>
+    </div>
+  </div>
 </div>
+<script>
+(function(){
+  const EMAIL_WORKER='https://ezyaccount-staff.keyrooll.workers.dev';
+  const tgl=document.getElementById('emailLoginToggle'), frm=document.getElementById('emailLoginForm');
+  if(tgl&&frm) tgl.onclick=()=>{ frm.style.display = frm.style.display==='none'?'block':'none'; const e=document.getElementById('elEmail'); if(e&&frm.style.display!=='none') e.focus(); };
+  const btn=document.getElementById('elBtn');
+  const msgEl=document.getElementById('elMsg');
+  const show=(t,c)=>{ if(!msgEl)return; msgEl.style.display='block'; msgEl.style.color=c; msgEl.textContent=t; };
+  async function doEmailLogin(){
+    const email=(document.getElementById('elEmail').value||'').trim(), password=document.getElementById('elPass').value;
+    if(!email||!password){ show('Isi email & password','#b91c1c'); return; }
+    btn.disabled=true; show('Memeriksa…','#b45309');
+    try{
+      const r=await fetch(EMAIL_WORKER+'/staff/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+      const d=await r.json();
+      if(r.ok && d.token){
+        try{ localStorage.setItem('ezy_email_jwt', d.token); }catch(e){}
+        const company=(d.staff&&d.staff.company)||'';
+        if(company){ show('Berjaya, memuatkan…','#0f4a2c'); window.location.href = company+'/app.html'; }
+        else { show('Akaun belum ditetapkan syarikat oleh admin','#b91c1c'); btn.disabled=false; }
+      } else if(r.status===403 && d.pending){ show('Akaun menunggu kelulusan admin.','#b45309'); btn.disabled=false; }
+      else { show(d.error||'Gagal log masuk','#b91c1c'); btn.disabled=false; }
+    }catch(e){ show('Masalah sambungan','#b91c1c'); btn.disabled=false; }
+  }
+  if(btn) btn.onclick=doEmailLogin;
+  const pass=document.getElementById('elPass');
+  if(pass) pass.addEventListener('keydown',e=>{ if(e.key==='Enter') doEmailLogin(); });
+})();
+</script>
 
 <!-- LOADING -->
 <div id="loadingScreen">
-  <div class="spinner"></div>
+  <div class="atomldr login-atom">
+    <div class="orb o1"><div class="rng"></div><div class="el"></div></div>
+    <div class="orb o2"><div class="rng"></div><div class="el"></div></div>
+    <div class="orb o3"><div class="rng"></div><div class="el"></div></div>
+    <img class="main-logo" id="loadNuc" alt="">
+  </div>
   <div>Memuat maklumat...</div>
 </div>
 
@@ -270,7 +345,7 @@
   </div>
 </div>
 
-<div class="footer">EzyAccount · v3.6-1607/2108</div>
+<div class="footer">EzyAccount · v3.14-1503/1503</div>
 
 <script>
 const COMPANIES = [
@@ -344,6 +419,9 @@ function _doGISInit(){
 // If GIS already loaded before this script ran, init now
 if(window._gisLoaded) _doGISInit();
 
+// Reuse the login logo as the loading-screen atom nucleus (no duplicate base64).
+(function(){ const l=document.querySelector('#loginScreen .main-logo'); const n=document.getElementById('loadNuc'); if(l&&n) n.src=l.getAttribute('src'); })();
+
 function doLogin(){
   if(!gisReady||!tokenClient){
     setTimeout(()=>{if(gisReady&&tokenClient)tokenClient.requestAccessToken({prompt:'select_account'});},800);
@@ -353,11 +431,29 @@ function doLogin(){
   tokenClient.requestAccessToken({prompt:'select_account'});
 }
 
+// ===== Stay logged in: silently top up the 1-hour Google token so nobody re-authorises =====
+let _authPhase='entering';   // 'entering' = logging in, 'active' = already past login
+let _renewTimer=null, _renewInFlight=false;
+function scheduleSilentRenew(expiry){
+  if(_renewTimer) clearTimeout(_renewTimer);
+  const ms=Math.max(30000,(expiry-Date.now())-5*60000); // ~5 min before it expires
+  _renewTimer=setTimeout(()=>silentRenew(),ms);
+}
+function silentRenew(){
+  if(!gisReady||!tokenClient||_renewInFlight) return;
+  _renewInFlight=true;
+  try{ tokenClient.requestAccessToken({prompt:''}); }  // '' = no popup while a Google session exists
+  catch(e){ _renewInFlight=false; onRenewFail(); }
+}
+function onRenewFail(){ const l=document.getElementById('loginLoading'); if(l) l.style.display='none'; }
+
 async function handleTokenResponse(resp){
-  if(resp.error){document.getElementById('loginLoading').style.display='none';return;}
+  _renewInFlight=false;
+  if(resp.error){ onRenewFail(); return; }
   currentToken=resp.access_token;
   const expiry=Date.now()+(resp.expires_in||3599)*1000;
-  const kekal=document.getElementById('kekalCheck').checked;
+  const kekalEl=document.getElementById('kekalCheck');
+  const kekal=kekalEl?kekalEl.checked:true;
   // Always save token — localStorage if kekal, sessionStorage if not
   if(kekal){
     lsSet('ezy_landing_token',currentToken);
@@ -368,6 +464,9 @@ async function handleTokenResponse(resp){
     sessionStorage.setItem('ezy_sess_token',currentToken);
     sessionStorage.setItem('ezy_sess_expiry',String(expiry));
   }
+  scheduleSilentRenew(expiry);
+  if(_authPhase==='active') return; // background refresh — stay where we are
+  _authPhase='active';
   showScreen('loadingScreen');
   await fetchUser();
 }
@@ -397,11 +496,20 @@ function autoLogin(){
   const token2=sessionStorage.getItem('ezy_sess_token');
   const expiry2=Number(sessionStorage.getItem('ezy_sess_expiry')||0);
   
-  let token=null;
-  if(token1&&expiry1>Date.now()) token=token1;
-  else if(token2&&expiry2>Date.now()) token=token2;
-  
-  if(token&&user){currentToken=token;showCompanyScreen(user);}
+  let token=null, expiry=0;
+  if(token1&&expiry1>Date.now()){token=token1;expiry=expiry1;}
+  else if(token2&&expiry2>Date.now()){token=token2;expiry=expiry2;}
+
+  if(token&&user){
+    currentToken=token; _authPhase='active';
+    showCompanyScreen(user);
+    scheduleSilentRenew(expiry);
+    return;
+  }
+  // Token expired but the user is remembered → get a fresh one SILENTLY instead of a re-login.
+  _authPhase='entering';
+  if(gisReady&&tokenClient) silentRenew();
+  // else: onGISLoaded()/_doGISInit() calls autoLogin() again once GIS is ready.
 }
 
 // Roles this user has (from the loaded registry): {companyId: role} for non-empty roles only.
@@ -607,10 +715,91 @@ async function ensureRegistryTab(){
 async function openStaffManager(){
   document.getElementById('staffOverlay').style.display='flex';
   document.getElementById('staffTableWrap').innerHTML='<div style="padding:30px;text-align:center;color:#6b7280">⏳ Memuatkan...</div>';
+  await fetchEmailStaff(); // email/password staff — rendered inside the main table
   try{ await ensureRegistryTab(); await loadRegistry(); renderStaffTable(); }
   catch(e){ document.getElementById('staffTableWrap').innerHTML='<div style="padding:20px;color:#dc2626">Gagal muat. Pastikan sheet dikongsi & anda super_admin.</div>'; }
 }
 function closeStaffManager(){ document.getElementById('staffOverlay').style.display='none'; }
+
+// ===== Email/password staff (ezyaccount-staff worker), shown in the same Urus Staff panel.
+// Uses the landing's own Google token (currentToken) — no separate login, so no OAuth hang. =====
+const STAFF_WORKER='https://ezyaccount-staff.keyrooll.workers.dev';
+const STAFF_COMPANIES={
+  ezybakery:{name:'Ezy Bakery',branches:['Bangi Cafe','Bangi Durian','Batu Caves','Putrajaya','Shah Alam','TTDI']},
+  ezycafe:{name:'Ezy Cafe',branches:['Ezy Cafe']},
+  ezydurian:{name:'Ezy Durian',branches:['Batu Caves','Shah Alam','Putrajaya','TTDI']},
+  ezydurianhq:{name:'Ezydurian HQ',branches:['Ezydurian HQ']},
+  ezysupplier:{name:'Ezy Supplier',branches:['Batu Caves','Shah Alam','Bangi Cafe','Bangi Durian','Putrajaya','TTDI','Bakery','Central Kitchen']},
+  ezybranch:{name:'Ezy Branch',branches:['Batu Caves','Shah Alam','Bangi Durian','Putrajaya','TTDI','Bakery']},
+  ezycashier:{name:'Ezy Cashier',branches:['Batu Caves','Bangi','Shah Alam']},
+  ezysentralkitchen:{name:'Ezy Sentral Kitchen',branches:['Central Kitchen']},
+};
+const _coName=(id)=>(STAFF_COMPANIES[id]||{}).name||id||'';
+const _brOpts=(co,sel)=>((STAFF_COMPANIES[co]||{}).branches||[]).map(b=>`<option value="${b}"${b===sel?' selected':''}>${b}</option>`).join('');
+function _onEmCo(sel){ const em=sel.getAttribute('data-email'); const br=document.querySelector('.emBr[data-email="'+CSS.escape(em)+'"]'); if(br) br.innerHTML=_brOpts(sel.value,''); }
+let _emailStaff=[], _emailStaffErr='';
+async function fetchEmailStaff(){
+  _emailStaff=[]; _emailStaffErr='';
+  try{
+    const r=await fetch(STAFF_WORKER+'/staff/admin/list',{headers:{Authorization:'Bearer '+currentToken}});
+    if(r.status===401){ _emailStaffErr='notadmin'; return; }
+    _emailStaff=((await r.json()).staff)||[];
+  }catch(e){ _emailStaffErr='conn'; }
+}
+// One email/password staff rendered as a row in the SAME table as Google staff: name +
+// a single company/branch assignment spanning the per-company columns + status + actions.
+function emailStaffRow(s){
+  const em=(s.email||'').replace(/'/g,"\\'");
+  const nm=(s.name||s.email||'').replace(/</g,'&lt;');
+  const roles=s.roles||{};
+  const badge = s.status==='approved'?'<span style="font-size:10px;color:#0f4a2c;font-weight:700">✓</span>':(s.status==='rejected'?'<span style="font-size:10px;color:#b91c1c;font-weight:700">✕</span>':'<span style="font-size:10px;color:#d97706;font-weight:700">⏳ pending</span>');
+  // Same per-company role dropdowns as Google staff — assign any role to any company.
+  return `<tr style="border-bottom:1px solid #f0f0f0;background:#f0fdf4">
+    <td style="padding:6px 8px"><div style="font-weight:600">${nm} <span style="font-size:10px;color:#2563eb">📧 email</span> ${badge}</div><div style="color:#6b7280;font-size:11px">${s.email}</div></td>
+    ${GROUP_COMPANIES.map(c=>{const val=(roles[c.id]||'').toLowerCase();return `<td style="padding:4px;text-align:center"><select onchange="updateEmailRole('${em}','${c.id}',this.value)" style="font-size:11px;padding:3px;border:1px solid #e5e7eb;border-radius:5px">${ROLE_OPTS.map(o=>`<option value="${o[0]}" ${val===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></td>`;}).join('')}
+    <td style="padding:4px;text-align:center"><button onclick="removeEmailStaff('${em}')" title="Tolak akaun" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:14px">✕</button></td>
+  </tr>`;
+}
+// Per-company role edits for email staff are buffered locally, then saved on "Simpan Semua"
+// (same as Google staff). Each change POSTs a {roles} map to the worker.
+function updateEmailRole(email, companyId, role){
+  const s=(_emailStaff||[]).find(x=>x.email===email); if(!s) return;
+  if(!s.roles) s.roles={};
+  if(role) s.roles[companyId]=role; else delete s.roles[companyId];
+  s._dirty=true;
+}
+async function removeEmailStaff(email){
+  if(!confirm('Tolak / tarik semua akses akaun email '+email+'?')) return;
+  try{
+    const r=await fetch(STAFF_WORKER+'/staff/admin/approve',{method:'POST',headers:{Authorization:'Bearer '+currentToken,'Content-Type':'application/json'},body:JSON.stringify({email,status:'rejected',roles:{}})});
+    if(!r.ok){ const d=await r.json().catch(()=>({})); alert(d.error||'Gagal'); return; }
+  }catch(e){ alert('Masalah sambungan'); return; }
+  await fetchEmailStaff(); renderStaffTable();
+}
+async function saveEmailStaffRoles(){
+  const dirty=(_emailStaff||[]).filter(s=>s._dirty);
+  for(const s of dirty){
+    try{
+      await fetch(STAFF_WORKER+'/staff/admin/approve',{method:'POST',headers:{Authorization:'Bearer '+currentToken,'Content-Type':'application/json'},body:JSON.stringify({email:s.email,roles:s.roles||{}})});
+      s._dirty=false;
+    }catch(e){ console.warn('save email role',e); }
+  }
+}
+async function approveEmailStaff(email, status){
+  let company='',branch='';
+  if(status==='approved'){
+    const co=document.querySelector('.emCo[data-email="'+CSS.escape(email)+'"]');
+    const br=document.querySelector('.emBr[data-email="'+CSS.escape(email)+'"]');
+    company=co?co.value:''; branch=br?br.value:'';
+    if(!company){ alert('Pilih syarikat untuk '+email+' dahulu'); return; }
+  } else { if(!confirm('Tolak / tarik balik '+email+'?')) return; }
+  try{
+    const r=await fetch(STAFF_WORKER+'/staff/admin/approve',{method:'POST',headers:{Authorization:'Bearer '+currentToken,'Content-Type':'application/json'},body:JSON.stringify({email,status,company,branch})});
+    const d=await r.json();
+    if(!r.ok){ alert(d.error||'Gagal'); return; }
+  }catch(e){ alert('Masalah sambungan'); return; }
+  await fetchEmailStaff(); renderStaffTable();
+}
 
 function renderStaffTable(){
   const rows=_registry.rows;
@@ -629,6 +818,13 @@ function renderStaffTable(){
       <td style="padding:4px;text-align:center"><button onclick="removeStaff(${i})" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:14px">✕</button></td>
     </tr>`;
   });
+  // Email/password staff — rendered in the SAME table so they are managed together.
+  if(typeof _emailStaffErr!=='undefined' && _emailStaffErr==='notadmin'){
+    html+=`<tr><td colspan="${GROUP_COMPANIES.length+2}" style="padding:10px;color:#b45309;font-size:11px;background:#fffbeb">📧 Staff email: akaun Google ini bukan admin backend (keyrooll@gmail.com) — tak dapat urus staff email di sini.</td></tr>`;
+  } else if(typeof _emailStaff!=='undefined' && _emailStaff.length){
+    html+=`<tr><td colspan="${GROUP_COMPANIES.length+2}" style="padding:8px;font-size:11px;font-weight:700;color:#2563eb;background:#eff6ff">📧 STAFF EMAIL/PASSWORD (${_emailStaff.length}) — login guna email, assign syarikat di sini</td></tr>`;
+    _emailStaff.slice().sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1)).forEach(s=>{ html+=emailStaffRow(s); });
+  }
   html+=`</tbody></table>`;
   document.getElementById('staffTableWrap').innerHTML=html;
 }
@@ -657,7 +853,7 @@ function addStaffRow(){
 async function saveStaffRegistry(){
   const btn=document.getElementById('btnSaveRegistry');
   btn.disabled=true; btn.textContent='Menyimpan...';
-  try{ await saveRegistry(); btn.textContent='✅ Disimpan'; setTimeout(()=>{btn.textContent='Simpan Semua';btn.disabled=false;},1500); }
+  try{ await saveRegistry(); await saveEmailStaffRoles(); btn.textContent='✅ Disimpan'; await fetchEmailStaff(); renderStaffTable(); setTimeout(()=>{btn.textContent='Simpan Semua';btn.disabled=false;},1500); }
   catch(e){ alert('Gagal simpan: '+e.message); btn.textContent='Simpan Semua'; btn.disabled=false; }
 }
 

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>EzyAccount Staff</title>
+<style>
+  :root{ --green:#1a7a4a; --green-d:#0f4a2c; --bg:#f9fafb; --card:#fff; --ink:#111827; --mid:#6b7280; --line:#e5e7eb; --red:#b91c1c; --amber:#b45309; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 14px 40px}
+  .wrap{width:100%;max-width:420px}
+  .brand{text-align:center;margin:10px 0 18px}
+  .brand b{font-size:26px;font-weight:800;color:var(--green)} .brand b span{color:#333}
+  .brand .sub{font-size:12px;color:var(--mid);margin-top:2px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  h2{font-size:16px;margin:0 0 14px}
+  label{display:block;font-size:12px;font-weight:600;color:var(--mid);margin:10px 0 4px}
+  input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff;color:var(--ink)}
+  input:focus,select:focus{outline:none;border-color:var(--green)}
+  .btn{width:100%;padding:12px;border:none;border-radius:10px;background:var(--green);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:16px}
+  .btn:disabled{opacity:.6}
+  .btn.ghost{background:#fff;color:var(--green);border:1px solid var(--green)}
+  .link{text-align:center;margin-top:14px;font-size:13px;color:var(--mid)}
+  .link a{color:var(--green);font-weight:600;text-decoration:none;cursor:pointer}
+  .msg{padding:10px 12px;border-radius:10px;font-size:13px;margin-top:12px;display:none}
+  .msg.err{background:#fee2e2;color:var(--red);display:block}
+  .msg.ok{background:#dcfce7;color:var(--green-d);display:block}
+  .msg.warn{background:#fef3c7;color:var(--amber);display:block}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .filebox{border:2px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--mid);font-size:13px;cursor:pointer;margin-top:4px}
+  .filebox.has{border-color:var(--green);color:var(--green)}
+  #preview{max-width:100%;max-height:200px;border-radius:10px;margin-top:10px;display:none}
+  .up{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
+  .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .badge.pending{background:#fef3c7;color:var(--amber)} .badge.flushed{background:#dcfce7;color:var(--green-d)}
+  .muted{color:var(--mid);font-size:12px}
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .top .who{font-size:13px} .top .who b{display:block;font-size:15px}
+  .logout{font-size:12px;color:var(--red);background:none;border:none;cursor:pointer;font-weight:600}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><b>ezy<span>Account</span></b><div class="sub">Staff · upload resit</div></div>
+
+  <!-- ===== AUTH ===== -->
+  <div class="card" id="authCard">
+    <!-- login -->
+    <div id="loginView">
+      <h2>Log Masuk Staff</h2>
+      <label>Email</label><input id="liEmail" type="email" autocomplete="username" placeholder="nama@email.com">
+      <label>Password</label><input id="liPass" type="password" autocomplete="current-password" placeholder="••••••">
+      <button class="btn" id="liBtn">Log Masuk</button>
+      <div class="msg" id="liMsg"></div>
+      <div class="link">Belum ada akaun? <a id="toReg">Daftar di sini</a></div>
+    </div>
+    <!-- register -->
+    <div id="regView" hidden>
+      <h2>Daftar Akaun Staff</h2>
+      <label>Nama</label><input id="rgName" placeholder="Nama penuh">
+      <label>Email</label><input id="rgEmail" type="email" autocomplete="username" placeholder="nama@email.com">
+      <label>Password <span class="muted">(min 6 aksara)</span></label><input id="rgPass" type="password" autocomplete="new-password" placeholder="••••••">
+      <p class="muted" style="margin:12px 0 0">Admin akan tetapkan syarikat & cawangan anda selepas meluluskan akaun.</p>
+      <button class="btn" id="rgBtn">Daftar</button>
+      <div class="msg" id="rgMsg"></div>
+      <div class="link">Dah ada akaun? <a id="toLogin">Log masuk</a></div>
+    </div>
+  </div>
+
+  <!-- ===== UPLOAD ===== -->
+  <div class="card" id="uploadCard" hidden>
+    <div class="top">
+      <div class="who"><span class="muted">Hai,</span><b id="uName">Staff</b><span class="muted" id="uCompany"></span></div>
+      <button class="logout" id="logoutBtn">Log Keluar</button>
+    </div>
+    <label>Cawangan</label><select id="upBranch"></select>
+    <label>Gambar resit</label>
+    <div class="filebox" id="fileBox">📷 Ketik untuk ambil / pilih gambar</div>
+    <input id="upFile" type="file" accept="image/*" capture="environment" hidden>
+    <img id="preview" alt="preview">
+    <div class="row">
+      <div style="flex:1"><label>Jumlah (RM) <span class="muted">pilihan</span></label><input id="upAmount" type="number" inputmode="decimal" placeholder="0.00"></div>
+    </div>
+    <label>Nota <span class="muted">pilihan</span></label><input id="upNote" placeholder="cth: beli tepung">
+    <button class="btn" id="upBtn" disabled>Hantar Resit</button>
+    <div class="msg" id="upMsg"></div>
+
+    <h2 style="margin-top:22px">Upload Saya</h2>
+    <div id="myList"><div class="muted">Memuatkan…</div></div>
+  </div>
+</div>
+
+<script>
+const WORKER = 'https://ezyaccount-staff.keyrooll.workers.dev';
+const COMPANIES = {
+  ezybakery:{name:'Ezy Bakery',branches:['Bangi Cafe','Bangi Durian','Batu Caves','Putrajaya','Shah Alam','TTDI']},
+  ezycafe:{name:'Ezy Cafe',branches:['Ezy Cafe']},
+  ezydurian:{name:'Ezy Durian',branches:['Batu Caves','Shah Alam','Putrajaya','TTDI']},
+  ezydurianhq:{name:'Ezydurian HQ',branches:['Ezydurian HQ']},
+  ezysupplier:{name:'Ezy Supplier',branches:['Batu Caves','Shah Alam','Bangi Cafe','Bangi Durian','Putrajaya','TTDI','Bakery','Central Kitchen']},
+  ezybranch:{name:'Ezy Branch',branches:['Batu Caves','Shah Alam','Bangi Durian','Putrajaya','TTDI','Bakery']},
+  ezycashier:{name:'Ezy Cashier',branches:['Batu Caves','Bangi','Shah Alam']},
+  ezysentralkitchen:{name:'Ezy Sentral Kitchen',branches:['Central Kitchen']},
+};
+const $ = (id)=>document.getElementById(id);
+const show = (el,on)=>{ el.hidden = !on; };
+function msg(el,text,kind){ el.className='msg '+(kind||''); el.textContent=text||''; if(!text) el.className='msg'; }
+
+// ---- session ----
+function getJwt(){ try{ return localStorage.getItem('ezy_staff_jwt')||''; }catch(e){ return ''; } }
+function getInfo(){ try{ return JSON.parse(localStorage.getItem('ezy_staff_info')||'{}'); }catch(e){ return {}; } }
+function jwtExp(t){ try{ return (JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp||0)*1000; }catch(e){ return 0; } }
+function sessionValid(){ const t=getJwt(); return t && jwtExp(t) > Date.now(); }
+function saveSession(token, staff){ localStorage.setItem('ezy_staff_jwt',token); localStorage.setItem('ezy_staff_info',JSON.stringify(staff||{})); }
+function clearSession(){ localStorage.removeItem('ezy_staff_jwt'); localStorage.removeItem('ezy_staff_info'); }
+
+// ---- company/branch selects ----
+function fillCompanies(sel){ sel.innerHTML = Object.keys(COMPANIES).map(id=>`<option value="${id}">${COMPANIES[id].name}</option>`).join(''); }
+function fillBranches(sel, companyId, selected){
+  const b = (COMPANIES[companyId]||{}).branches||[];
+  sel.innerHTML = b.map(x=>`<option value="${x}"${x===selected?' selected':''}>${x}</option>`).join('');
+}
+
+// ---- views ----
+function showAuth(){ show($('authCard'),true); show($('uploadCard'),false); }
+function showUpload(){
+  const info=getInfo();
+  $('uName').textContent = info.name || info.email || 'Staff';
+  $('uCompany').textContent = (COMPANIES[info.company]||{}).name || info.company || '';
+  fillBranches($('upBranch'), info.company, info.branch);
+  show($('authCard'),false); show($('uploadCard'),true);
+  loadMyUploads();
+}
+function route(){ if(sessionValid()) showUpload(); else { clearSession(); showAuth(); } }
+
+// ---- login ----
+$('liBtn').onclick = async ()=>{
+  const email=$('liEmail').value.trim(), password=$('liPass').value;
+  if(!email||!password){ msg($('liMsg'),'Isi email & password','err'); return; }
+  $('liBtn').disabled=true; msg($('liMsg'),'Memeriksa…','warn');
+  try{
+    const r=await fetch(WORKER+'/staff/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const d=await r.json();
+    if(r.ok && d.token){ saveSession(d.token,d.staff); msg($('liMsg'),'',''); showUpload(); }
+    else if(r.status===403 && d.pending){ msg($('liMsg'),'Akaun anda menunggu kelulusan admin.','warn'); }
+    else { msg($('liMsg'),d.error||'Gagal log masuk','err'); }
+  }catch(e){ msg($('liMsg'),'Masalah sambungan','err'); }
+  $('liBtn').disabled=false;
+};
+
+// ---- register ----
+$('rgBtn').onclick = async ()=>{
+  const name=$('rgName').value.trim(), email=$('rgEmail').value.trim(), password=$('rgPass').value;
+  if(!name||!email||!password){ msg($('rgMsg'),'Lengkapkan semua ruangan','err'); return; }
+  if(password.length<6){ msg($('rgMsg'),'Password minimum 6 aksara','err'); return; }
+  $('rgBtn').disabled=true; msg($('rgMsg'),'Mendaftar…','warn');
+  try{
+    const r=await fetch(WORKER+'/staff/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,password})});
+    const d=await r.json();
+    if(r.ok){ msg($('rgMsg'),'✅ Daftar berjaya! Menunggu kelulusan admin. Anda boleh log masuk selepas diluluskan.','ok'); }
+    else { msg($('rgMsg'),d.error||'Gagal daftar','err'); }
+  }catch(e){ msg($('rgMsg'),'Masalah sambungan','err'); }
+  $('rgBtn').disabled=false;
+};
+
+// ---- toggle auth views ----
+$('toReg').onclick = ()=>{ show($('loginView'),false); show($('regView'),true); };
+$('toLogin').onclick = ()=>{ show($('regView'),false); show($('loginView'),true); };
+
+// ---- image pick + downscale ----
+let uploadBlob=null;
+$('fileBox').onclick = ()=> $('upFile').click();
+$('upFile').onchange = async (e)=>{
+  const file=e.target.files[0]; if(!file) return;
+  msg($('upMsg'),'Memproses gambar…','warn');
+  try{
+    uploadBlob = await downscale(file, 1600, 0.8);
+    const url=URL.createObjectURL(uploadBlob);
+    $('preview').src=url; $('preview').style.display='block';
+    $('fileBox').classList.add('has'); $('fileBox').textContent='✅ Gambar sedia ('+Math.round(uploadBlob.size/1024)+' KB)';
+    $('upBtn').disabled=false; msg($('upMsg'),'','');
+  }catch(err){ uploadBlob=file; $('upBtn').disabled=false; msg($('upMsg'),'',''); }
+};
+function downscale(file, maxDim, quality){
+  return new Promise((resolve,reject)=>{
+    const img=new Image(); const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      let {width:w,height:h}=img;
+      if(Math.max(w,h)>maxDim){ const s=maxDim/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      c.toBlob(b=> b?resolve(b):reject(new Error('blob')), 'image/jpeg', quality);
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('img')); };
+    img.src=url;
+  });
+}
+
+// ---- upload ----
+$('upBtn').onclick = async ()=>{
+  if(!uploadBlob){ msg($('upMsg'),'Pilih gambar dulu','err'); return; }
+  const fd=new FormData();
+  fd.append('image', uploadBlob, 'resit.jpg');
+  fd.append('branch', $('upBranch').value);
+  if($('upAmount').value) fd.append('amount', $('upAmount').value);
+  if($('upNote').value) fd.append('note', $('upNote').value.trim());
+  $('upBtn').disabled=true; msg($('upMsg'),'Menghantar…','warn');
+  try{
+    const r=await fetch(WORKER+'/staff/upload',{method:'POST',headers:{'Authorization':'Bearer '+getJwt()},body:fd});
+    const d=await r.json();
+    if(r.ok){
+      msg($('upMsg'),'✅ Resit dihantar! Akauntan akan proses.','ok');
+      uploadBlob=null; $('preview').style.display='none'; $('upFile').value='';
+      $('fileBox').classList.remove('has'); $('fileBox').textContent='📷 Ketik untuk ambil / pilih gambar';
+      $('upAmount').value=''; $('upNote').value='';
+      loadMyUploads();
+    } else if(r.status===401){ msg($('upMsg'),'Sesi tamat. Sila log masuk semula.','err'); setTimeout(()=>{clearSession();route();},1500); }
+    else { msg($('upMsg'),d.error||'Gagal hantar','err'); }
+  }catch(e){ msg($('upMsg'),'Masalah sambungan','err'); }
+  $('upBtn').disabled=false;
+};
+
+// ---- my uploads ----
+async function loadMyUploads(){
+  try{
+    const r=await fetch(WORKER+'/staff/my-uploads',{headers:{'Authorization':'Bearer '+getJwt()}});
+    if(r.status===401){ clearSession(); route(); return; }
+    const d=await r.json(); const list=d.uploads||[];
+    if(!list.length){ $('myList').innerHTML='<div class="muted">Belum ada upload.</div>'; return; }
+    $('myList').innerHTML = list.map(u=>{
+      const dt=new Date(u.created_at); const when=isNaN(dt)?'':dt.toLocaleString('ms-MY',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const amt=u.amount?('RM'+Number(u.amount).toFixed(2)):'';
+      const st=u.status==='flushed'?'<span class="badge flushed">Diproses</span>':'<span class="badge pending">Menunggu</span>';
+      return `<div class="up"><div style="flex:1"><div>${u.branch||''} ${amt?'· '+amt:''}</div><div class="muted">${when} ${u.note?('· '+u.note):''}</div></div>${st}</div>`;
+    }).join('');
+  }catch(e){ $('myList').innerHTML='<div class="muted">Gagal memuatkan.</div>'; }
+}
+
+$('logoutBtn').onclick = ()=>{ clearSession(); location.reload(); };
+
+// ---- init ----
+route();
+</script>
+</body>
+</html>

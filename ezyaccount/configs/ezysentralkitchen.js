@@ -17,6 +17,17 @@ const COMPANY_CONFIG = {
   branches: ['Central Kitchen'],
   branchColors: ['#ef4444'],
 
+  // Outlets the central kitchen supplies & invoices to (Bill To). Codes prefix the invoice no.
+  branchAddresses: {
+    'Batu Caves': 'Ezydurian Batu Caves HQ\n1, Jalan TIB 1/13, Taman Industri Bolton, 68100 Batu Caves, Selangor',
+    'Shah Alam': 'Ezydurian Shah Alam\n27, Jalan Opera E U2/E, Taman TTDI Jaya, 40150 Shah Alam, Selangor',
+    'Bangi Durian': 'Ezydurian Bangi\nJalan 3/69, Persiaran Universiti, Seksyen 3 Bandar Baru Bangi, Bandar Baru Bangi, Selangor',
+    'Putrajaya': 'Ezydurian Putrajaya\nTaman Warisan Pertanian Putrajaya, Jalan P16, Presint 16, 62000 Putrajaya',
+    'TTDI': 'Ezydurian TTDI\n34, Jalan Datuk Sulaiman, Taman Tun Dr Ismail, 60000 Kuala Lumpur',
+    'Bakery': 'Ezybakery\n1, Jalan TIB 1/13, Taman Industri Bolton, 68100 Batu Caves, Selangor',
+  },
+  branchCodes: { 'Bangi Durian':'BG', 'Shah Alam':'SA', 'Putrajaya':'PJ', 'TTDI':'TTDI', 'Batu Caves':'BC', 'Bakery':'BK' },
+
   categories: ['COGS','UTILITIES','RENTAL','RENOVATION','MARKETING','TRANSPORTATION','GAS','MANAGEMENT','OTHERS'],
   catEmoji: {COGS:'🛒',UTILITIES:'💡',RENTAL:'🏠',RENOVATION:'🔨',MARKETING:'📣',TRANSPORTATION:'🚗',GAS:'🔥',MANAGEMENT:'📋',OTHERS:'📦'},
   catColors: {'COGS':'#1a7a4a','UTILITIES':'#f59e0b','RENTAL':'#3b82f6','RENOVATION':'#8b5cf6','MARKETING':'#ec4899','TRANSPORTATION':'#6b7280','GAS':'#ef4444','MANAGEMENT':'#14b8a6','OTHERS':'#d97706'},
